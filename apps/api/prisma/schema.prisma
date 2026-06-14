@@ -1,0 +1,195 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  COMPLETED
+  ARCHIVED
+}
+
+enum TaskPriority {
+  IMPORTANT_URGENT
+  IMPORTANT_NOT_URGENT
+  NOT_IMPORTANT_URGENT
+  NOT_IMPORTANT_NOT_URGENT
+}
+
+enum RecurrenceFrequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
+}
+
+enum TaskExceptionStatus {
+  SKIPPED
+  COMPLETED
+  RESCHEDULED
+}
+
+enum PomodoroStatus {
+  RUNNING
+  COMPLETED
+  CANCELLED
+}
+
+enum UserGender {
+  PRIVATE
+  MALE
+  FEMALE
+  OTHER
+}
+
+model User {
+  id                 String                   @id @default(cuid())
+  email              String                   @unique
+  passwordHash       String
+  name               String?
+  gender             UserGender               @default(PRIVATE)
+  avatarPath         String?
+  emailVerifiedAt    DateTime?
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
+  tasks              Task[]
+  tags               Tag[]
+  refreshTokens      RefreshToken[]
+  emailTokens        EmailVerificationToken[]
+  passwordResetTokens PasswordResetToken[]
+  themePreference    UserThemePreference?
+  pomodoroSessions   PomodoroSession[]
+}
+
+model EmailVerificationToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Task {
+  id                String             @id @default(cuid())
+  userId            String
+  title             String
+  notes             String?            @db.Text
+  dueAt             DateTime?
+  priority          TaskPriority       @default(IMPORTANT_NOT_URGENT)
+  status            TaskStatus         @default(TODO)
+  completedAt       DateTime?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recurrenceRule    RecurrenceRule?
+  exceptions        TaskException[]
+  tags              TaskTag[]
+  pomodoroSessions  PomodoroSession[]
+
+  @@index([userId, dueAt])
+  @@index([userId, status])
+}
+
+model Tag {
+  id        String    @id @default(cuid())
+  userId    String
+  name      String
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tasks     TaskTag[]
+
+  @@unique([userId, name])
+}
+
+model TaskTag {
+  taskId String
+  tagId  String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, tagId])
+  @@index([tagId])
+}
+
+model RecurrenceRule {
+  id        String              @id @default(cuid())
+  taskId    String              @unique
+  frequency RecurrenceFrequency
+  interval  Int                 @default(1)
+  until     DateTime?
+  count     Int?
+  byWeekday Json?
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+  task      Task                @relation(fields: [taskId], references: [id], onDelete: Cascade)
+}
+
+model TaskException {
+  id              String              @id @default(cuid())
+  taskId          String
+  occurrenceDate  DateTime
+  status          TaskExceptionStatus
+  rescheduledDate DateTime?
+  createdAt       DateTime            @default(now())
+  task            Task                @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, occurrenceDate])
+  @@index([taskId])
+}
+
+model PomodoroSession {
+  id              String         @id @default(cuid())
+  userId          String
+  taskId          String
+  status          PomodoroStatus @default(RUNNING)
+  durationMinutes Int
+  actualMinutes   Int?
+  startedAt       DateTime       @default(now())
+  endedAt         DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task            Task           @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([userId, startedAt])
+  @@index([taskId, status])
+}
+
+model UserThemePreference {
+  userId    String   @id
+  themeId   String   @default("default")
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}

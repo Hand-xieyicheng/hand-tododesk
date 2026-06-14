@@ -1,0 +1,26 @@
+{
+  "name": "tododesk",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run build -w @todo/shared && npm run dev -w @todo/api & npm run dev -w @todo/desktop",
+    "dev:api": "npm run build -w @todo/shared && npm run dev -w @todo/api",
+    "dev:desktop": "npm run build -w @todo/shared && npm run dev -w @todo/desktop",
+    "build": "npm run build -w @todo/shared && npm run build -w @todo/api && npm run build -w @todo/desktop",
+    "typecheck": "npm run build -w @todo/shared && npm run typecheck -w @todo/api && npm run typecheck -w @todo/desktop",
+    "test": "npm run build -w @todo/shared && npm run test -w @todo/api && npm run test -w @todo/desktop",
+    "prisma:generate": "npm run prisma:generate -w @todo/api",
+    "prisma:migrate": "npm run prisma:migrate -w @todo/api"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
