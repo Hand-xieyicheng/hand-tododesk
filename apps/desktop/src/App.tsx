@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
-import type { ApiTask, ApiUser, FooterType as AppFooterType, ThemeId, TitleColor } from "@todo/shared";
+import type { ApiTask, ApiUser, FooterType as AppFooterType, TaskViewMode, ThemeId, TitleColor } from "@todo/shared";
 import { Button, Footer, Loading, Title } from "animal-island-ui";
 import { Bell, CalendarDays, CheckSquare2, Clock3, Eye, EyeOff, LayoutGrid, ListTodo, LogOut, Pin, Plus, UserRound } from "lucide-react";
 import { api, ApiError } from "./api/client";
@@ -14,7 +14,6 @@ import { applyTheme } from "./lib/themes";
 import { clearSession, getSavedUser, saveUser } from "./lib/authStorage";
 
 type View = "tasks" | "calendar" | "pomodoro" | "profile";
-type TaskViewMode = "list" | "quadrant";
 
 const navItems: Array<{ id: View; label: string; icon: typeof CheckSquare2 }> = [
   { id: "tasks", label: "待办事项", icon: CheckSquare2 },
@@ -64,7 +63,8 @@ export function App() {
           titleColor: "app-teal",
           footerVisible: true,
           footerType: "sea",
-          showCompletedTasks: true
+          showCompletedTasks: true,
+          taskViewMode: "list"
         }) as const),
         api.currentUser()
       ]);
@@ -76,6 +76,7 @@ export function App() {
       setFooterVisible(preference.footerVisible ?? true);
       setFooterType((preference.footerType ?? "sea") as AppFooterType);
       setShowCompletedTasks(preference.showCompletedTasks ?? true);
+      setTaskViewMode((preference.taskViewMode ?? "list") as TaskViewMode);
       localStorage.setItem("tododesk.theme", preference.themeId);
       applyTheme(preference.themeId);
     } catch (error) {
@@ -171,6 +172,13 @@ export function App() {
     });
   }
 
+  function handleTaskViewModeChanged(next: TaskViewMode) {
+    setTaskViewMode(next);
+    void api.setThemePreference({ taskViewMode: next }).catch((error) => {
+      setMessage(error instanceof Error ? error.message : "待办样式配置保存失败");
+    });
+  }
+
   async function openFloatingCard() {
     const query = "/?window=floating";
     try {
@@ -193,19 +201,23 @@ export function App() {
           <img className="brand-logo sidebar-brand-logo" src={todoDeskLogo} alt="todoDesk" />
         </div>
 
-        <nav className="nav-list">
+        <nav className="nav-list" aria-label="主要导航">
           {navItems.map((item) => {
             const Icon = item.icon;
+            const isActive = activeView === item.id;
             return (
               <Button
                 key={item.id}
                 block
-                className={activeView === item.id ? "nav-button is-active" : "nav-button"}
-                icon={<Icon size={18} />}
+                aria-current={isActive ? "page" : undefined}
+                className={isActive ? "nav-button is-active" : "nav-button"}
                 onClick={() => setActiveView(item.id)}
-                type={activeView === item.id ? "primary" : "text"}
+                type="text"
               >
-                {item.label}
+                <span className="nav-button-icon" aria-hidden="true">
+                  <Icon size={18} />
+                </span>
+                <span className="nav-button-label">{item.label}</span>
               </Button>
             );
           })}
@@ -213,7 +225,7 @@ export function App() {
 
         <div className="sidebar-footer">
           <div className="user-menu">
-            <button className="sidebar-user-card" type="button" aria-haspopup="menu" onClick={() => setActiveView("profile")}>
+            <button className={activeView === "profile" ? "sidebar-user-card is-active" : "sidebar-user-card"} type="button" aria-haspopup="menu" onClick={() => setActiveView("profile")}>
               <span className="sidebar-user-avatar">
                 {user.avatarUrl ? <img src={user.avatarUrl} alt={userDisplayName} /> : <span>{userInitial}</span>}
               </span>
@@ -270,7 +282,7 @@ export function App() {
                     icon={<ListTodo size={14} />}
                     size="small"
                     type={taskViewMode === "list" ? "primary" : "text"}
-                    onClick={() => setTaskViewMode("list")}
+                    onClick={() => handleTaskViewModeChanged("list")}
                   >
                     列表
                   </Button>
@@ -279,7 +291,7 @@ export function App() {
                     icon={<LayoutGrid size={14} />}
                     size="small"
                     type={taskViewMode === "quadrant" ? "primary" : "text"}
-                    onClick={() => setTaskViewMode("quadrant")}
+                    onClick={() => handleTaskViewModeChanged("quadrant")}
                   >
                     四象限
                   </Button>

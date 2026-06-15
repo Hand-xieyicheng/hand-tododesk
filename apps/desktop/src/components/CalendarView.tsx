@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { CalendarOccurrence, CalendarView as CalendarViewMode } from "@todo/shared";
-import { Button, Card } from "animal-island-ui";
+import { Button, Card, Tooltip } from "animal-island-ui";
 import { CalendarClock, ChevronLeft, ChevronRight, CheckCircle2 } from "lucide-react";
 import { api } from "../api/client";
 
@@ -13,6 +13,13 @@ const modes: Array<{ id: CalendarViewMode; label: string }> = [
   { id: "week", label: "周" },
   { id: "day", label: "日" }
 ];
+
+const statusLabels: Record<CalendarOccurrence["status"], string> = {
+  TODO: "未开始",
+  IN_PROGRESS: "进行中",
+  COMPLETED: "已完成",
+  ARCHIVED: "已归档"
+};
 
 function startOfDay(date: Date) {
   const next = new Date(date);
@@ -61,6 +68,13 @@ function isSameCalendarDate(left: Date, right: Date) {
   return left.getFullYear() === right.getFullYear()
     && left.getMonth() === right.getMonth()
     && left.getDate() === right.getDate();
+}
+
+function formatDueTime(value: string | null) {
+  if (!value) {
+    return null;
+  }
+  return new Date(value).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" });
 }
 
 export function CalendarView({ onChanged }: CalendarViewProps) {
@@ -112,6 +126,37 @@ export function CalendarView({ onChanged }: CalendarViewProps) {
     setCursor(new Date());
   }
 
+  function renderTaskTooltip(item: CalendarOccurrence) {
+    const dueTime = formatDueTime(item.dueAt);
+    const isDone = item.status === "COMPLETED";
+
+    return (
+      <div className="calendar-task-popover">
+        <div className="calendar-task-popover-title">{item.title}</div>
+        {item.task.notes ? <div className="calendar-task-popover-notes">{item.task.notes}</div> : null}
+        <div className="calendar-task-popover-meta">
+          <span>{statusLabels[item.status]}</span>
+          {dueTime ? <span>{dueTime}</span> : null}
+          {item.isRecurring ? <span>重复待办</span> : null}
+        </div>
+        <Button
+          className="calendar-task-popover-action"
+          disabled={isDone}
+          icon={isDone ? <CheckCircle2 size={14} /> : undefined}
+          size="small"
+          type={isDone ? "default" : "primary"}
+          onClick={() => {
+            if (!isDone) {
+              void complete(item);
+            }
+          }}
+        >
+          {isDone ? "已完成" : item.isRecurring ? "完成本次" : "标记完成"}
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <section className="calendar-panel">
       <div className="calendar-toolbar">
@@ -144,10 +189,9 @@ export function CalendarView({ onChanged }: CalendarViewProps) {
               </header>
               <div className="calendar-items">
                 {items.map((item) => (
-                  <Button block className={item.status === "COMPLETED" ? "calendar-task is-done" : "calendar-task"} key={item.id} type="text" onClick={() => complete(item)}>
-                    <span>{item.title}</span>
-                    {item.status === "COMPLETED" ? <CheckCircle2 size={14} /> : null}
-                  </Button>
+                  <Tooltip className="calendar-task-tooltip" key={item.id} placement="top-start" title={renderTaskTooltip(item)} trigger="hover" variant="island">
+                    <span className={item.status === "COMPLETED" ? "calendar-task is-done" : "calendar-task"}>{item.title}</span>
+                  </Tooltip>
                 ))}
               </div>
             </Card>

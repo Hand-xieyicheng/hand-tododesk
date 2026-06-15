@@ -1,10 +1,8 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import type { ApiTask, CreateTaskRequest, TaskPriority, TaskStatus } from "@todo/shared";
+import type { ApiTask, CreateTaskRequest, TaskPriority, TaskStatus, TaskViewMode } from "@todo/shared";
 import { Button, Card, Divider, Input, Modal, Select } from "animal-island-ui";
 import { Check, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { api } from "../api/client";
-
-export type TaskViewMode = "list" | "quadrant";
 
 interface TaskPanelProps {
   createOpen: boolean;

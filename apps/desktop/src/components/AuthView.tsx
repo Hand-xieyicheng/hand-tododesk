@@ -8,6 +8,12 @@ import { applyTheme } from "../lib/themes";
 
 type AuthMode = "login" | "register" | "forgot";
 
+const authModeActions: Array<{ mode: AuthMode; label: string }> = [
+  { mode: "login", label: "登录" },
+  { mode: "register", label: "注册" },
+  { mode: "forgot", label: "忘记密码" }
+];
+
 interface AuthViewProps {
   onAuthed(user: ApiUser): void;
 }
@@ -63,7 +69,7 @@ export function AuthView({ onAuthed }: AuthViewProps) {
       </div>
       <Card className="auth-panel" pattern="default">
         <div className="auth-card-header">
-          <Title size="small" color={mode === "login" ? "app-teal" : mode === "register" ? "app-yellow" : "app-orange"}>
+          <Title size="large" color={mode === "login" ? "app-teal" : mode === "register" ? "app-yellow" : "app-orange"}>
             {mode === "login" ? "登录" : mode === "register" ? "注册" : "忘记密码"}
           </Title>
         </div>
@@ -101,9 +107,13 @@ export function AuthView({ onAuthed }: AuthViewProps) {
         </form>
 
         <div className="auth-switcher">
-          <Button type={mode === "login" ? "primary" : "text"} onClick={() => setMode("login")}>登录</Button>
-          <Button type={mode === "register" ? "primary" : "text"} onClick={() => setMode("register")}>注册</Button>
-          <Button type={mode === "forgot" ? "primary" : "text"} onClick={() => setMode("forgot")}>忘记密码</Button>
+          {authModeActions
+            .filter((action) => action.mode !== mode)
+            .map((action) => (
+              <Button key={action.mode} type="text" onClick={() => setMode(action.mode)}>
+                {action.label}
+              </Button>
+            ))}
         </div>
       </Card>
     </div>
