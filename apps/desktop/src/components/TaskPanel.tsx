@@ -115,7 +115,7 @@ function TaskCard({ task, compact, displayMode, onDelete, onSetStatus }: TaskCar
       pattern="default"
     >
       {titleOnly ? (
-        <Tooltip className="task-card-tooltip" placement="top-start" title={fullContent} trigger="hover" variant="island">
+        <Tooltip className="task-card-tooltip" placement="top-start" title={fullContent} trigger="hover" variant="default">
           {copy}
         </Tooltip>
       ) : copy}

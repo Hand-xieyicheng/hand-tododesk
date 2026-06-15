@@ -189,7 +189,7 @@ export function CalendarView({ onChanged }: CalendarViewProps) {
               </header>
               <div className="calendar-items">
                 {items.map((item) => (
-                  <Tooltip className="calendar-task-tooltip" key={item.id} placement="top-start" title={renderTaskTooltip(item)} trigger="hover" variant="island">
+                  <Tooltip className="calendar-task-tooltip" key={item.id} placement="top-start" title={renderTaskTooltip(item)} trigger="hover" variant="default">
                     <span className={item.status === "COMPLETED" ? "calendar-task is-done" : "calendar-task"}>{item.title}</span>
                   </Tooltip>
                 ))}

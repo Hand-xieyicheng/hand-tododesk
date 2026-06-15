@@ -439,13 +439,13 @@ export function App() {
             <span className="status-pill"><Bell size={14} /> {openTasks.length} 个未完成</span>
             {activeView === "tasks" ? (
               <>
-                <Tooltip className="task-completion-toggle-tooltip" placement="bottom" title={showCompletedTasksAction} trigger="hover" variant="island">
+                <Tooltip className="task-completion-toggle-tooltip" placement="bottom" title={showCompletedTasksAction} trigger="hover" variant="default">
                   <Button
                     aria-label={showCompletedTasksAction}
                     className={showCompletedTasks ? "task-completion-toggle is-active" : "task-completion-toggle"}
                     icon={showCompletedTasks ? <Eye size={14} /> : <EyeOff size={14} />}
                     size="small"
-                    type={showCompletedTasks ? "primary" : "text"}
+                    type={showCompletedTasks ? "default" : "text"}
                     onClick={() => handleShowCompletedTasksChanged(!showCompletedTasks)}
                   />
                 </Tooltip>
@@ -471,7 +471,7 @@ export function App() {
                     </Button>
                   </div>
                 ) : null}
-                <Button className="primary-button" icon={<Plus size={14} />} size="small" type="primary" onClick={() => setTaskCreateOpen(true)}>
+                <Button className="primary-button" icon={<Plus size={14} />} size="small" type="default" onClick={() => setTaskCreateOpen(true)}>
                   新增
                 </Button>
               </>

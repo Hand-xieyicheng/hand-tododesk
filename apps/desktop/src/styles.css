@@ -621,13 +621,8 @@ textarea:focus-visible {
   min-width: calc(38px * var(--app-ui-scale)) !important;
   padding: 0 calc(11px * var(--app-ui-scale)) !important;
   border-radius: 999px !important;
-  box-shadow: 0 3px 0 rgba(114, 93, 66, 0.12) !important;
   font-size: calc(13px * var(--app-ui-scale)) !important;
   line-height: 1 !important;
-}
-
-.task-completion-toggle.is-active {
-  box-shadow: 0 3px 0 rgba(114, 93, 66, 0.16) !important;
 }
 
 .topbar-actions .primary-button {
@@ -651,7 +646,6 @@ textarea:focus-visible {
   border-radius: 999px;
   background: var(--color-surface);
   color: var(--color-muted);
-  box-shadow: 0 3px 0 rgba(114, 93, 66, 0.12);
   font-size: calc(13px * var(--app-ui-scale));
   font-weight: 800;
   white-space: nowrap;
@@ -699,8 +693,7 @@ textarea:focus-visible {
 }
 
 .tool-panel,
-.task-form,
-.pomodoro-clock {
+.task-form {
   display: grid;
   gap: calc(15px * var(--app-ui-scale));
 }
@@ -883,9 +876,53 @@ textarea::placeholder {
   z-index: 30;
 }
 
-.task-card-tooltip [role="tooltip"],
+.task-card-tooltip [role="tooltip"] {
+  z-index: 1200;
+  width: max-content;
+  max-width: min(420px, calc(100vw - 48px)) !important;
+  visibility: hidden;
+}
+
 .floating-task-tooltip [role="tooltip"] {
-  max-width: min(360px, 78vw);
+  z-index: 1200;
+  width: max-content;
+  max-width: min(420px, calc(100vw - 48px)) !important;
+  visibility: hidden;
+}
+
+.task-card-tooltip [role="tooltip"][class*="animal-visible"],
+.floating-task-tooltip [role="tooltip"][class*="animal-visible"] {
+  visibility: visible;
+}
+
+.task-card-tooltip [role="tooltip"]:not([class*="animal-visible"]),
+.floating-task-tooltip [role="tooltip"]:not([class*="animal-visible"]) {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transition: none !important;
+}
+
+.task-card-tooltip [role="tooltip"][class*="animal-island"],
+.task-card-tooltip [class*="animal-islandBody"] {
+  width: max-content;
+  max-width: min(420px, calc(100vw - 48px)) !important;
+}
+
+.floating-task-tooltip [role="tooltip"][class*="animal-island"],
+.floating-task-tooltip [class*="animal-islandBody"] {
+  width: max-content;
+  max-width: min(420px, calc(100vw - 48px)) !important;
+}
+
+.task-card-tooltip [class*="animal-islandContent"],
+.floating-task-tooltip [class*="animal-islandContent"] {
+  max-height: min(360px, calc(100vh - 96px));
+  overflow-y: auto;
+}
+
+.task-card-tooltip [class*="animal-content"],
+.floating-task-tooltip [class*="animal-content"] {
+  text-align: left;
 }
 
 .task-card-tooltip-content,
@@ -1016,6 +1053,10 @@ textarea::placeholder {
   align-items: center;
 }
 
+.task-item.is-title-only:hover {
+  z-index: 40;
+}
+
 .task-item.is-compact .task-actions {
   flex-direction: column;
   align-items: flex-end;
@@ -1028,6 +1069,17 @@ textarea::placeholder {
   min-width: calc(36px * var(--app-ui-scale)) !important;
   height: calc(32px * var(--app-ui-scale)) !important;
   min-height: calc(32px * var(--app-ui-scale)) !important;
+}
+
+.task-item.is-title-only .task-actions {
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: nowrap;
+  min-width: calc(96px * var(--app-ui-scale));
+}
+
+.task-item.is-title-only.is-compact .task-actions {
+  min-width: calc(79px * var(--app-ui-scale));
 }
 
 .modal-task-form .primary-button {
@@ -1067,6 +1119,11 @@ textarea::placeholder {
   box-shadow: 0 6px 0 rgba(114, 93, 66, 0.12);
 }
 
+.quadrant-panel:has(.task-card-tooltip:hover),
+.quadrant-task-list:has(.task-card-tooltip:hover) {
+  overflow: visible;
+}
+
 .quadrant-panel header {
   display: flex;
   align-items: center;
@@ -1074,6 +1131,13 @@ textarea::placeholder {
   gap: calc(12px * var(--app-ui-scale));
   padding-left: calc(12px * var(--app-ui-scale));
   border-left: 7px solid var(--priority-color, var(--color-primary));
+}
+
+.quadrant-panel header > div {
+  display: flex;
+  min-width: 0;
+  align-items: flex-end;
+  gap: calc(4px * var(--app-ui-scale));
 }
 
 .quadrant-panel h3,
@@ -1095,8 +1159,8 @@ textarea::placeholder {
 
 .quadrant-panel header strong {
   display: grid;
-  width: calc(38px * var(--app-ui-scale));
-  height: calc(38px * var(--app-ui-scale));
+  width: calc(34px * var(--app-ui-scale));
+  height: calc(34px * var(--app-ui-scale));
   flex: 0 0 auto;
   place-items: center;
   border: 2px solid #fff8dc;
@@ -1362,6 +1426,8 @@ textarea::placeholder {
   align-content: center;
   justify-items: center;
   padding: calc(28px * var(--app-ui-scale)) !important;
+  display: grid;
+  gap: calc(50px * var(--app-ui-scale));
 }
 
 .pomodoro-layout > .tool-card {
@@ -2506,6 +2572,41 @@ textarea::placeholder {
 
 .floating-task.is-title-only {
   align-items: center;
+}
+
+.floating-task.is-title-only .floating-task-actions {
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
+  gap: calc(8px * var(--app-ui-scale));
+}
+
+.floating-task.is-title-only .floating-task-actions button {
+  width: calc(28px * var(--app-ui-scale)) !important;
+  min-width: calc(28px * var(--app-ui-scale)) !important;
+  height: calc(28px * var(--app-ui-scale)) !important;
+  min-height: calc(28px * var(--app-ui-scale)) !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--color-muted) !important;
+  transform: none !important;
+}
+
+.floating-task.is-title-only .floating-task-actions button:hover:not(:disabled),
+.floating-task.is-title-only .floating-task-actions button:active:not(:disabled) {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--color-text) !important;
+  transform: none !important;
+}
+
+.floating-task.is-title-only .floating-task-actions button svg {
+  width: calc(18px * var(--app-ui-scale));
+  height: calc(18px * var(--app-ui-scale));
 }
 
 .floating-task.is-completed .floating-task-title,

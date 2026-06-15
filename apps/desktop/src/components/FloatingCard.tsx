@@ -418,7 +418,7 @@ export function FloatingCard() {
             return (
               <Card className={`${isCompleted ? "floating-task is-completed" : "floating-task"}${titleOnly ? " is-title-only" : ""}`} key={task.id} pattern="default">
                 {titleOnly ? (
-                  <Tooltip className="floating-task-tooltip" placement="top-start" title={fullContent} trigger="hover" variant="island">
+                  <Tooltip className="floating-task-tooltip" placement="top-start" title={fullContent} trigger="hover" variant="default">
                     {copy}
                   </Tooltip>
                 ) : copy}

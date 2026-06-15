@@ -122,9 +122,9 @@ export function PomodoroView({ tasks, onChanged }: PomodoroViewProps) {
         </div>
         <div className="clock-controls">
           {state.mode === "running" ? (
-            <Button className="primary-button" icon={<Pause size={16} />} type="primary" onClick={() => setState((current) => pausePomodoro(current))}>暂停</Button>
+            <Button className="primary-button" icon={<Pause size={16} />} type="default" onClick={() => setState((current) => pausePomodoro(current))}>暂停</Button>
           ) : (
-            <Button className="primary-button" icon={<Play size={16} />} type="primary" onClick={start}>开始</Button>
+            <Button className="primary-button" icon={<Play size={16} />} type="default" onClick={start}>开始</Button>
           )}
           <Button className="ghost-button" icon={<Square size={16} />} type="default" onClick={cancel}>取消</Button>
           <Button className="ghost-button" icon={<RotateCcw size={16} />} type="dashed" onClick={() => setState(resetPomodoro(duration))}>重置</Button>
