@@ -22,6 +22,8 @@
   --app-footer-height: var(--app-footer-height-sea);
   --app-footer-gap: calc(28px * var(--app-ui-scale));
   --app-footer-space: calc(var(--app-footer-height) + var(--app-footer-gap) + env(safe-area-inset-bottom, 0px));
+  --app-titlebar-drag-height: 44px;
+  --app-traffic-light-safe-area: 92px;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 }
@@ -85,6 +87,19 @@ textarea:focus-visible {
   height: 100vh;
   min-height: 0;
   overflow: hidden;
+}
+
+.window-drag-strip {
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: var(--app-traffic-light-safe-area);
+  z-index: 20;
+  height: var(--app-titlebar-drag-height);
+  cursor: move;
+  -webkit-app-region: drag;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .sidebar {
@@ -545,6 +560,8 @@ textarea:focus-visible {
 }
 
 .topbar {
+  position: relative;
+  z-index: 30;
   display: flex;
   align-items: center;
   justify-content: space-between;

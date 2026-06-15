@@ -75,7 +75,7 @@ describe("app bootstrap schema", () => {
     });
 
     expect(appBootstrapResponseSchema.parse({
-      apiVersion: "0.1.0",
+      apiVersion: "0.2.0",
       releaseChannel: "stable",
       desktop: {
         minimumVersion: "0.1.0",
@@ -93,7 +93,7 @@ describe("app bootstrap schema", () => {
 
   it("rejects unsupported release channels", () => {
     expect(appBootstrapResponseSchema.safeParse({
-      apiVersion: "0.1.0",
+      apiVersion: "0.2.0",
       releaseChannel: "beta",
       desktop: {
         minimumVersion: "0.1.0",

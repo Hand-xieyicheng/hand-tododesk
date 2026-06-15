@@ -70,7 +70,7 @@ npm run build:mac
 产物位置：
 
 - `.app`：`apps/desktop/src-tauri/target/release/bundle/macos/todoDesk.app`
-- `.dmg`：`apps/desktop/src-tauri/target/release/bundle/dmg/todoDesk_0.1.0_aarch64.dmg`
+- `.dmg`：`apps/desktop/src-tauri/target/release/bundle/dmg/todoDesk_0.2.0_aarch64.dmg`
 
 ## 应用内更新发布
 
@@ -97,9 +97,9 @@ npx tauri signer generate
 后端 `GET /app/bootstrap` 会返回桌面端最低支持版本、最新版本、更新源和 feature flags，可通过以下环境变量控制：
 
 ```env
-API_VERSION=0.1.0
+API_VERSION=0.2.0
 DESKTOP_MIN_VERSION=0.1.0
-DESKTOP_LATEST_VERSION=0.1.0
+DESKTOP_LATEST_VERSION=0.2.0
 DESKTOP_UPDATE_ENDPOINT=https://github.com/Hand-xieyicheng/hand-tododesk/releases/latest/download/latest.json
 FEATURE_FLAGS_JSON={"calendar":true,"pomodoro":true,"taskQuadrant":true,"floatingCard":true}
 ```
@@ -112,7 +112,7 @@ FEATURE_FLAGS_JSON={"calendar":true,"pomodoro":true,"taskQuadrant":true,"floatin
    npm run dev:api
    ```
 
-2. 安装桌面 App。双击 `todoDesk_0.1.0_aarch64.dmg`，把 `todoDesk.app` 拖到 `Applications`。
+2. 安装桌面 App。双击 `todoDesk_0.2.0_aarch64.dmg`，把 `todoDesk.app` 拖到 `Applications`。
 
 3. 首次打开。如果 macOS 提示未验证开发者，右键点击 `todoDesk.app`，选择“打开”，再确认一次。
 

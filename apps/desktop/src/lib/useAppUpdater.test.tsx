@@ -28,7 +28,7 @@ describe("useAppUpdater", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     Reflect.deleteProperty(window, "__TAURI_INTERNALS__");
-    mocks.getVersion.mockResolvedValue("0.1.0");
+    mocks.getVersion.mockResolvedValue("0.2.0");
     mocks.relaunch.mockResolvedValue(undefined);
   });
 
@@ -53,7 +53,7 @@ describe("useAppUpdater", () => {
     });
 
     expect(result.current.status).toBe("current");
-    expect(result.current.currentVersion).toBe("0.1.0");
+    expect(result.current.currentVersion).toBe("0.2.0");
     expect(result.current.targetVersion).toBeNull();
   });
 

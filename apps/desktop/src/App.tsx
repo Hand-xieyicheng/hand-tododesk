@@ -348,6 +348,12 @@ export function App() {
 
   return (
     <div className="app-shell">
+      <div
+        aria-hidden="true"
+        className="window-drag-strip"
+        data-tauri-drag-region=""
+        onPointerDown={startWindowDrag}
+      />
       <aside className="sidebar">
         <div className="brand-block app-brand app-drag-region" onPointerDown={startWindowDrag}>
           <img className="brand-logo sidebar-brand-logo" src={todoDeskLogo} alt="todoDesk" />
