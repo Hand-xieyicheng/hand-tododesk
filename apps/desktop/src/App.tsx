@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import type { CSSProperties } from "react";
-import type { ApiTask, ApiUser, DisplaySize, FooterType as AppFooterType, TaskViewMode, ThemeId, TitleColor } from "@todo/shared";
-import { Button, Footer, Loading, Title } from "animal-island-ui";
+import type { CSSProperties, PointerEvent } from "react";
+import type { ApiTask, ApiThemePreference, ApiUser, DisplaySize, FooterType as AppFooterType, TaskViewMode, ThemeId, TitleColor } from "@todo/shared";
+import { Button, Footer, Loading, Title, Tooltip } from "animal-island-ui";
+import type { TitleSize } from "animal-island-ui";
 import { Bell, CalendarDays, CheckSquare2, Clock3, Eye, EyeOff, LayoutGrid, ListTodo, LogOut, Pin, Plus, UserRound } from "lucide-react";
 import { api, ApiError } from "./api/client";
 import { AuthView } from "./components/AuthView";
@@ -21,6 +22,55 @@ const navItems: Array<{ id: View; label: string; icon: typeof CheckSquare2 }> = 
   { id: "calendar", label: "日历", icon: CalendarDays },
   { id: "pomodoro", label: "番茄时钟", icon: Clock3 }
 ];
+
+const viewTitleSizes: Record<DisplaySize, TitleSize> = {
+  small: "small",
+  default: "middle",
+  large: "large"
+};
+
+const defaultThemePreference: ApiThemePreference = {
+  themeId: "default",
+  titleColor: "app-teal",
+  footerVisible: true,
+  footerType: "sea",
+  showCompletedTasks: true,
+  taskViewMode: "list",
+  displaySize: "default"
+};
+
+const preferenceSyncIntervalMs = 5000;
+
+const dragIgnoredTargetSelector = [
+  "a",
+  "button",
+  "input",
+  "select",
+  "textarea",
+  "[contenteditable='true']",
+  "[role='button']",
+  "[role='link']",
+  "[role='menuitem']",
+  ".topbar-actions"
+].join(",");
+
+function isDragIgnoredTarget(target: EventTarget | null) {
+  return target instanceof Element && Boolean(target.closest(dragIgnoredTargetSelector));
+}
+
+async function startWindowDrag(event: PointerEvent<HTMLElement>) {
+  if (event.button !== 0 || isDragIgnoredTarget(event.target)) {
+    return;
+  }
+
+  event.preventDefault();
+  try {
+    const { getCurrentWindow } = await import("@tauri-apps/api/window");
+    await getCurrentWindow().startDragging();
+  } catch {
+    // Running in a browser during development has no native window to drag.
+  }
+}
 
 export function App() {
   const [user, setUser] = useState<ApiUser | null>(() => getSavedUser());
@@ -43,10 +93,28 @@ export function App() {
   const userDisplayName = user?.name || user?.email || "";
   const userInitial = userDisplayName.trim().slice(0, 1).toUpperCase();
   const viewTitle = activeView === "tasks" ? "待办事项" : activeView === "calendar" ? "日历模式" : activeView === "pomodoro" ? "番茄时钟" : "个人中心";
+  const viewTitleSize = viewTitleSizes[displaySize];
   const workspaceStyle = {
     "--workspace-footer-height": footerVisible ? (footerType === "sea" ? "var(--app-footer-height-sea)" : "var(--app-footer-height-tree)") : "0px",
     "--workspace-footer-gap": footerVisible ? "var(--app-footer-gap)" : "0px"
   } as CSSProperties;
+  const showCompletedTasksAction = showCompletedTasks ? "隐藏已完成事项" : "显示已完成事项";
+
+  function applyThemePreference(preference: ApiThemePreference) {
+    const nextDisplaySize = normalizeDisplaySize(preference.displaySize);
+
+    setThemeId(preference.themeId);
+    setTitleColor(preference.titleColor);
+    setFooterVisible(preference.footerVisible);
+    setFooterType(preference.footerType);
+    setShowCompletedTasks(preference.showCompletedTasks);
+    setTaskViewMode(preference.taskViewMode);
+    setDisplaySize(nextDisplaySize);
+    localStorage.setItem("tododesk.theme", preference.themeId);
+    localStorage.setItem("tododesk.displaySize", nextDisplaySize);
+    applyTheme(preference.themeId);
+    applyDisplaySize(nextDisplaySize);
+  }
 
   async function loadAppData(options: { immersive?: boolean } = {}) {
     if (!user) {
@@ -60,32 +128,13 @@ export function App() {
     try {
       const [taskPayload, preference, profile] = await Promise.all([
         api.tasks(),
-        api.getThemePreference().catch(() => ({
-          themeId: "default",
-          titleColor: "app-teal",
-          footerVisible: true,
-          footerType: "sea",
-          showCompletedTasks: true,
-          taskViewMode: "list",
-          displaySize: "default"
-        }) as const),
+        api.getThemePreference().catch(() => defaultThemePreference),
         api.currentUser()
       ]);
       setTasks(taskPayload.tasks);
       setUser(profile.user);
       saveUser(profile.user);
-      setThemeId(preference.themeId as ThemeId);
-      setTitleColor((preference.titleColor ?? "app-teal") as TitleColor);
-      setFooterVisible(preference.footerVisible ?? true);
-      setFooterType((preference.footerType ?? "sea") as AppFooterType);
-      setShowCompletedTasks(preference.showCompletedTasks ?? true);
-      setTaskViewMode((preference.taskViewMode ?? "list") as TaskViewMode);
-      const nextDisplaySize = normalizeDisplaySize(preference.displaySize);
-      setDisplaySize(nextDisplaySize);
-      localStorage.setItem("tododesk.theme", preference.themeId);
-      localStorage.setItem("tododesk.displaySize", nextDisplaySize);
-      applyTheme(preference.themeId);
-      applyDisplaySize(nextDisplaySize);
+      applyThemePreference(preference);
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
         await clearSession();
@@ -111,6 +160,40 @@ export function App() {
 
   useEffect(() => {
     void loadAppData({ immersive: true });
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+
+    let cancelled = false;
+    const syncPreference = async () => {
+      try {
+        const preference = await api.getThemePreference();
+        if (!cancelled) {
+          applyThemePreference(preference);
+        }
+      } catch {
+        // Background preference sync should not interrupt the current workflow.
+      }
+    };
+    const intervalId = window.setInterval(() => void syncPreference(), preferenceSyncIntervalMs);
+    const syncWhenVisible = () => {
+      if (document.visibilityState === "visible") {
+        void syncPreference();
+      }
+    };
+
+    window.addEventListener("focus", syncWhenVisible);
+    document.addEventListener("visibilitychange", syncWhenVisible);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", syncWhenVisible);
+      document.removeEventListener("visibilitychange", syncWhenVisible);
+    };
   }, [user?.id]);
 
   useEffect(() => {
@@ -178,9 +261,12 @@ export function App() {
 
   function handleShowCompletedTasksChanged(next: boolean) {
     setShowCompletedTasks(next);
-    void api.setThemePreference({ showCompletedTasks: next }).catch((error) => {
-      setMessage(error instanceof Error ? error.message : "待办显示配置保存失败");
-    });
+    void api.setThemePreference({ showCompletedTasks: next })
+      .then(applyThemePreference)
+      .catch((error) => {
+        setShowCompletedTasks(!next);
+        setMessage(error instanceof Error ? error.message : "待办显示配置保存失败");
+      });
   }
 
   function handleTaskViewModeChanged(next: TaskViewMode) {
@@ -217,7 +303,7 @@ export function App() {
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <div className="brand-block app-brand">
+        <div className="brand-block app-brand app-drag-region" onPointerDown={startWindowDrag}>
           <img className="brand-logo sidebar-brand-logo" src={todoDeskLogo} alt="todoDesk" />
         </div>
 
@@ -277,9 +363,9 @@ export function App() {
           </div>
         ) : null}
 
-        <header className="topbar">
+        <header className="topbar app-drag-region" onPointerDown={startWindowDrag}>
           <div>
-            <Title className="view-title" color={titleColor}>
+            <Title className="view-title" color={titleColor} size={viewTitleSize}>
               {viewTitle}
             </Title>
           </div>
@@ -287,15 +373,16 @@ export function App() {
             <span className="status-pill"><Bell size={14} /> {openTasks.length} 个未完成</span>
             {activeView === "tasks" ? (
               <>
-                <Button
-                  aria-label={showCompletedTasks ? "隐藏已完成事项" : "显示已完成事项"}
-                  className={showCompletedTasks ? "task-completion-toggle is-active" : "task-completion-toggle"}
-                  icon={showCompletedTasks ? <Eye size={14} /> : <EyeOff size={14} />}
-                  size="small"
-                  title={showCompletedTasks ? "隐藏已完成事项" : "显示已完成事项"}
-                  type={showCompletedTasks ? "primary" : "text"}
-                  onClick={() => handleShowCompletedTasksChanged(!showCompletedTasks)}
-                />
+                <Tooltip className="task-completion-toggle-tooltip" placement="bottom" title={showCompletedTasksAction} trigger="hover" variant="island">
+                  <Button
+                    aria-label={showCompletedTasksAction}
+                    className={showCompletedTasks ? "task-completion-toggle is-active" : "task-completion-toggle"}
+                    icon={showCompletedTasks ? <Eye size={14} /> : <EyeOff size={14} />}
+                    size="small"
+                    type={showCompletedTasks ? "primary" : "text"}
+                    onClick={() => handleShowCompletedTasksChanged(!showCompletedTasks)}
+                  />
+                </Tooltip>
                 <div className="task-view-toggle" aria-label="待办样式">
                   <Button
                     className={taskViewMode === "list" ? "is-active" : ""}
