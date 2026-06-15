@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  appBootstrapResponseSchema,
   changeEmailRequestSchema,
   changePasswordRequestSchema,
+  defaultAppFeatureFlags,
   displaySizeValues,
   footerTypeValues,
+  releaseChannelValues,
   taskViewModeValues,
   titleColorValues,
   updateThemePreferenceRequestSchema,
@@ -58,5 +61,46 @@ describe("profile schemas", () => {
       titleColor: "warm-peach-pink"
     });
     expect(updateThemePreferenceRequestSchema.safeParse({}).success).toBe(false);
+  });
+});
+
+describe("app bootstrap schema", () => {
+  it("accepts stable desktop version metadata and feature flags", () => {
+    expect(releaseChannelValues).toEqual(["stable"]);
+    expect(defaultAppFeatureFlags).toEqual({
+      calendar: true,
+      pomodoro: true,
+      taskQuadrant: true,
+      floatingCard: true
+    });
+
+    expect(appBootstrapResponseSchema.parse({
+      apiVersion: "0.1.0",
+      releaseChannel: "stable",
+      desktop: {
+        minimumVersion: "0.1.0",
+        latestVersion: "0.2.0",
+        updateEndpoint: "https://github.com/Hand-xieyicheng/hand-tododesk/releases/latest/download/latest.json"
+      },
+      featureFlags: {
+        calendar: true,
+        pomodoro: false,
+        taskQuadrant: true,
+        floatingCard: true
+      }
+    }).featureFlags.pomodoro).toBe(false);
+  });
+
+  it("rejects unsupported release channels", () => {
+    expect(appBootstrapResponseSchema.safeParse({
+      apiVersion: "0.1.0",
+      releaseChannel: "beta",
+      desktop: {
+        minimumVersion: "0.1.0",
+        latestVersion: "0.2.0",
+        updateEndpoint: "https://github.com/Hand-xieyicheng/hand-tododesk/releases/latest/download/latest.json"
+      },
+      featureFlags: defaultAppFeatureFlags
+    }).success).toBe(false);
   });
 });

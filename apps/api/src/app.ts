@@ -5,6 +5,7 @@ import Fastify from "fastify";
 import { ZodError } from "zod";
 import { appOrigins, config } from "./config.js";
 import { authPlugin } from "./plugins/auth.js";
+import { appBootstrapRoutes } from "./routes/app-bootstrap.js";
 import { authRoutes } from "./routes/auth.js";
 import { pomodoroRoutes } from "./routes/pomodoro.js";
 import { preferenceRoutes } from "./routes/preferences.js";
@@ -50,6 +51,7 @@ export async function buildApp() {
   });
 
   await authPlugin(app);
+  await app.register(appBootstrapRoutes);
   await app.register(authRoutes);
   await app.register(taskRoutes);
   await app.register(pomodoroRoutes);

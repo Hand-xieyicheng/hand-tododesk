@@ -47,6 +47,7 @@ export const calendarViewValues = ["month", "week", "day"] as const;
 export const themeIdValues = ["default", "shinchan", "labubu", "doraemon"] as const;
 export const taskViewModeValues = ["list", "quadrant"] as const;
 export const displaySizeValues = ["small", "default", "large"] as const;
+export const releaseChannelValues = ["stable"] as const;
 export const footerTypeValues = ["sea", "tree"] as const;
 export const titleColorValues = [
   "default",
@@ -139,6 +140,31 @@ export const changePasswordRequestSchema = z.object({
   newPassword: passwordSchema
 });
 
+export const appFeatureFlagsSchema = z.object({
+  calendar: z.boolean(),
+  pomodoro: z.boolean(),
+  taskQuadrant: z.boolean(),
+  floatingCard: z.boolean()
+});
+
+export const appBootstrapResponseSchema = z.object({
+  apiVersion: z.string().min(1),
+  releaseChannel: z.enum(releaseChannelValues),
+  desktop: z.object({
+    minimumVersion: z.string().min(1),
+    latestVersion: z.string().min(1),
+    updateEndpoint: z.string().url()
+  }),
+  featureFlags: appFeatureFlagsSchema
+});
+
+export const defaultAppFeatureFlags = {
+  calendar: true,
+  pomodoro: true,
+  taskQuadrant: true,
+  floatingCard: true
+} satisfies AppFeatureFlags;
+
 export type RegisterRequest = z.infer<typeof registerRequestSchema>;
 export type LoginRequest = z.infer<typeof loginRequestSchema>;
 export type RefreshRequest = z.infer<typeof refreshRequestSchema>;
@@ -155,11 +181,14 @@ export type TaskStatus = (typeof taskStatusValues)[number];
 export type TaskPriority = (typeof taskPriorityValues)[number];
 export type TaskViewMode = (typeof taskViewModeValues)[number];
 export type DisplaySize = (typeof displaySizeValues)[number];
+export type ReleaseChannel = (typeof releaseChannelValues)[number];
 export type ThemeId = (typeof themeIdValues)[number];
 export type FooterType = (typeof footerTypeValues)[number];
 export type TitleColor = (typeof titleColorValues)[number];
 export type PomodoroStatus = (typeof pomodoroStatusValues)[number];
 export type UserGender = (typeof userGenderValues)[number];
+export type AppFeatureFlags = z.infer<typeof appFeatureFlagsSchema>;
+export type AppBootstrapResponse = z.infer<typeof appBootstrapResponseSchema>;
 
 export interface ApiThemePreference {
   themeId: ThemeId;

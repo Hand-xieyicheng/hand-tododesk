@@ -1626,6 +1626,95 @@ textarea::placeholder {
   color: var(--color-primary);
 }
 
+.version-status-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: calc(30px * var(--app-ui-scale));
+  padding: 0 calc(12px * var(--app-ui-scale));
+  border: 1px solid color-mix(in srgb, var(--color-primary) 34%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-primary) 12%, var(--color-surface));
+  color: var(--color-text);
+  font-size: calc(12px * var(--app-ui-scale));
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.version-details {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: calc(10px * var(--app-ui-scale));
+}
+
+.version-details > div {
+  display: grid;
+  min-width: 0;
+  gap: calc(5px * var(--app-ui-scale));
+  padding: calc(12px * var(--app-ui-scale));
+  border: 1px dashed color-mix(in srgb, var(--color-border) 72%, transparent);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--color-surface) 84%, white);
+}
+
+.version-details span,
+.version-release-notes > span,
+.version-progress > span {
+  color: var(--color-muted);
+  font-size: calc(12px * var(--app-ui-scale));
+  font-weight: 900;
+}
+
+.version-details strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--color-text);
+  font-size: calc(15px * var(--app-ui-scale));
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.version-progress {
+  display: grid;
+  gap: calc(8px * var(--app-ui-scale));
+}
+
+.version-progress-track {
+  overflow: hidden;
+  height: calc(12px * var(--app-ui-scale));
+  border: 1px solid color-mix(in srgb, var(--color-primary) 38%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-surface-strong) 78%, white);
+}
+
+.version-progress-track span {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--color-primary), var(--color-accent));
+  transition: width 0.18s ease;
+}
+
+.version-release-notes {
+  display: grid;
+  gap: calc(6px * var(--app-ui-scale));
+}
+
+.version-release-notes p {
+  margin: 0;
+  color: var(--color-text);
+  font-size: calc(14px * var(--app-ui-scale));
+  line-height: 1.55;
+  white-space: pre-line;
+}
+
+.version-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(10px * var(--app-ui-scale));
+}
+
 .profile-form {
   max-width: 100%;
 }
@@ -2417,7 +2506,8 @@ textarea::placeholder {
   .calendar-week,
   .stat-grid,
   .auth-switcher,
-  .quadrant-grid {
+  .quadrant-grid,
+  .version-details {
     grid-template-columns: 1fr;
   }
 

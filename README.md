@@ -72,6 +72,38 @@ npm run build:mac
 - `.app`：`apps/desktop/src-tauri/target/release/bundle/macos/todoDesk.app`
 - `.dmg`：`apps/desktop/src-tauri/target/release/bundle/dmg/todoDesk_0.1.0_aarch64.dmg`
 
+## 应用内更新发布
+
+桌面端使用 Tauri updater，从公开 GitHub Releases 读取版本元数据：
+
+```text
+https://github.com/Hand-xieyicheng/hand-tododesk/releases/latest/download/latest.json
+```
+
+首次发布前需要生成 updater 签名密钥：
+
+```bash
+cd apps/desktop
+npx tauri signer generate
+```
+
+把生成的公钥替换到 `apps/desktop/src-tauri/tauri.conf.json` 的 `plugins.updater.pubkey`，私钥和密码分别配置到 GitHub Secrets：
+
+- `TAURI_SIGNING_PRIVATE_KEY`
+- `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
+
+推送 `v*.*.*` tag 后，`.github/workflows/release-desktop.yml` 会构建 macOS Apple Silicon 和 Windows x64，并上传安装包、签名文件和 `latest.json`。
+
+后端 `GET /app/bootstrap` 会返回桌面端最低支持版本、最新版本、更新源和 feature flags，可通过以下环境变量控制：
+
+```env
+API_VERSION=0.1.0
+DESKTOP_MIN_VERSION=0.1.0
+DESKTOP_LATEST_VERSION=0.1.0
+DESKTOP_UPDATE_ENDPOINT=https://github.com/Hand-xieyicheng/hand-tododesk/releases/latest/download/latest.json
+FEATURE_FLAGS_JSON={"calendar":true,"pomodoro":true,"taskQuadrant":true,"floatingCard":true}
+```
+
 ## macOS 使用教程
 
 1. 启动后端服务。桌面 App 默认连接本机 `http://127.0.0.1:4020`，因此需要先配置 `apps/api/.env`、初始化数据库，并运行：

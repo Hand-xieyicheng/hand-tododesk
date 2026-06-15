@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties, PointerEvent } from "react";
-import type { ApiTask, ApiThemePreference, ApiUser, DisplaySize, FooterType as AppFooterType, TaskViewMode, ThemeId, TitleColor } from "@todo/shared";
+import { defaultAppFeatureFlags, type ApiTask, type ApiThemePreference, type ApiUser, type AppBootstrapResponse, type AppFeatureFlags, type DisplaySize, type FooterType as AppFooterType, type TaskViewMode, type ThemeId, type TitleColor } from "@todo/shared";
 import { Button, Footer, Loading, Title, Tooltip } from "animal-island-ui";
 import type { TitleSize } from "animal-island-ui";
 import { Bell, CalendarDays, CheckSquare2, Clock3, Eye, EyeOff, LayoutGrid, ListTodo, LogOut, Pin, Plus, UserRound } from "lucide-react";
@@ -14,6 +14,8 @@ import todoDeskLogo from "./assets/tododesk-logo.png";
 import { applyDisplaySize, normalizeDisplaySize } from "./lib/displaySize";
 import { applyTheme } from "./lib/themes";
 import { clearSession, getSavedUser, saveUser } from "./lib/authStorage";
+import { useAppUpdater } from "./lib/useAppUpdater";
+import { compareVersions } from "./lib/version";
 
 type View = "tasks" | "calendar" | "pomodoro" | "profile";
 
@@ -75,6 +77,7 @@ async function startWindowDrag(event: PointerEvent<HTMLElement>) {
 export function App() {
   const [user, setUser] = useState<ApiUser | null>(() => getSavedUser());
   const [tasks, setTasks] = useState<ApiTask[]>([]);
+  const [appBootstrap, setAppBootstrap] = useState<AppBootstrapResponse | null>(null);
   const [activeView, setActiveView] = useState<View>("tasks");
   const [taskViewMode, setTaskViewMode] = useState<TaskViewMode>("list");
   const [taskCreateOpen, setTaskCreateOpen] = useState(false);
@@ -88,7 +91,13 @@ export function App() {
   const [loading, setLoading] = useState(false);
   const [entryLoading, setEntryLoading] = useState(false);
   const [showEntryLoading, setShowEntryLoading] = useState(false);
+  const updater = useAppUpdater();
 
+  const featureFlags: AppFeatureFlags = appBootstrap?.featureFlags ?? defaultAppFeatureFlags;
+  const visibleNavItems = useMemo(() => navItems.filter((item) => (
+    (item.id !== "calendar" || featureFlags.calendar) &&
+    (item.id !== "pomodoro" || featureFlags.pomodoro)
+  )), [featureFlags.calendar, featureFlags.pomodoro]);
   const openTasks = useMemo(() => tasks.filter((task) => task.status !== "COMPLETED"), [tasks]);
   const userDisplayName = user?.name || user?.email || "";
   const userInitial = userDisplayName.trim().slice(0, 1).toUpperCase();
@@ -99,6 +108,10 @@ export function App() {
     "--workspace-footer-gap": footerVisible ? "var(--app-footer-gap)" : "0px"
   } as CSSProperties;
   const showCompletedTasksAction = showCompletedTasks ? "隐藏已完成事项" : "显示已完成事项";
+  const updateRequired = appBootstrap ? compareVersions(updater.currentVersion, appBootstrap.desktop.minimumVersion) < 0 : false;
+  const forcedUpdateMessage = updateRequired
+    ? `当前版本 ${updater.currentVersion} 低于最低支持版本 ${appBootstrap?.desktop.minimumVersion}，请尽快更新。`
+    : "";
 
   function applyThemePreference(preference: ApiThemePreference) {
     const nextDisplaySize = normalizeDisplaySize(preference.displaySize);
@@ -159,8 +172,41 @@ export function App() {
   }, [displaySize]);
 
   useEffect(() => {
+    let cancelled = false;
+
+    async function loadBootstrap() {
+      try {
+        const payload = await api.appBootstrap();
+        if (!cancelled) {
+          setAppBootstrap(payload);
+        }
+      } catch {
+        // Bootstrap controls version hints and feature flags; core workflows should continue without it.
+      }
+    }
+
+    void loadBootstrap();
+  }, []);
+
+  useEffect(() => {
+    void updater.checkForUpdate({ silent: true });
+  }, [updater.checkForUpdate]);
+
+  useEffect(() => {
     void loadAppData({ immersive: true });
   }, [user?.id]);
+
+  useEffect(() => {
+    if ((activeView === "calendar" && !featureFlags.calendar) || (activeView === "pomodoro" && !featureFlags.pomodoro)) {
+      setActiveView("tasks");
+    }
+  }, [activeView, featureFlags.calendar, featureFlags.pomodoro]);
+
+  useEffect(() => {
+    if (!featureFlags.taskQuadrant && taskViewMode === "quadrant") {
+      setTaskViewMode("list");
+    }
+  }, [featureFlags.taskQuadrant, taskViewMode]);
 
   useEffect(() => {
     if (!user) {
@@ -308,7 +354,7 @@ export function App() {
         </div>
 
         <nav className="nav-list" aria-label="主要导航">
-          {navItems.map((item) => {
+          {visibleNavItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeView === item.id;
             return (
@@ -344,9 +390,11 @@ export function App() {
               <Button className="ghost-button" icon={<UserRound size={16} />} type="default" onClick={() => setActiveView("profile")}>
                 个人中心
               </Button>
-              <Button className="ghost-button" icon={<Pin size={16} />} type="default" onClick={() => openFloatingCard()}>
-                固定桌面卡片
-              </Button>
+              {featureFlags.floatingCard ? (
+                <Button className="ghost-button" icon={<Pin size={16} />} type="default" onClick={() => openFloatingCard()}>
+                  固定桌面卡片
+                </Button>
+              ) : null}
               <Button className="ghost-button" icon={<LogOut size={16} />} type="default" onClick={handleLogout}>
                 退出登录
               </Button>
@@ -383,26 +431,28 @@ export function App() {
                     onClick={() => handleShowCompletedTasksChanged(!showCompletedTasks)}
                   />
                 </Tooltip>
-                <div className="task-view-toggle" aria-label="待办样式">
-                  <Button
-                    className={taskViewMode === "list" ? "is-active" : ""}
-                    icon={<ListTodo size={14} />}
-                    size="small"
-                    type={taskViewMode === "list" ? "primary" : "text"}
-                    onClick={() => handleTaskViewModeChanged("list")}
-                  >
-                    列表
-                  </Button>
-                  <Button
-                    className={taskViewMode === "quadrant" ? "is-active" : ""}
-                    icon={<LayoutGrid size={14} />}
-                    size="small"
-                    type={taskViewMode === "quadrant" ? "primary" : "text"}
-                    onClick={() => handleTaskViewModeChanged("quadrant")}
-                  >
-                    四象限
-                  </Button>
-                </div>
+                {featureFlags.taskQuadrant ? (
+                  <div className="task-view-toggle" aria-label="待办样式">
+                    <Button
+                      className={taskViewMode === "list" ? "is-active" : ""}
+                      icon={<ListTodo size={14} />}
+                      size="small"
+                      type={taskViewMode === "list" ? "primary" : "text"}
+                      onClick={() => handleTaskViewModeChanged("list")}
+                    >
+                      列表
+                    </Button>
+                    <Button
+                      className={taskViewMode === "quadrant" ? "is-active" : ""}
+                      icon={<LayoutGrid size={14} />}
+                      size="small"
+                      type={taskViewMode === "quadrant" ? "primary" : "text"}
+                      onClick={() => handleTaskViewModeChanged("quadrant")}
+                    >
+                      四象限
+                    </Button>
+                  </div>
+                ) : null}
                 <Button className="primary-button" icon={<Plus size={14} />} size="small" type="primary" onClick={() => setTaskCreateOpen(true)}>
                   新增
                 </Button>
@@ -413,6 +463,7 @@ export function App() {
           </div>
         </header>
 
+        {forcedUpdateMessage ? <div className="inline-alert">{forcedUpdateMessage}</div> : null}
         {message ? <div className="inline-alert">{message}</div> : null}
         {loading && !entryLoading ? <div className="inline-muted">加载中...</div> : null}
 
@@ -421,15 +472,15 @@ export function App() {
             createOpen={taskCreateOpen}
             showCompletedTasks={showCompletedTasks}
             tasks={tasks}
-            viewMode={taskViewMode}
+            viewMode={featureFlags.taskQuadrant ? taskViewMode : "list"}
             onChanged={loadAppData}
             onCreateOpenChange={setTaskCreateOpen}
           />
         ) : null}
-        {activeView === "calendar" ? (
+        {activeView === "calendar" && featureFlags.calendar ? (
           <CalendarView onChanged={loadAppData} />
         ) : null}
-        {activeView === "pomodoro" ? (
+        {activeView === "pomodoro" && featureFlags.pomodoro ? (
           <PomodoroView tasks={openTasks} onChanged={loadAppData} />
         ) : null}
         {activeView === "profile" ? (
@@ -447,6 +498,8 @@ export function App() {
             onTitleColorChanged={handleTitleColorChanged}
             onThemeChanged={handleThemeChanged}
             onUserChanged={handleUserChanged}
+            appBootstrap={appBootstrap}
+            updater={updater}
           />
         ) : null}
         {footerVisible ? (

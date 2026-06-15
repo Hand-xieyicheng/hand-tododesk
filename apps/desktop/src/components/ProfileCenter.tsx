@@ -1,7 +1,7 @@
 import { ChangeEvent, FormEvent, PointerEvent, useEffect, useMemo, useRef, useState } from "react";
-import { displaySizeValues, titleColorValues, type ApiUser, type DisplaySize, type FooterType as AppFooterType, type ThemeId, type TitleColor, type UserGender } from "@todo/shared";
+import { displaySizeValues, titleColorValues, type ApiUser, type AppBootstrapResponse, type DisplaySize, type FooterType as AppFooterType, type ThemeId, type TitleColor, type UserGender } from "@todo/shared";
 import { Button, Card, Divider, Input, Modal, Radio, Select, Tabs, Title } from "animal-island-ui";
-import { Camera, Check, KeyRound, Mail, Save } from "lucide-react";
+import { Camera, Check, Download, KeyRound, Mail, RefreshCw, RotateCw, Save } from "lucide-react";
 import { api } from "../api/client";
 import {
   AVATAR_CROP_SIZE,
@@ -10,10 +10,12 @@ import {
   createCroppedAvatarBlob,
   getAvatarLayout
 } from "../lib/avatarCrop";
+import type { AppUpdaterController } from "../lib/useAppUpdater";
 import { ThemeSettings } from "./ThemeSettings";
 
 interface ProfileCenterProps {
   user: ApiUser;
+  appBootstrap: AppBootstrapResponse | null;
   displaySize: DisplaySize;
   footerVisible: boolean;
   footerType: AppFooterType;
@@ -26,6 +28,7 @@ interface ProfileCenterProps {
   onTitleColorChanged(titleColor: TitleColor): void;
   onThemeChanged(themeId: ThemeId): void;
   onUserChanged(user: ApiUser): void;
+  updater: AppUpdaterController;
 }
 
 interface AvatarDraft {
@@ -85,6 +88,18 @@ const initialCrop: AvatarCrop = {
   offsetY: 0
 };
 
+const updaterStatusLabels: Record<AppUpdaterController["status"], string> = {
+  idle: "未检查",
+  checking: "检查中",
+  available: "发现新版本",
+  downloading: "下载中",
+  installing: "安装中",
+  installed: "等待重启",
+  current: "已是最新版本",
+  error: "检查失败",
+  unsupported: "当前环境不支持"
+};
+
 function displayName(user: ApiUser) {
   return user.name || user.email;
 }
@@ -102,8 +117,19 @@ function loadImage(src: string) {
   });
 }
 
+function formatBytes(bytes: number) {
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(1)} KB`;
+  }
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
 export function ProfileCenter({
   user,
+  appBootstrap,
   displaySize,
   footerVisible,
   footerType,
@@ -115,7 +141,8 @@ export function ProfileCenter({
   onPasswordChanged,
   onTitleColorChanged,
   onThemeChanged,
-  onUserChanged
+  onUserChanged,
+  updater
 }: ProfileCenterProps) {
   const [name, setName] = useState(user.name ?? "");
   const [gender, setGender] = useState<UserGender>(user.gender ?? "PRIVATE");
@@ -161,6 +188,20 @@ export function ProfileCenter({
     }
     return getAvatarLayout(avatarDraft, avatarCrop);
   }, [avatarCrop, avatarDraft]);
+  const updateBusy = ["checking", "downloading", "installing"].includes(updater.status);
+  const updateCanInstall = updater.status === "available";
+  const updateCanRestart = updater.status === "installed";
+  const updateProgressPercent = updater.totalBytes
+    ? Math.min(100, Math.round((updater.receivedBytes / updater.totalBytes) * 100))
+    : updater.status === "installed"
+      ? 100
+      : 0;
+  const updateVersionLabel = updater.targetVersion ?? appBootstrap?.desktop.latestVersion ?? updater.currentVersion;
+  const updateProgressLabel = updater.totalBytes
+    ? `${formatBytes(updater.receivedBytes)} / ${formatBytes(updater.totalBytes)}`
+    : updater.status === "downloading"
+      ? `${formatBytes(updater.receivedBytes)} 已下载`
+      : "";
 
   async function submitProfile(event: FormEvent) {
     event.preventDefault();
@@ -465,6 +506,66 @@ export function ProfileCenter({
               保存资料
             </Button>
           </form>
+        </Card>
+
+        <Card className="profile-section-card version-section-card" pattern="default">
+          <header className="profile-section-header">
+            <Title size="small" color="app-blue">版本更新</Title>
+            <span className="version-status-badge">{updaterStatusLabels[updater.status]}</span>
+          </header>
+          <Divider type="dashed-teal" />
+          <div className="version-details">
+            <div>
+              <span>当前版本</span>
+              <strong>{updater.currentVersion}</strong>
+            </div>
+            <div>
+              <span>最新版本</span>
+              <strong>{updateVersionLabel}</strong>
+            </div>
+            <div>
+              <span>最低支持</span>
+              <strong>{appBootstrap?.desktop.minimumVersion ?? "-"}</strong>
+            </div>
+          </div>
+          {updater.status === "downloading" || updater.status === "installing" || updater.status === "installed" ? (
+            <div className="version-progress" aria-label="更新进度">
+              <div className="version-progress-track">
+                <span style={{ width: `${updateProgressPercent}%` }} />
+              </div>
+              <span>{updateProgressLabel || `${updateProgressPercent}%`}</span>
+            </div>
+          ) : null}
+          {updater.releaseNotes ? (
+            <div className="version-release-notes">
+              <span>更新说明</span>
+              <p>{updater.releaseNotes}</p>
+            </div>
+          ) : null}
+          {updater.error ? <div className="inline-alert">{updater.error}</div> : null}
+          {updater.status === "unsupported" ? <div className="inline-muted">浏览器预览模式无法执行应用内更新</div> : null}
+          <div className="version-actions">
+            <Button
+              className="ghost-button"
+              disabled={updateBusy}
+              icon={<RefreshCw size={16} />}
+              loading={updater.status === "checking"}
+              type="default"
+              onClick={() => void updater.checkForUpdate()}
+            >
+              检查更新
+            </Button>
+            {updateCanInstall ? (
+              <Button className="primary-button" icon={<Download size={16} />} type="primary" onClick={() => void updater.installUpdate()}>
+                下载并安装
+              </Button>
+            ) : null}
+            {updateCanRestart ? (
+              <Button className="primary-button" icon={<RotateCw size={16} />} type="primary" onClick={() => void updater.restartApp()}>
+                重启更新
+              </Button>
+            ) : null}
+          </div>
         </Card>
 
         <Card className="profile-section-card" pattern="default">

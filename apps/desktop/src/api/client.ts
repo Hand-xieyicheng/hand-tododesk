@@ -1,4 +1,5 @@
 import type {
+  AppBootstrapResponse,
   ApiTask,
   ApiThemePreference,
   ApiUser,
@@ -18,6 +19,7 @@ import type {
   UpdateTaskRequest
 } from "@todo/shared";
 import {
+  appBootstrapResponseSchema,
   changeEmailRequestSchema,
   changePasswordRequestSchema,
   forgotPasswordRequestSchema,
@@ -124,6 +126,9 @@ async function refreshAccessToken() {
 }
 
 export const api = {
+  async appBootstrap() {
+    return appBootstrapResponseSchema.parse(await request<AppBootstrapResponse>("/app/bootstrap", {}, false));
+  },
   async register(input: RegisterRequest) {
     return request<{ user: ApiUser; verificationEmailSent: boolean }>("/auth/register", {
       method: "POST",
