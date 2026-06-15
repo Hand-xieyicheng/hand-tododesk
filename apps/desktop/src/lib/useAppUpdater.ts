@@ -49,9 +49,13 @@ function baseState(): UpdaterState {
   };
 }
 
+function initialState(): UpdaterState {
+  return isTauriRuntime() ? baseState() : { ...baseState(), status: "unsupported" };
+}
+
 export function useAppUpdater(): AppUpdaterController {
   const updateRef = useRef<Update | null>(null);
-  const [state, setState] = useState<UpdaterState>(() => baseState());
+  const [state, setState] = useState<UpdaterState>(() => initialState());
 
   useEffect(() => {
     let cancelled = false;

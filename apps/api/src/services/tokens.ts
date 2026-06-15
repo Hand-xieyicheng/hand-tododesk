@@ -30,15 +30,8 @@ export function verifyAccessToken(token: string) {
   }) as AccessTokenPayload;
 }
 
-export function addDays(date: Date, days: number) {
-  const next = new Date(date);
-  next.setDate(next.getDate() + days);
-  return next;
-}
-
 export function addHours(date: Date, hours: number) {
   const next = new Date(date);
   next.setHours(next.getHours() + hours);
   return next;
 }
-

@@ -7,6 +7,18 @@ use tauri::{
 
 const KEYCHAIN_SERVICE: &str = "todoDesk";
 const KEYCHAIN_REFRESH_ACCOUNT: &str = "refresh_token";
+const KEYCHAIN_REMEMBERED_PASSWORD_PREFIX: &str = "remembered_password:";
+
+fn remembered_password_account(email: &str) -> Result<String, String> {
+    let normalized_email = email.trim().to_lowercase();
+    if normalized_email.is_empty() {
+        return Err("Email is required".to_string());
+    }
+    Ok(format!(
+        "{}{}",
+        KEYCHAIN_REMEMBERED_PASSWORD_PREFIX, normalized_email
+    ))
+}
 
 #[tauri::command]
 fn save_refresh_token(token: String) -> Result<(), String> {
@@ -31,6 +43,39 @@ fn load_refresh_token() -> Result<Option<String>, String> {
 #[tauri::command]
 fn delete_refresh_token() -> Result<(), String> {
     let entry = Entry::new(KEYCHAIN_SERVICE, KEYCHAIN_REFRESH_ACCOUNT)
+        .map_err(|error| error.to_string())?;
+    match entry.delete_credential() {
+        Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
+        Err(error) => Err(error.to_string()),
+    }
+}
+
+#[tauri::command]
+fn save_remembered_password(email: String, password: String) -> Result<(), String> {
+    let account = remembered_password_account(&email)?;
+    let entry = Entry::new(KEYCHAIN_SERVICE, &account)
+        .map_err(|error| error.to_string())?;
+    entry
+        .set_password(&password)
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+fn load_remembered_password(email: String) -> Result<Option<String>, String> {
+    let account = remembered_password_account(&email)?;
+    let entry = Entry::new(KEYCHAIN_SERVICE, &account)
+        .map_err(|error| error.to_string())?;
+    match entry.get_password() {
+        Ok(password) => Ok(Some(password)),
+        Err(keyring::Error::NoEntry) => Ok(None),
+        Err(error) => Err(error.to_string()),
+    }
+}
+
+#[tauri::command]
+fn delete_remembered_password(email: String) -> Result<(), String> {
+    let account = remembered_password_account(&email)?;
+    let entry = Entry::new(KEYCHAIN_SERVICE, &account)
         .map_err(|error| error.to_string())?;
     match entry.delete_credential() {
         Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
@@ -103,6 +148,9 @@ pub fn run() {
             save_refresh_token,
             load_refresh_token,
             delete_refresh_token,
+            save_remembered_password,
+            load_remembered_password,
+            delete_remembered_password,
             open_floating_card
         ])
         .setup(|app| {

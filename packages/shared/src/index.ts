@@ -46,6 +46,7 @@ export const pomodoroStatusValues = ["RUNNING", "COMPLETED", "CANCELLED"] as con
 export const calendarViewValues = ["month", "week", "day"] as const;
 export const themeIdValues = ["default", "shinchan", "labubu", "doraemon"] as const;
 export const taskViewModeValues = ["list", "quadrant"] as const;
+export const taskCardDisplayModeValues = ["full", "title"] as const;
 export const displaySizeValues = ["small", "default", "large"] as const;
 export const releaseChannelValues = ["stable"] as const;
 export const footerTypeValues = ["sea", "tree"] as const;
@@ -111,6 +112,7 @@ export const updateThemePreferenceRequestSchema = z
     footerType: z.enum(footerTypeValues).optional(),
     showCompletedTasks: z.boolean().optional(),
     taskViewMode: z.enum(taskViewModeValues).optional(),
+    taskCardDisplayMode: z.enum(taskCardDisplayModeValues).optional(),
     displaySize: z.enum(displaySizeValues).optional()
   })
   .refine((value) => (
@@ -120,6 +122,7 @@ export const updateThemePreferenceRequestSchema = z
     value.footerType ||
     value.showCompletedTasks !== undefined ||
     value.taskViewMode ||
+    value.taskCardDisplayMode ||
     value.displaySize
   ), {
     message: "Appearance preference is required"
@@ -180,6 +183,7 @@ export type CalendarView = (typeof calendarViewValues)[number];
 export type TaskStatus = (typeof taskStatusValues)[number];
 export type TaskPriority = (typeof taskPriorityValues)[number];
 export type TaskViewMode = (typeof taskViewModeValues)[number];
+export type TaskCardDisplayMode = (typeof taskCardDisplayModeValues)[number];
 export type DisplaySize = (typeof displaySizeValues)[number];
 export type ReleaseChannel = (typeof releaseChannelValues)[number];
 export type ThemeId = (typeof themeIdValues)[number];
@@ -197,6 +201,7 @@ export interface ApiThemePreference {
   footerType: FooterType;
   showCompletedTasks: boolean;
   taskViewMode: TaskViewMode;
+  taskCardDisplayMode: TaskCardDisplayMode;
   displaySize: DisplaySize;
 }
 

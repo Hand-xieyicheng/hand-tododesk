@@ -44,6 +44,11 @@
   box-sizing: border-box;
 }
 
+.animal-cursor--force,
+.animal-cursor--force * {
+  cursor: url("./assets/cursor-icon-0.75.png") 3 0, default !important;
+}
+
 html {
   min-width: 320px;
   min-height: 100%;
@@ -880,6 +885,7 @@ textarea::placeholder {
   color: var(--color-muted);
   line-height: 1.55;
   overflow-wrap: anywhere;
+  font-size: calc(12px * var(--app-ui-scale));
 }
 
 .task-item.is-completed .task-title-row h3,
@@ -1012,8 +1018,7 @@ textarea::placeholder {
 
 .quadrant-panel h3 {
   color: var(--color-text);
-  font-size: calc(18px * var(--app-ui-scale));
-  font-weight: 900;
+  font-size: calc(16px * var(--app-ui-scale));
   line-height: 1.2;
 }
 
@@ -1045,6 +1050,7 @@ textarea::placeholder {
   overflow-y: auto;
   overscroll-behavior: contain;
   padding-right: 4px;
+  padding-top: 2px;
 }
 
 .calendar-panel {
@@ -2070,6 +2076,26 @@ textarea::placeholder {
 .auth-form {
   display: grid;
   gap: 14px;
+}
+
+.auth-remember-row {
+  display: inline-flex;
+  align-items: center;
+  justify-self: end;
+  gap: 8px;
+  min-height: 28px;
+  color: var(--color-muted);
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+  user-select: none;
+}
+
+.auth-remember-row input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--color-primary);
 }
 
 .auth-submit {

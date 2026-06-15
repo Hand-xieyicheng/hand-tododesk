@@ -10,7 +10,7 @@ import {
 import { config } from "../config.js";
 import { asDate, execute, id, queryOne, toMysqlDate, transaction, type DbRow } from "../db.js";
 import { sendPasswordResetEmail, sendVerificationEmail } from "../services/mailer.js";
-import { addDays, addHours, createOpaqueToken, hashToken, signAccessToken } from "../services/tokens.js";
+import { addHours, createOpaqueToken, hashToken, signAccessToken } from "../services/tokens.js";
 import { publicUser, type UserRow } from "../services/users.js";
 
 type TokenRow = DbRow & {
@@ -24,7 +24,7 @@ async function issueTokens(user: { id: string; email: string }) {
   const refreshToken = createOpaqueToken();
   await execute(
     "INSERT INTO `RefreshToken` (`id`, `userId`, `tokenHash`, `expiresAt`) VALUES (?, ?, ?, ?)",
-    [id(), user.id, hashToken(refreshToken), toMysqlDate(addDays(new Date(), config.REFRESH_TOKEN_TTL_DAYS))]
+    [id(), user.id, hashToken(refreshToken), toMysqlDate(addHours(new Date(), config.REFRESH_TOKEN_TTL_HOURS))]
   );
 
   return {

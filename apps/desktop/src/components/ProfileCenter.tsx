@@ -188,6 +188,7 @@ export function ProfileCenter({
     }
     return getAvatarLayout(avatarDraft, avatarCrop);
   }, [avatarCrop, avatarDraft]);
+  const showVersionUpdate = updater.status !== "unsupported";
   const updateBusy = ["checking", "downloading", "installing"].includes(updater.status);
   const updateCanInstall = updater.status === "available";
   const updateCanRestart = updater.status === "installed";
@@ -508,65 +509,66 @@ export function ProfileCenter({
           </form>
         </Card>
 
-        <Card className="profile-section-card version-section-card" pattern="default">
-          <header className="profile-section-header">
-            <Title size="small" color="app-blue">版本更新</Title>
-            <span className="version-status-badge">{updaterStatusLabels[updater.status]}</span>
-          </header>
-          <Divider type="dashed-teal" />
-          <div className="version-details">
-            <div>
-              <span>当前版本</span>
-              <strong>{updater.currentVersion}</strong>
-            </div>
-            <div>
-              <span>最新版本</span>
-              <strong>{updateVersionLabel}</strong>
-            </div>
-            <div>
-              <span>最低支持</span>
-              <strong>{appBootstrap?.desktop.minimumVersion ?? "-"}</strong>
-            </div>
-          </div>
-          {updater.status === "downloading" || updater.status === "installing" || updater.status === "installed" ? (
-            <div className="version-progress" aria-label="更新进度">
-              <div className="version-progress-track">
-                <span style={{ width: `${updateProgressPercent}%` }} />
+        {showVersionUpdate ? (
+          <Card className="profile-section-card version-section-card" pattern="default">
+            <header className="profile-section-header">
+              <Title size="small" color="app-blue">版本更新</Title>
+              <span className="version-status-badge">{updaterStatusLabels[updater.status]}</span>
+            </header>
+            <Divider type="dashed-teal" />
+            <div className="version-details">
+              <div>
+                <span>当前版本</span>
+                <strong>{updater.currentVersion}</strong>
               </div>
-              <span>{updateProgressLabel || `${updateProgressPercent}%`}</span>
+              <div>
+                <span>最新版本</span>
+                <strong>{updateVersionLabel}</strong>
+              </div>
+              <div>
+                <span>最低支持</span>
+                <strong>{appBootstrap?.desktop.minimumVersion ?? "-"}</strong>
+              </div>
             </div>
-          ) : null}
-          {updater.releaseNotes ? (
-            <div className="version-release-notes">
-              <span>更新说明</span>
-              <p>{updater.releaseNotes}</p>
+            {updater.status === "downloading" || updater.status === "installing" || updater.status === "installed" ? (
+              <div className="version-progress" aria-label="更新进度">
+                <div className="version-progress-track">
+                  <span style={{ width: `${updateProgressPercent}%` }} />
+                </div>
+                <span>{updateProgressLabel || `${updateProgressPercent}%`}</span>
+              </div>
+            ) : null}
+            {updater.releaseNotes ? (
+              <div className="version-release-notes">
+                <span>更新说明</span>
+                <p>{updater.releaseNotes}</p>
+              </div>
+            ) : null}
+            {updater.error ? <div className="inline-alert">{updater.error}</div> : null}
+            <div className="version-actions">
+              <Button
+                className="ghost-button"
+                disabled={updateBusy}
+                icon={<RefreshCw size={16} />}
+                loading={updater.status === "checking"}
+                type="default"
+                onClick={() => void updater.checkForUpdate()}
+              >
+                检查更新
+              </Button>
+              {updateCanInstall ? (
+                <Button className="primary-button" icon={<Download size={16} />} type="primary" onClick={() => void updater.installUpdate()}>
+                  下载并安装
+                </Button>
+              ) : null}
+              {updateCanRestart ? (
+                <Button className="primary-button" icon={<RotateCw size={16} />} type="primary" onClick={() => void updater.restartApp()}>
+                  重启更新
+                </Button>
+              ) : null}
             </div>
-          ) : null}
-          {updater.error ? <div className="inline-alert">{updater.error}</div> : null}
-          {updater.status === "unsupported" ? <div className="inline-muted">浏览器预览模式无法执行应用内更新</div> : null}
-          <div className="version-actions">
-            <Button
-              className="ghost-button"
-              disabled={updateBusy}
-              icon={<RefreshCw size={16} />}
-              loading={updater.status === "checking"}
-              type="default"
-              onClick={() => void updater.checkForUpdate()}
-            >
-              检查更新
-            </Button>
-            {updateCanInstall ? (
-              <Button className="primary-button" icon={<Download size={16} />} type="primary" onClick={() => void updater.installUpdate()}>
-                下载并安装
-              </Button>
-            ) : null}
-            {updateCanRestart ? (
-              <Button className="primary-button" icon={<RotateCw size={16} />} type="primary" onClick={() => void updater.restartApp()}>
-                重启更新
-              </Button>
-            ) : null}
-          </div>
-        </Card>
+          </Card>
+        ) : null}
 
         <Card className="profile-section-card" pattern="default">
           <header className="profile-section-header">

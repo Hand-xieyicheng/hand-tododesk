@@ -75,7 +75,6 @@ function TaskCard({ task, compact, onDelete, onSetStatus }: TaskCardProps) {
       <div>
         <div className="task-title-row">
           <h3>{task.title}</h3>
-          <span className="status-pill">{task.status}</span>
         </div>
         <p className="task-notes">{task.notes || "无备注"}</p>
         <div className="task-meta">

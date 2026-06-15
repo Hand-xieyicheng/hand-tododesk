@@ -4,6 +4,7 @@ import { Button, Card, Divider, Input, Loading, Title } from "animal-island-ui";
 import { KeyRound, Mail, UserPlus } from "lucide-react";
 import { api } from "../api/client";
 import todoDeskLogo from "../assets/tododesk-logo.png";
+import { deleteRememberedPassword, getLastLoginEmail, getRememberedPassword, saveLastLoginEmail, saveRememberedPassword } from "../lib/authStorage";
 import { applyTheme } from "../lib/themes";
 
 type AuthMode = "login" | "register" | "forgot";
@@ -20,14 +21,38 @@ interface AuthViewProps {
 
 export function AuthView({ onAuthed }: AuthViewProps) {
   const [mode, setMode] = useState<AuthMode>("login");
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(() => getLastLoginEmail());
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberPassword, setRememberPassword] = useState(false);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     applyTheme("default");
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function restoreRememberedPassword() {
+      const lastLoginEmail = getLastLoginEmail();
+      if (!lastLoginEmail) {
+        return;
+      }
+
+      const rememberedPassword = await getRememberedPassword(lastLoginEmail);
+      if (!cancelled && rememberedPassword) {
+        setPassword(rememberedPassword);
+        setRememberPassword(true);
+      }
+    }
+
+    void restoreRememberedPassword();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   async function submit(event: FormEvent) {
@@ -37,6 +62,12 @@ export function AuthView({ onAuthed }: AuthViewProps) {
     try {
       if (mode === "login") {
         const payload = await api.login(email, password);
+        saveLastLoginEmail(payload.user.email);
+        if (rememberPassword) {
+          await saveRememberedPassword(payload.user.email, password);
+        } else {
+          await deleteRememberedPassword(payload.user.email);
+        }
         onAuthed(payload.user);
       } else if (mode === "register") {
         await api.register({ email, password, name: name || undefined });
@@ -90,6 +121,12 @@ export function AuthView({ onAuthed }: AuthViewProps) {
             <label>
               <span>密码</span>
               <Input value={password} onChange={(event) => setPassword(event.target.value)} type="password" autoComplete={mode === "login" ? "current-password" : "new-password"} required shadow />
+            </label>
+          ) : null}
+          {mode === "login" ? (
+            <label className="auth-remember-row">
+              <input type="checkbox" checked={rememberPassword} onChange={(event) => setRememberPassword(event.target.checked)} />
+              <span>记住密码</span>
             </label>
           ) : null}
           {message ? <div className="inline-alert">{message}</div> : null}

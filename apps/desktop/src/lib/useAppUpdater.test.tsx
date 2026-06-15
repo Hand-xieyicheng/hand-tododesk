@@ -35,12 +35,21 @@ describe("useAppUpdater", () => {
   it("reports unsupported outside Tauri", async () => {
     const { result } = renderHook(() => useAppUpdater());
 
+    expect(result.current.status).toBe("unsupported");
+
     await act(async () => {
       await result.current.checkForUpdate();
     });
 
     expect(result.current.status).toBe("unsupported");
     expect(result.current.error).toBe("当前运行环境不支持应用内更新");
+  });
+
+  it("starts idle inside Tauri", () => {
+    enableTauriRuntime();
+    const { result } = renderHook(() => useAppUpdater());
+
+    expect(result.current.status).toBe("idle");
   });
 
   it("reports current when no update is available", async () => {

@@ -33,8 +33,9 @@ const envSchema = z.object({
   DB_PASSWORD: z.string().optional(),
   DATABASE_URL: z.string().min(1),
   JWT_SECRET: z.string().min(16),
-  ACCESS_TOKEN_TTL_SECONDS: z.coerce.number().int().min(60).default(900),
-  REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().min(1).default(30),
+  ACCESS_TOKEN_TTL_SECONDS: z.coerce.number().int().min(60).default(3600),
+  REFRESH_TOKEN_TTL_HOURS: z.coerce.number().int().min(1).optional(),
+  REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().min(1).optional(),
   SMTP_HOST: z.string().optional().default(""),
   SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(587),
   SMTP_USER: z.string().optional().default(""),
@@ -42,7 +43,12 @@ const envSchema = z.object({
   SMTP_FROM: z.string().default("todoDesk <noreply@tododesk.local>")
 });
 
-export const config = envSchema.parse(process.env);
+const parsedConfig = envSchema.parse(process.env);
+
+export const config = {
+  ...parsedConfig,
+  REFRESH_TOKEN_TTL_HOURS: parsedConfig.REFRESH_TOKEN_TTL_HOURS ?? (parsedConfig.REFRESH_TOKEN_TTL_DAYS ? parsedConfig.REFRESH_TOKEN_TTL_DAYS * 24 : 24)
+};
 
 export const appOrigins = [
   config.APP_ORIGIN,
