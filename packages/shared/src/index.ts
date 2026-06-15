@@ -48,6 +48,15 @@ export const themeIdValues = ["default", "shinchan", "labubu", "doraemon"] as co
 export const taskViewModeValues = ["list", "quadrant"] as const;
 export const taskCardDisplayModeValues = ["full", "title"] as const;
 export const displaySizeValues = ["small", "default", "large"] as const;
+export const fontFamilyValues = [
+  "system",
+  "lemi-chunxu-wanxing",
+  "lemi-muhe-yuanti",
+  "lemi-zhixia-qianfeng",
+  "nanxi-xin-yuanti",
+  "lemi-xiaonaipao",
+  "baiwuchang-keke"
+] as const;
 export const releaseChannelValues = ["stable"] as const;
 export const footerTypeValues = ["sea", "tree"] as const;
 export const titleColorValues = [
@@ -113,7 +122,8 @@ export const updateThemePreferenceRequestSchema = z
     showCompletedTasks: z.boolean().optional(),
     taskViewMode: z.enum(taskViewModeValues).optional(),
     taskCardDisplayMode: z.enum(taskCardDisplayModeValues).optional(),
-    displaySize: z.enum(displaySizeValues).optional()
+    displaySize: z.enum(displaySizeValues).optional(),
+    fontFamily: z.enum(fontFamilyValues).optional()
   })
   .refine((value) => (
     value.themeId ||
@@ -123,7 +133,8 @@ export const updateThemePreferenceRequestSchema = z
     value.showCompletedTasks !== undefined ||
     value.taskViewMode ||
     value.taskCardDisplayMode ||
-    value.displaySize
+    value.displaySize ||
+    value.fontFamily
   ), {
     message: "Appearance preference is required"
   });
@@ -185,6 +196,7 @@ export type TaskPriority = (typeof taskPriorityValues)[number];
 export type TaskViewMode = (typeof taskViewModeValues)[number];
 export type TaskCardDisplayMode = (typeof taskCardDisplayModeValues)[number];
 export type DisplaySize = (typeof displaySizeValues)[number];
+export type FontFamily = (typeof fontFamilyValues)[number];
 export type ReleaseChannel = (typeof releaseChannelValues)[number];
 export type ThemeId = (typeof themeIdValues)[number];
 export type FooterType = (typeof footerTypeValues)[number];
@@ -203,6 +215,7 @@ export interface ApiThemePreference {
   taskViewMode: TaskViewMode;
   taskCardDisplayMode: TaskCardDisplayMode;
   displaySize: DisplaySize;
+  fontFamily: FontFamily;
 }
 
 export interface AuthTokens {

@@ -5,6 +5,7 @@ import {
   changePasswordRequestSchema,
   defaultAppFeatureFlags,
   displaySizeValues,
+  fontFamilyValues,
   footerTypeValues,
   releaseChannelValues,
   taskCardDisplayModeValues,
@@ -35,6 +36,15 @@ describe("profile schemas", () => {
     expect(taskViewModeValues).toEqual(["list", "quadrant"]);
     expect(taskCardDisplayModeValues).toEqual(["full", "title"]);
     expect(displaySizeValues).toEqual(["small", "default", "large"]);
+    expect(fontFamilyValues).toEqual([
+      "system",
+      "lemi-chunxu-wanxing",
+      "lemi-muhe-yuanti",
+      "lemi-zhixia-qianfeng",
+      "nanxi-xin-yuanti",
+      "lemi-xiaonaipao",
+      "baiwuchang-keke"
+    ]);
     expect(titleColorValues).toEqual([
       "default",
       "app-pink",
@@ -61,6 +71,12 @@ describe("profile schemas", () => {
     expect(updateThemePreferenceRequestSchema.parse({ displaySize: "small" })).toEqual({ displaySize: "small" });
     expect(updateThemePreferenceRequestSchema.parse({ displaySize: "default" })).toEqual({ displaySize: "default" });
     expect(updateThemePreferenceRequestSchema.parse({ displaySize: "large" })).toEqual({ displaySize: "large" });
+    expect(updateThemePreferenceRequestSchema.parse({ fontFamily: "system" })).toEqual({ fontFamily: "system" });
+    expect(updateThemePreferenceRequestSchema.parse({ fontFamily: "lemi-muhe-yuanti" })).toEqual({ fontFamily: "lemi-muhe-yuanti" });
+    expect(updateThemePreferenceRequestSchema.parse({ fontFamily: "nanxi-xin-yuanti" })).toEqual({ fontFamily: "nanxi-xin-yuanti" });
+    expect(updateThemePreferenceRequestSchema.parse({ fontFamily: "lemi-xiaonaipao" })).toEqual({ fontFamily: "lemi-xiaonaipao" });
+    expect(updateThemePreferenceRequestSchema.parse({ fontFamily: "baiwuchang-keke" })).toEqual({ fontFamily: "baiwuchang-keke" });
+    expect(updateThemePreferenceRequestSchema.safeParse({ fontFamily: "serif" }).success).toBe(false);
     expect(updateThemePreferenceRequestSchema.parse({ themeId: "shinchan", titleColor: "warm-peach-pink" })).toEqual({
       themeId: "shinchan",
       titleColor: "warm-peach-pink"

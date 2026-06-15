@@ -23,7 +23,8 @@ const currentPreference = {
   showCompletedTasks: 1,
   taskViewMode: "list",
   taskCardDisplayMode: "full",
-  displaySize: "default"
+  displaySize: "default",
+  fontFamily: "system"
 };
 
 async function injectPreference(method: "GET" | "PUT", payload?: InjectOptions["payload"]): Promise<Response> {
@@ -75,7 +76,8 @@ describe("preference routes", () => {
       true,
       "list",
       "title",
-      "default"
+      "default",
+      "system"
     ]);
   });
 
@@ -87,6 +89,40 @@ describe("preference routes", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
       taskCardDisplayMode: "full"
+    });
+  });
+
+  it("saves selected font family", async () => {
+    db.queryOne.mockResolvedValue(currentPreference);
+
+    const response = await injectPreference("PUT", { fontFamily: "lemi-chunxu-wanxing" });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      fontFamily: "lemi-chunxu-wanxing"
+    });
+    expect(db.execute).toHaveBeenLastCalledWith(expect.stringContaining("fontFamily"), [
+      "user-1",
+      "shinchan",
+      "app-teal",
+      true,
+      "sea",
+      true,
+      "list",
+      "full",
+      "default",
+      "lemi-chunxu-wanxing"
+    ]);
+  });
+
+  it("falls back to system font for invalid stored values", async () => {
+    db.queryOne.mockResolvedValue({ ...currentPreference, fontFamily: "serif" });
+
+    const response = await injectPreference("GET");
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      fontFamily: "system"
     });
   });
 });

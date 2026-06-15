@@ -2,10 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import type { FormEvent, MouseEvent, PointerEvent } from "react";
 import type { ApiTask, ApiThemePreference, CreateTaskRequest, TaskCardDisplayMode, TaskPriority, TaskStatus, UpdateTaskRequest } from "@todo/shared";
 import { Button, Card, Input, Select, Tooltip } from "animal-island-ui";
-import { Check, Eye, EyeOff, GripHorizontal, Pencil, Plus, RefreshCw, RotateCcw, Save, X } from "lucide-react";
+import { Check, Eye, EyeOff, Pencil, Plus, RefreshCw, RotateCcw, Save, X } from "lucide-react";
 import { api } from "../api/client";
 import todoDeskLogo from "../assets/tododesk-logo.png";
 import { applyDisplaySize } from "../lib/displaySize";
+import { applyFontFamily } from "../lib/fonts";
 import { applyTheme } from "../lib/themes";
 
 type FormMode = "create" | "edit";
@@ -42,7 +43,8 @@ const defaultThemePreference: ApiThemePreference = {
   showCompletedTasks: true,
   taskViewMode: "list",
   taskCardDisplayMode: "full",
-  displaySize: "default"
+  displaySize: "default",
+  fontFamily: "system"
 };
 
 const preferenceSyncIntervalMs = 5000;
@@ -117,7 +119,6 @@ function FloatingHeader() {
   return (
     <header className="floating-header">
       <button className="floating-drag-handle" type="button" title="拖动卡片" onPointerDown={dragWindow}>
-        <GripHorizontal size={18} />
         <img className="floating-logo" src={todoDeskLogo} alt="todoDesk" />
       </button>
       <Button aria-label="关闭" icon={<X size={16} />} size="small" title="关闭" type="text" onClick={closeWindow} />
@@ -149,8 +150,10 @@ export function FloatingCard() {
     setTaskCardDisplayMode(preference.taskCardDisplayMode);
     localStorage.setItem("tododesk.theme", preference.themeId);
     localStorage.setItem("tododesk.displaySize", preference.displaySize);
+    localStorage.setItem("tododesk.fontFamily", preference.fontFamily);
     applyTheme(preference.themeId);
     applyDisplaySize(preference.displaySize);
+    applyFontFamily(preference.fontFamily);
   }
 
   async function loadData(options: { silent?: boolean } = {}) {
@@ -177,6 +180,7 @@ export function FloatingCard() {
   useEffect(() => {
     applyTheme(localStorage.getItem("tododesk.theme") ?? defaultThemePreference.themeId);
     applyDisplaySize(localStorage.getItem("tododesk.displaySize") ?? defaultThemePreference.displaySize);
+    applyFontFamily(localStorage.getItem("tododesk.fontFamily") ?? defaultThemePreference.fontFamily);
     void loadData();
   }, []);
 
@@ -311,7 +315,7 @@ export function FloatingCard() {
       <FloatingHeader />
       <main>
         <div className="floating-toolbar">
-          <Button className="floating-toolbar-primary" icon={<Plus size={15} />} size="small" type="primary" onClick={beginCreate}>
+          <Button className="floating-toolbar-primary" icon={<Plus size={15} />} size="small" type="default" onClick={beginCreate}>
             新增
           </Button>
           <Button
@@ -321,7 +325,6 @@ export function FloatingCard() {
             loading={savingPreference}
             size="small"
             title={showCompletedAction}
-            type={showCompletedTasks ? "primary" : "default"}
             onClick={() => void toggleShowCompletedTasks(!showCompletedTasks)}
           />
           <Button
@@ -439,7 +442,7 @@ export function FloatingCard() {
                     loading={savingTaskId === task.id}
                     size="small"
                     title={statusAction}
-                    type={isCompleted ? "default" : "primary"}
+                    type={isCompleted ? "default" : "default"}
                     onClick={() => void setTaskStatus(task, nextStatus)}
                   />
                 </div>

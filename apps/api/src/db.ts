@@ -152,6 +152,7 @@ async function ensureIncrementalSchema() {
   await ensureColumn("UserThemePreference", "taskViewMode", "ALTER TABLE `UserThemePreference` ADD COLUMN `taskViewMode` VARCHAR(191) NOT NULL DEFAULT 'list'");
   await ensureColumn("UserThemePreference", "taskCardDisplayMode", "ALTER TABLE `UserThemePreference` ADD COLUMN `taskCardDisplayMode` VARCHAR(191) NOT NULL DEFAULT 'full'");
   await ensureColumn("UserThemePreference", "displaySize", "ALTER TABLE `UserThemePreference` ADD COLUMN `displaySize` VARCHAR(191) NOT NULL DEFAULT 'default'");
+  await ensureColumn("UserThemePreference", "fontFamily", "ALTER TABLE `UserThemePreference` ADD COLUMN `fontFamily` VARCHAR(191) NOT NULL DEFAULT 'system'");
 }
 
 async function runAllMigrations() {

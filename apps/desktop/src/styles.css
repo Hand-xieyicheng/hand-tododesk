@@ -1,7 +1,45 @@
+@font-face {
+  font-family: "Lemi Chunxu Wanxing";
+  src: url("./assets/fonts/lemi-chunxu-wanxing.ttf") format("truetype");
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Lemi Muhe Yuanti";
+  src: url("./assets/fonts/lemi-muhe-yuanti.ttf") format("truetype");
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Lemi Zhixia Qianfeng";
+  src: url("./assets/fonts/lemi-zhixia-qianfeng.ttf") format("truetype");
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Nanxi Xin Yuanti";
+  src: url("./assets/fonts/nanxi-xin-yuanti.ttf") format("truetype");
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Lemi Xiaonaipao";
+  src: url("./assets/fonts/lemi-xiaonaipao.ttf") format("truetype");
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Baiwuchang Keke";
+  src: url("./assets/fonts/baiwuchang-keke.ttf") format("truetype");
+  font-display: swap;
+}
+
 :root {
-  font-family: var(--animal-font-family);
+  font-family: var(--app-font-family);
   color: var(--color-text);
   background: var(--color-background);
+  --app-font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --animal-font-family: var(--app-font-family) !important;
   --color-background: #f7f3df;
   --color-surface: #fffdf1;
   --color-surface-strong: #f0e8d8;
@@ -74,6 +112,10 @@ button,
 input,
 textarea {
   font: inherit;
+}
+
+[class*="animal-title-"] {
+  font-family: var(--app-font-family) !important;
 }
 
 button {
@@ -1598,7 +1640,8 @@ textarea::placeholder {
 }
 
 .title-color-label,
-.display-size-config-label {
+.display-size-config-label,
+.font-family-config-label {
   color: var(--color-muted);
   font-size: calc(13px * var(--app-ui-scale));
   font-weight: 900;
@@ -1647,6 +1690,74 @@ textarea::placeholder {
   display: grid;
   gap: calc(11px * var(--app-ui-scale));
   padding-top: calc(2px * var(--app-ui-scale));
+}
+
+.font-family-config {
+  display: grid;
+  gap: calc(11px * var(--app-ui-scale));
+  padding-top: calc(2px * var(--app-ui-scale));
+}
+
+.font-family-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(calc(190px * var(--app-ui-scale)), 1fr));
+  gap: calc(10px * var(--app-ui-scale));
+}
+
+.font-family-option {
+  position: relative;
+  display: grid;
+  min-height: calc(76px * var(--app-ui-scale));
+  gap: calc(5px * var(--app-ui-scale));
+  align-content: center;
+  border: 2px solid color-mix(in srgb, var(--color-border) 76%, transparent);
+  border-radius: 18px 16px 20px 16px;
+  background: color-mix(in srgb, var(--color-surface) 92%, #ffffff);
+  color: var(--color-text);
+  box-shadow: 0 4px 0 rgba(114, 93, 66, 0.11);
+  padding: calc(13px * var(--app-ui-scale)) calc(36px * var(--app-ui-scale)) calc(13px * var(--app-ui-scale)) calc(14px * var(--app-ui-scale));
+  text-align: left;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+}
+
+.font-family-option:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 0 rgba(114, 93, 66, 0.13);
+}
+
+.font-family-option:active {
+  transform: translateY(1px);
+  box-shadow: 0 2px 0 rgba(114, 93, 66, 0.11);
+}
+
+.font-family-option.is-active {
+  border-color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 8%, var(--color-surface));
+}
+
+.font-family-option strong,
+.font-family-option span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.font-family-option strong {
+  font-size: calc(14px * var(--app-ui-scale));
+  font-weight: 900;
+}
+
+.font-family-option span {
+  color: var(--color-muted);
+  font-size: calc(12px * var(--app-ui-scale));
+  font-weight: 800;
+}
+
+.font-family-option svg {
+  position: absolute;
+  top: calc(14px * var(--app-ui-scale));
+  right: calc(13px * var(--app-ui-scale));
+  color: var(--color-primary);
 }
 
 .footer-config {
@@ -2342,10 +2453,10 @@ textarea::placeholder {
 }
 
 .floating-header {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) calc(40px * var(--app-ui-scale));
+  position: relative;
+  display: flex;
   align-items: center;
-  gap: calc(8px * var(--app-ui-scale));
+  justify-content: flex-end;
   min-height: calc(50px * var(--app-ui-scale));
   padding: calc(7px * var(--app-ui-scale)) calc(10px * var(--app-ui-scale));
   border-bottom: 2px dashed color-mix(in srgb, var(--color-border) 72%, transparent);
@@ -2354,6 +2465,8 @@ textarea::placeholder {
 }
 
 .floating-header > button:not(.floating-drag-handle) {
+  position: relative;
+  z-index: 2;
   width: calc(34px * var(--app-ui-scale)) !important;
   min-width: calc(34px * var(--app-ui-scale)) !important;
   height: calc(34px * var(--app-ui-scale)) !important;
@@ -2363,11 +2476,14 @@ textarea::placeholder {
 }
 
 .floating-drag-handle {
-  display: grid;
-  grid-template-columns: calc(28px * var(--app-ui-scale)) minmax(0, 1fr);
+  position: absolute;
+  inset: 0;
+  display: flex;
   align-items: center;
+  justify-content: center;
   min-width: 0;
-  height: calc(36px * var(--app-ui-scale));
+  width: 100%;
+  height: 100%;
   padding: 0;
   border: 0;
   background: transparent;
@@ -2379,9 +2495,8 @@ textarea::placeholder {
 
 .floating-logo {
   display: block;
-  width: min(calc(126px * var(--app-ui-scale)), 100%);
+  width: min(calc(96px * var(--app-ui-scale)), 42vw);
   height: auto;
-  justify-self: center;
   filter: drop-shadow(0 2px 0 rgba(114, 93, 66, 0.12));
 }
 

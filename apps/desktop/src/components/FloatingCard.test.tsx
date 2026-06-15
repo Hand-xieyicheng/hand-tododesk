@@ -64,7 +64,8 @@ const titlePreference: ApiThemePreference = {
   showCompletedTasks: true,
   taskViewMode: "list",
   taskCardDisplayMode: "title",
-  displaySize: "default"
+  displaySize: "default",
+  fontFamily: "system"
 };
 
 describe("FloatingCard", () => {

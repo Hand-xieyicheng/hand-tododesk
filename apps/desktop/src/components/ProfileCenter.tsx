@@ -1,5 +1,5 @@
 import { ChangeEvent, FormEvent, PointerEvent, useEffect, useMemo, useRef, useState } from "react";
-import { displaySizeValues, taskCardDisplayModeValues, titleColorValues, type ApiUser, type AppBootstrapResponse, type DisplaySize, type FooterType as AppFooterType, type TaskCardDisplayMode, type ThemeId, type TitleColor, type UserGender } from "@todo/shared";
+import { displaySizeValues, fontFamilyValues, taskCardDisplayModeValues, titleColorValues, type ApiUser, type AppBootstrapResponse, type DisplaySize, type FontFamily, type FooterType as AppFooterType, type TaskCardDisplayMode, type ThemeId, type TitleColor, type UserGender } from "@todo/shared";
 import { Button, Card, Divider, Input, Modal, Radio, Select, Tabs, Title } from "animal-island-ui";
 import { Camera, Check, Download, KeyRound, Mail, RefreshCw, RotateCw, Save } from "lucide-react";
 import { api } from "../api/client";
@@ -11,6 +11,7 @@ import {
   getAvatarLayout
 } from "../lib/avatarCrop";
 import type { AppUpdaterController } from "../lib/useAppUpdater";
+import { fontRegistry } from "../lib/fonts";
 import { ThemeSettings } from "./ThemeSettings";
 
 interface ProfileCenterProps {
@@ -19,11 +20,13 @@ interface ProfileCenterProps {
   displaySize: DisplaySize;
   footerVisible: boolean;
   footerType: AppFooterType;
+  fontFamily: FontFamily;
   taskCardDisplayMode: TaskCardDisplayMode;
   themeId: ThemeId;
   titleColor: TitleColor;
   onFooterVisibleChanged(visible: boolean): void;
   onFooterTypeChanged(footerType: AppFooterType): void;
+  onFontFamilyChanged(fontFamily: FontFamily): void;
   onDisplaySizeChanged(displaySize: DisplaySize): void;
   onPasswordChanged(): void;
   onTaskCardDisplayModeChanged(taskCardDisplayMode: TaskCardDisplayMode): void;
@@ -145,11 +148,13 @@ export function ProfileCenter({
   displaySize,
   footerVisible,
   footerType,
+  fontFamily,
   taskCardDisplayMode,
   themeId,
   titleColor,
   onFooterVisibleChanged,
   onFooterTypeChanged,
+  onFontFamilyChanged,
   onDisplaySizeChanged,
   onPasswordChanged,
   onTaskCardDisplayModeChanged,
@@ -617,6 +622,27 @@ export function ProfileCenter({
               value={displaySize}
               onChange={(value) => onDisplaySizeChanged(value as DisplaySize)}
             />
+          </div>
+          <div className="font-family-config">
+            <span className="font-family-config-label">字体配置</span>
+            <div className="font-family-grid" aria-label="界面字体">
+              {fontFamilyValues.map((value) => {
+                const font = fontRegistry[value];
+                return (
+                  <button
+                    className={fontFamily === value ? "font-family-option is-active" : "font-family-option"}
+                    key={value}
+                    style={{ fontFamily: font.stack }}
+                    type="button"
+                    onClick={() => onFontFamilyChanged(value)}
+                  >
+                    <strong>{font.label}</strong>
+                    <span>待办事项 ABC 123</span>
+                    {fontFamily === value ? <Check size={15} /> : null}
+                  </button>
+                );
+              })}
+            </div>
           </div>
           <div className="footer-config">
             <span className="footer-config-label">Footer 配置</span>

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties, PointerEvent } from "react";
-import { defaultAppFeatureFlags, type ApiTask, type ApiThemePreference, type ApiUser, type AppBootstrapResponse, type AppFeatureFlags, type DisplaySize, type FooterType as AppFooterType, type TaskCardDisplayMode, type TaskViewMode, type ThemeId, type TitleColor } from "@todo/shared";
+import { defaultAppFeatureFlags, type ApiTask, type ApiThemePreference, type ApiUser, type AppBootstrapResponse, type AppFeatureFlags, type DisplaySize, type FontFamily, type FooterType as AppFooterType, type TaskCardDisplayMode, type TaskViewMode, type ThemeId, type TitleColor } from "@todo/shared";
 import { Button, Footer, Loading, Title, Tooltip } from "animal-island-ui";
 import type { TitleSize } from "animal-island-ui";
 import { Bell, CalendarDays, CheckSquare2, Clock3, Eye, EyeOff, LayoutGrid, ListTodo, LogOut, Pin, Plus, UserRound } from "lucide-react";
@@ -12,6 +12,7 @@ import { ProfileCenter } from "./components/ProfileCenter";
 import { TaskPanel } from "./components/TaskPanel";
 import todoDeskLogo from "./assets/tododesk-logo.png";
 import { applyDisplaySize, normalizeDisplaySize } from "./lib/displaySize";
+import { applyFontFamily, normalizeFontFamily } from "./lib/fonts";
 import { applyTheme } from "./lib/themes";
 import { clearSession, getSavedUser, saveUser } from "./lib/authStorage";
 import { useAppUpdater } from "./lib/useAppUpdater";
@@ -39,7 +40,8 @@ const defaultThemePreference: ApiThemePreference = {
   showCompletedTasks: true,
   taskViewMode: "list",
   taskCardDisplayMode: "full",
-  displaySize: "default"
+  displaySize: "default",
+  fontFamily: "system"
 };
 
 const preferenceSyncIntervalMs = 5000;
@@ -89,6 +91,7 @@ export function App() {
   const [showCompletedTasks, setShowCompletedTasks] = useState(true);
   const [taskCardDisplayMode, setTaskCardDisplayMode] = useState<TaskCardDisplayMode>("full");
   const [displaySize, setDisplaySize] = useState<DisplaySize>(() => normalizeDisplaySize(localStorage.getItem("tododesk.displaySize")));
+  const [fontFamily, setFontFamily] = useState<FontFamily>(() => normalizeFontFamily(localStorage.getItem("tododesk.fontFamily")));
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [entryLoading, setEntryLoading] = useState(false);
@@ -117,6 +120,7 @@ export function App() {
 
   function applyThemePreference(preference: ApiThemePreference) {
     const nextDisplaySize = normalizeDisplaySize(preference.displaySize);
+    const nextFontFamily = normalizeFontFamily(preference.fontFamily);
 
     setThemeId(preference.themeId);
     setTitleColor(preference.titleColor);
@@ -126,10 +130,13 @@ export function App() {
     setTaskViewMode(preference.taskViewMode);
     setTaskCardDisplayMode(preference.taskCardDisplayMode);
     setDisplaySize(nextDisplaySize);
+    setFontFamily(nextFontFamily);
     localStorage.setItem("tododesk.theme", preference.themeId);
     localStorage.setItem("tododesk.displaySize", nextDisplaySize);
+    localStorage.setItem("tododesk.fontFamily", nextFontFamily);
     applyTheme(preference.themeId);
     applyDisplaySize(nextDisplaySize);
+    applyFontFamily(nextFontFamily);
   }
 
   async function loadAppData(options: { immersive?: boolean } = {}) {
@@ -173,6 +180,10 @@ export function App() {
   useEffect(() => {
     applyDisplaySize(displaySize);
   }, [displaySize]);
+
+  useEffect(() => {
+    applyFontFamily(fontFamily);
+  }, [fontFamily]);
 
   useEffect(() => {
     let cancelled = false;
@@ -343,6 +354,19 @@ export function App() {
     });
   }
 
+  function handleFontFamilyChanged(next: FontFamily) {
+    const previous = fontFamily;
+    const normalized = applyFontFamily(next);
+    setFontFamily(normalized);
+    localStorage.setItem("tododesk.fontFamily", normalized);
+    void api.setThemePreference({ fontFamily: normalized }).catch((error) => {
+      setFontFamily(previous);
+      localStorage.setItem("tododesk.fontFamily", previous);
+      applyFontFamily(previous);
+      setMessage(error instanceof Error ? error.message : "字体配置保存失败");
+    });
+  }
+
   async function openFloatingCard() {
     const query = "/?window=floating";
     try {
@@ -508,9 +532,11 @@ export function App() {
             footerType={footerType}
             footerVisible={footerVisible}
             displaySize={displaySize}
+            fontFamily={fontFamily}
             themeId={themeId}
             titleColor={titleColor}
             onDisplaySizeChanged={handleDisplaySizeChanged}
+            onFontFamilyChanged={handleFontFamilyChanged}
             onFooterTypeChanged={handleFooterTypeChanged}
             onFooterVisibleChanged={handleFooterVisibleChanged}
             onPasswordChanged={handlePasswordChanged}

@@ -99,11 +99,13 @@ function renderProfile(updater: AppUpdaterController) {
       displaySize="default"
       footerVisible
       footerType="sea"
+      fontFamily="system"
       taskCardDisplayMode="full"
       themeId="shinchan"
       titleColor="app-teal"
       onFooterVisibleChanged={vi.fn()}
       onFooterTypeChanged={vi.fn()}
+      onFontFamilyChanged={vi.fn()}
       onDisplaySizeChanged={vi.fn()}
       onPasswordChanged={vi.fn()}
       onTaskCardDisplayModeChanged={vi.fn()}
@@ -137,5 +139,18 @@ describe("ProfileCenter", () => {
     expect(screen.getByText("待办事项卡片显示")).toBeInTheDocument();
     expect(screen.getByText(/完整卡片/)).toBeInTheDocument();
     expect(screen.getByText("仅标题")).toBeInTheDocument();
+  });
+
+  it("shows font settings in theme configuration", () => {
+    renderProfile(createUpdater("idle"));
+
+    expect(screen.getByText("字体配置")).toBeInTheDocument();
+    expect(screen.getByText("系统字体")).toBeInTheDocument();
+    expect(screen.getByText("乐米春序晚星体")).toBeInTheDocument();
+    expect(screen.getByText("乐米沐和圆体")).toBeInTheDocument();
+    expect(screen.getByText("乐米栀夏浅风体")).toBeInTheDocument();
+    expect(screen.getByText("南西新圆体")).toBeInTheDocument();
+    expect(screen.getByText("乐米小奶泡体")).toBeInTheDocument();
+    expect(screen.getByText("白无常可可体")).toBeInTheDocument();
   });
 });

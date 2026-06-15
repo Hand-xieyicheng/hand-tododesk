@@ -197,6 +197,7 @@ model UserThemePreference {
   taskViewMode       String   @default("list")
   taskCardDisplayMode String   @default("full")
   displaySize        String   @default("default")
+  fontFamily         String   @default("system")
   updatedAt          DateTime @updatedAt
   user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
