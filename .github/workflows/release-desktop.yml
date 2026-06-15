@@ -5,6 +5,17 @@ on:
     tags:
       - "v*.*.*"
   workflow_dispatch:
+    inputs:
+      releaseTag:
+        description: "Release tag to publish, for example v0.2.0"
+        required: true
+        default: "v0.2.0"
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+permissions:
+  contents: write
 
 jobs:
   release:
@@ -30,7 +41,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
 
       - name: Setup Rust
@@ -52,8 +63,8 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           projectPath: apps/desktop
-          tagName: ${{ github.ref_name }}
-          releaseName: todoDesk ${{ github.ref_name }}
+          tagName: ${{ github.event_name == 'workflow_dispatch' && inputs.releaseTag || github.ref_name }}
+          releaseName: todoDesk ${{ github.event_name == 'workflow_dispatch' && inputs.releaseTag || github.ref_name }}
           releaseBody: Stable desktop release for todoDesk.
           releaseDraft: false
           prerelease: false
