@@ -188,8 +188,13 @@ model PomodoroSession {
 }
 
 model UserThemePreference {
-  userId    String   @id
-  themeId   String   @default("default")
-  updatedAt DateTime @updatedAt
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId             String   @id
+  themeId            String   @default("default")
+  titleColor         String   @default("app-teal")
+  footerVisible      Boolean  @default(true)
+  footerType         String   @default("sea")
+  showCompletedTasks Boolean  @default(true)
+  taskViewMode       String   @default("list")
+  updatedAt          DateTime @updatedAt
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

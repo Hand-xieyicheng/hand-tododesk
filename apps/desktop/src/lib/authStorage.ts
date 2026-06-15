@@ -53,7 +53,18 @@ export function getSavedUser() {
     return null;
   }
   try {
-    return JSON.parse(raw) as ApiUser;
+    const user = JSON.parse(raw) as Partial<ApiUser>;
+    if (!user.id || !user.email) {
+      return null;
+    }
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name ?? null,
+      gender: user.gender ?? "PRIVATE",
+      avatarUrl: user.avatarUrl ?? null,
+      emailVerifiedAt: user.emailVerifiedAt ?? null
+    } satisfies ApiUser;
   } catch {
     return null;
   }
@@ -64,4 +75,3 @@ export async function clearSession() {
   localStorage.removeItem(userKey);
   await deleteRefreshToken();
 }
-

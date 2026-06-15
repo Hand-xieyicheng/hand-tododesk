@@ -1,25 +1,25 @@
 import { useEffect, useMemo, useState } from "react";
-import type { ApiTask, ApiUser, ThemeId } from "@todo/shared";
+import type { CSSProperties } from "react";
+import type { ApiTask, ApiUser, FooterType as AppFooterType, ThemeId, TitleColor } from "@todo/shared";
 import { Button, Footer, Loading, Title } from "animal-island-ui";
-import { Bell, CalendarDays, CheckSquare2, Clock3, LayoutGrid, ListTodo, LogOut, Palette, Pin, Plus } from "lucide-react";
+import { Bell, CalendarDays, CheckSquare2, Clock3, Eye, EyeOff, LayoutGrid, ListTodo, LogOut, Pin, Plus, UserRound } from "lucide-react";
 import { api, ApiError } from "./api/client";
 import { AuthView } from "./components/AuthView";
 import { CalendarView } from "./components/CalendarView";
 import { PomodoroView } from "./components/PomodoroView";
+import { ProfileCenter } from "./components/ProfileCenter";
 import { TaskPanel } from "./components/TaskPanel";
-import { ThemeSettings } from "./components/ThemeSettings";
 import todoDeskLogo from "./assets/tododesk-logo.png";
 import { applyTheme } from "./lib/themes";
 import { clearSession, getSavedUser, saveUser } from "./lib/authStorage";
 
-type View = "tasks" | "calendar" | "pomodoro" | "themes";
+type View = "tasks" | "calendar" | "pomodoro" | "profile";
 type TaskViewMode = "list" | "quadrant";
 
 const navItems: Array<{ id: View; label: string; icon: typeof CheckSquare2 }> = [
   { id: "tasks", label: "待办事项", icon: CheckSquare2 },
   { id: "calendar", label: "日历", icon: CalendarDays },
-  { id: "pomodoro", label: "番茄时钟", icon: Clock3 },
-  { id: "themes", label: "主题", icon: Palette }
+  { id: "pomodoro", label: "番茄时钟", icon: Clock3 }
 ];
 
 export function App() {
@@ -29,12 +29,23 @@ export function App() {
   const [taskViewMode, setTaskViewMode] = useState<TaskViewMode>("list");
   const [taskCreateOpen, setTaskCreateOpen] = useState(false);
   const [themeId, setThemeId] = useState<ThemeId>("default");
+  const [titleColor, setTitleColor] = useState<TitleColor>("app-teal");
+  const [footerVisible, setFooterVisible] = useState(true);
+  const [footerType, setFooterType] = useState<AppFooterType>("sea");
+  const [showCompletedTasks, setShowCompletedTasks] = useState(true);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [entryLoading, setEntryLoading] = useState(false);
   const [showEntryLoading, setShowEntryLoading] = useState(false);
 
   const openTasks = useMemo(() => tasks.filter((task) => task.status !== "COMPLETED"), [tasks]);
+  const userDisplayName = user?.name || user?.email || "";
+  const userInitial = userDisplayName.trim().slice(0, 1).toUpperCase();
+  const viewTitle = activeView === "tasks" ? "待办事项" : activeView === "calendar" ? "日历模式" : activeView === "pomodoro" ? "番茄时钟" : "个人中心";
+  const workspaceStyle = {
+    "--workspace-footer-height": footerVisible ? (footerType === "sea" ? "80px" : "60px") : "0px",
+    "--workspace-footer-gap": footerVisible ? "var(--app-footer-gap)" : "0px"
+  } as CSSProperties;
 
   async function loadAppData(options: { immersive?: boolean } = {}) {
     if (!user) {
@@ -46,12 +57,25 @@ export function App() {
     setLoading(true);
     setMessage("");
     try {
-      const [taskPayload, preference] = await Promise.all([
+      const [taskPayload, preference, profile] = await Promise.all([
         api.tasks(),
-        api.getThemePreference().catch(() => ({ themeId: "default" }))
+        api.getThemePreference().catch(() => ({
+          themeId: "default",
+          titleColor: "app-teal",
+          footerVisible: true,
+          footerType: "sea",
+          showCompletedTasks: true
+        }) as const),
+        api.currentUser()
       ]);
       setTasks(taskPayload.tasks);
+      setUser(profile.user);
+      saveUser(profile.user);
       setThemeId(preference.themeId as ThemeId);
+      setTitleColor((preference.titleColor ?? "app-teal") as TitleColor);
+      setFooterVisible(preference.footerVisible ?? true);
+      setFooterType((preference.footerType ?? "sea") as AppFooterType);
+      setShowCompletedTasks(preference.showCompletedTasks ?? true);
       localStorage.setItem("tododesk.theme", preference.themeId);
       applyTheme(preference.themeId);
     } catch (error) {
@@ -90,12 +114,61 @@ export function App() {
   async function handleAuthed(nextUser: ApiUser) {
     saveUser(nextUser);
     setUser(nextUser);
+    setActiveView("tasks");
   }
 
   async function handleLogout() {
     await api.logout();
     setUser(null);
     setTasks([]);
+    setActiveView("tasks");
+  }
+
+  function handleUserChanged(nextUser: ApiUser) {
+    saveUser(nextUser);
+    setUser(nextUser);
+  }
+
+  function handlePasswordChanged() {
+    setUser(null);
+    setTasks([]);
+    setActiveView("tasks");
+  }
+
+  function handleThemeChanged(next: ThemeId) {
+    setThemeId(next);
+    localStorage.setItem("tododesk.theme", next);
+    void api.setThemePreference({ themeId: next }).catch((error) => {
+      setMessage(error instanceof Error ? error.message : "主题保存失败");
+    });
+  }
+
+  function handleTitleColorChanged(next: TitleColor) {
+    setTitleColor(next);
+    void api.setThemePreference({ titleColor: next }).catch((error) => {
+      setMessage(error instanceof Error ? error.message : "标题颜色保存失败");
+    });
+  }
+
+  function handleFooterVisibleChanged(next: boolean) {
+    setFooterVisible(next);
+    void api.setThemePreference({ footerVisible: next }).catch((error) => {
+      setMessage(error instanceof Error ? error.message : "Footer 显示配置保存失败");
+    });
+  }
+
+  function handleFooterTypeChanged(next: AppFooterType) {
+    setFooterType(next);
+    void api.setThemePreference({ footerType: next }).catch((error) => {
+      setMessage(error instanceof Error ? error.message : "Footer 样式保存失败");
+    });
+  }
+
+  function handleShowCompletedTasksChanged(next: boolean) {
+    setShowCompletedTasks(next);
+    void api.setThemePreference({ showCompletedTasks: next }).catch((error) => {
+      setMessage(error instanceof Error ? error.message : "待办显示配置保存失败");
+    });
   }
 
   async function openFloatingCard() {
@@ -139,16 +212,32 @@ export function App() {
         </nav>
 
         <div className="sidebar-footer">
-          <Button className="ghost-button" icon={<Pin size={16} />} type="default" onClick={() => openFloatingCard()}>
-            桌面卡片
-          </Button>
-          <Button className="ghost-button" icon={<LogOut size={16} />} type="default" onClick={handleLogout}>
-            退出
-          </Button>
+          <div className="user-menu">
+            <button className="sidebar-user-card" type="button" aria-haspopup="menu" onClick={() => setActiveView("profile")}>
+              <span className="sidebar-user-avatar">
+                {user.avatarUrl ? <img src={user.avatarUrl} alt={userDisplayName} /> : <span>{userInitial}</span>}
+              </span>
+              <span className="sidebar-user-copy">
+                <strong>{userDisplayName}</strong>
+                <span>{user.email}</span>
+              </span>
+            </button>
+            <div className="user-menu-panel" role="menu">
+              <Button className="ghost-button" icon={<UserRound size={16} />} type="default" onClick={() => setActiveView("profile")}>
+                个人中心
+              </Button>
+              <Button className="ghost-button" icon={<Pin size={16} />} type="default" onClick={() => openFloatingCard()}>
+                固定桌面卡片
+              </Button>
+              <Button className="ghost-button" icon={<LogOut size={16} />} type="default" onClick={handleLogout}>
+                退出登录
+              </Button>
+            </div>
+          </div>
         </div>
       </aside>
 
-      <main className="workspace">
+      <main className="workspace" style={workspaceStyle}>
         {showEntryLoading ? (
           <div className={entryLoading ? "app-loading-overlay is-active" : "app-loading-overlay is-closing"} aria-busy={entryLoading} aria-live="polite">
             <Loading active={entryLoading} className="app-loading-scene" />
@@ -158,18 +247,27 @@ export function App() {
 
         <header className="topbar">
           <div>
-            <Title className="view-title" size="large" color="app-teal">
-              {activeView === "tasks" ? "待办事项" : activeView === "calendar" ? "日历模式" : activeView === "pomodoro" ? "番茄时钟" : "主题设定"}
+            <Title className="view-title" color={titleColor}>
+              {viewTitle}
             </Title>
           </div>
           <div className="topbar-actions">
             <span className="status-pill"><Bell size={14} /> {openTasks.length} 个未完成</span>
             {activeView === "tasks" ? (
               <>
+                <Button
+                  aria-label={showCompletedTasks ? "隐藏已完成事项" : "显示已完成事项"}
+                  className={showCompletedTasks ? "task-completion-toggle is-active" : "task-completion-toggle"}
+                  icon={showCompletedTasks ? <Eye size={14} /> : <EyeOff size={14} />}
+                  size="small"
+                  title={showCompletedTasks ? "隐藏已完成事项" : "显示已完成事项"}
+                  type={showCompletedTasks ? "primary" : "text"}
+                  onClick={() => handleShowCompletedTasksChanged(!showCompletedTasks)}
+                />
                 <div className="task-view-toggle" aria-label="待办样式">
                   <Button
                     className={taskViewMode === "list" ? "is-active" : ""}
-                    icon={<ListTodo size={16} />}
+                    icon={<ListTodo size={14} />}
                     size="small"
                     type={taskViewMode === "list" ? "primary" : "text"}
                     onClick={() => setTaskViewMode("list")}
@@ -178,7 +276,7 @@ export function App() {
                   </Button>
                   <Button
                     className={taskViewMode === "quadrant" ? "is-active" : ""}
-                    icon={<LayoutGrid size={16} />}
+                    icon={<LayoutGrid size={14} />}
                     size="small"
                     type={taskViewMode === "quadrant" ? "primary" : "text"}
                     onClick={() => setTaskViewMode("quadrant")}
@@ -186,7 +284,7 @@ export function App() {
                     四象限
                   </Button>
                 </div>
-                <Button className="primary-button" icon={<Plus size={16} />} type="primary" onClick={() => setTaskCreateOpen(true)}>
+                <Button className="primary-button" icon={<Plus size={14} />} size="small" type="primary" onClick={() => setTaskCreateOpen(true)}>
                   新增
                 </Button>
               </>
@@ -202,6 +300,7 @@ export function App() {
         {activeView === "tasks" ? (
           <TaskPanel
             createOpen={taskCreateOpen}
+            showCompletedTasks={showCompletedTasks}
             tasks={tasks}
             viewMode={taskViewMode}
             onChanged={loadAppData}
@@ -214,16 +313,29 @@ export function App() {
         {activeView === "pomodoro" ? (
           <PomodoroView tasks={openTasks} onChanged={loadAppData} />
         ) : null}
-        {activeView === "themes" ? (
-          <ThemeSettings themeId={themeId} onThemeChanged={(next) => {
-            setThemeId(next);
-            localStorage.setItem("tododesk.theme", next);
-            void api.setThemePreference(next);
-          }} />
+        {activeView === "profile" ? (
+          <ProfileCenter
+            user={user}
+            footerType={footerType}
+            footerVisible={footerVisible}
+            themeId={themeId}
+            titleColor={titleColor}
+            onFooterTypeChanged={handleFooterTypeChanged}
+            onFooterVisibleChanged={handleFooterVisibleChanged}
+            onPasswordChanged={handlePasswordChanged}
+            onTitleColorChanged={handleTitleColorChanged}
+            onThemeChanged={handleThemeChanged}
+            onUserChanged={handleUserChanged}
+          />
         ) : null}
-        <div className="workspace-footer-decoration" aria-hidden="true">
-          <Footer className="workspace-footer-art workspace-footer-art-seamless" type="sea" />
-        </div>
+        {footerVisible ? (
+          <div className="workspace-footer-decoration" aria-hidden="true">
+            <Footer
+              className={footerType === "sea" ? "workspace-footer-art workspace-footer-art-seamless" : "workspace-footer-art"}
+              type={footerType}
+            />
+          </div>
+        ) : null}
       </main>
     </div>
   );

@@ -45,6 +45,23 @@ export const taskExceptionStatusValues = ["SKIPPED", "COMPLETED", "RESCHEDULED"]
 export const pomodoroStatusValues = ["RUNNING", "COMPLETED", "CANCELLED"] as const;
 export const calendarViewValues = ["month", "week", "day"] as const;
 export const themeIdValues = ["default", "shinchan", "labubu", "doraemon"] as const;
+export const taskViewModeValues = ["list", "quadrant"] as const;
+export const footerTypeValues = ["sea", "tree"] as const;
+export const titleColorValues = [
+  "default",
+  "app-pink",
+  "purple",
+  "app-blue",
+  "app-yellow",
+  "app-orange",
+  "app-teal",
+  "app-green",
+  "app-red",
+  "lime-green",
+  "yellow-green",
+  "brown",
+  "warm-peach-pink"
+] as const;
 export const userGenderValues = ["PRIVATE", "MALE", "FEMALE", "OTHER"] as const;
 
 export const recurrenceRuleSchema = z.object({
@@ -84,9 +101,25 @@ export const completePomodoroSessionRequestSchema = z.object({
   actualMinutes: z.number().int().min(1).max(240).optional()
 });
 
-export const updateThemePreferenceRequestSchema = z.object({
-  themeId: z.enum(themeIdValues)
-});
+export const updateThemePreferenceRequestSchema = z
+  .object({
+    themeId: z.enum(themeIdValues).optional(),
+    titleColor: z.enum(titleColorValues).optional(),
+    footerVisible: z.boolean().optional(),
+    footerType: z.enum(footerTypeValues).optional(),
+    showCompletedTasks: z.boolean().optional(),
+    taskViewMode: z.enum(taskViewModeValues).optional()
+  })
+  .refine((value) => (
+    value.themeId ||
+    value.titleColor ||
+    value.footerVisible !== undefined ||
+    value.footerType ||
+    value.showCompletedTasks !== undefined ||
+    value.taskViewMode
+  ), {
+    message: "Theme, title color, footer, or task display preference is required"
+  });
 
 export const updateProfileRequestSchema = z.object({
   name: z.string().trim().min(1).max(80).nullable().optional(),
@@ -109,6 +142,7 @@ export type RefreshRequest = z.infer<typeof refreshRequestSchema>;
 export type UpdateProfileRequest = z.infer<typeof updateProfileRequestSchema>;
 export type ChangeEmailRequest = z.infer<typeof changeEmailRequestSchema>;
 export type ChangePasswordRequest = z.infer<typeof changePasswordRequestSchema>;
+export type UpdateThemePreferenceRequest = z.infer<typeof updateThemePreferenceRequestSchema>;
 export type CreateTaskRequest = z.infer<typeof createTaskRequestSchema>;
 export type UpdateTaskRequest = z.infer<typeof updateTaskRequestSchema>;
 export type RecurrenceRuleInput = z.infer<typeof recurrenceRuleSchema>;
@@ -116,9 +150,21 @@ export type CalendarQuery = z.infer<typeof calendarQuerySchema>;
 export type CalendarView = (typeof calendarViewValues)[number];
 export type TaskStatus = (typeof taskStatusValues)[number];
 export type TaskPriority = (typeof taskPriorityValues)[number];
+export type TaskViewMode = (typeof taskViewModeValues)[number];
 export type ThemeId = (typeof themeIdValues)[number];
+export type FooterType = (typeof footerTypeValues)[number];
+export type TitleColor = (typeof titleColorValues)[number];
 export type PomodoroStatus = (typeof pomodoroStatusValues)[number];
 export type UserGender = (typeof userGenderValues)[number];
+
+export interface ApiThemePreference {
+  themeId: ThemeId;
+  titleColor: TitleColor;
+  footerVisible: boolean;
+  footerType: FooterType;
+  showCompletedTasks: boolean;
+  taskViewMode: TaskViewMode;
+}
 
 export interface AuthTokens {
   accessToken: string;

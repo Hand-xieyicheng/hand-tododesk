@@ -1,0 +1,3 @@
+ALTER TABLE `UserThemePreference`
+  ADD COLUMN `footerVisible` BOOLEAN NOT NULL DEFAULT TRUE,
+  ADD COLUMN `footerType` VARCHAR(191) NOT NULL DEFAULT 'sea';

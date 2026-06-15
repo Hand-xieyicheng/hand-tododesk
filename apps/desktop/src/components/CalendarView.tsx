@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { CalendarOccurrence, CalendarView as CalendarViewMode } from "@todo/shared";
 import { Button, Card } from "animal-island-ui";
-import { ChevronLeft, ChevronRight, CheckCircle2 } from "lucide-react";
+import { CalendarClock, ChevronLeft, ChevronRight, CheckCircle2 } from "lucide-react";
 import { api } from "../api/client";
 
 interface CalendarViewProps {
@@ -108,6 +108,10 @@ export function CalendarView({ onChanged }: CalendarViewProps) {
     setCursor(next);
   }
 
+  function resetToToday() {
+    setCursor(new Date());
+  }
+
   return (
     <section className="calendar-panel">
       <div className="calendar-toolbar">
@@ -119,6 +123,7 @@ export function CalendarView({ onChanged }: CalendarViewProps) {
           ))}
         </div>
         <div className="calendar-heading">
+          <Button aria-label="重置为今日" className="calendar-today-button" icon={<CalendarClock size={18} />} size="small" title="重置为今日" type="default" onClick={resetToToday} />
           <Button icon={<ChevronLeft size={18} />} size="small" title="上一页" type="default" onClick={() => move(-1)} />
           <strong>{cursor.toLocaleDateString("zh-CN", { year: "numeric", month: "long", day: mode === "day" ? "numeric" : undefined })}</strong>
           <Button icon={<ChevronRight size={18} />} size="small" title="下一页" type="default" onClick={() => move(1)} />

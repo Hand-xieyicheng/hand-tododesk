@@ -8,6 +8,7 @@ import {
 } from "@todo/shared";
 import { asDate, execute, id, queryOne, queryRows, toMysqlDate, transaction, type DbRow } from "../db.js";
 import { buildOccurrences, type ExpandableTask } from "../services/calendar.js";
+import { normalizeTaskPriority } from "../services/task-priority.js";
 
 type TaskRow = DbRow & {
   id: string;
@@ -15,7 +16,7 @@ type TaskRow = DbRow & {
   title: string;
   notes: string | null;
   dueAt: Date | string | null;
-  priority: TaskPriority;
+  priority: string;
   status: TaskStatus;
   completedAt: Date | string | null;
   createdAt: Date | string;
@@ -101,7 +102,7 @@ async function serializeTask(row: TaskRow): Promise<ApiTask> {
     title: row.title,
     notes: row.notes,
     dueAt: asDate(row.dueAt)?.toISOString() ?? null,
-    priority: row.priority,
+    priority: normalizeTaskPriority(row.priority),
     status: row.status,
     createdAt: asDate(row.createdAt)?.toISOString() ?? new Date().toISOString(),
     updatedAt: asDate(row.updatedAt)?.toISOString() ?? new Date().toISOString(),
@@ -288,7 +289,7 @@ export async function taskRoutes(app: FastifyInstance) {
         id: row.id,
         title: row.title,
         dueAt: asDate(row.dueAt),
-        priority: row.priority,
+        priority: normalizeTaskPriority(row.priority),
         status: row.status,
         recurrenceRule: serializeRecurrence(recurrence),
         exceptions: exceptions.map((item) => ({

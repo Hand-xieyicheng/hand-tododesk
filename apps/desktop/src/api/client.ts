@@ -1,5 +1,6 @@
 import type {
   ApiTask,
+  ApiThemePreference,
   ApiUser,
   AuthTokens,
   CalendarOccurrence,
@@ -13,6 +14,7 @@ import type {
   RegisterRequest,
   TaskPriority,
   UpdateProfileRequest,
+  UpdateThemePreferenceRequest,
   UpdateTaskRequest
 } from "@todo/shared";
 import {
@@ -22,6 +24,7 @@ import {
   loginRequestSchema,
   registerRequestSchema,
   resetPasswordRequestSchema,
+  updateThemePreferenceRequestSchema,
   updateProfileRequestSchema
 } from "@todo/shared";
 import { clearSession, getAccessToken, getRefreshToken, saveAccessToken, saveRefreshToken } from "../lib/authStorage";
@@ -226,12 +229,12 @@ export const api = {
     await clearSession();
   },
   async getThemePreference() {
-    return request<{ themeId: string }>("/preferences/theme");
+    return request<ApiThemePreference>("/preferences/theme");
   },
-  async setThemePreference(themeId: string) {
-    return request<{ themeId: string }>("/preferences/theme", {
+  async setThemePreference(input: UpdateThemePreferenceRequest) {
+    return request<ApiThemePreference>("/preferences/theme", {
       method: "PUT",
-      body: JSON.stringify({ themeId })
+      body: JSON.stringify(updateThemePreferenceRequestSchema.parse(input))
     });
   }
 };

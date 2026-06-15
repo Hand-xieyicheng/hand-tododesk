@@ -1,13 +1,14 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import type { ApiTask, CreateTaskRequest, TaskPriority, TaskStatus } from "@todo/shared";
 import { Button, Card, Divider, Input, Modal, Select } from "animal-island-ui";
-import { Check, Plus, Trash2 } from "lucide-react";
+import { Check, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { api } from "../api/client";
 
 export type TaskViewMode = "list" | "quadrant";
 
 interface TaskPanelProps {
   createOpen: boolean;
+  showCompletedTasks: boolean;
   tasks: ApiTask[];
   viewMode: TaskViewMode;
   onChanged(): Promise<void>;
@@ -64,14 +65,21 @@ interface TaskCardProps {
 }
 
 function TaskCard({ task, compact, onDelete, onSetStatus }: TaskCardProps) {
+  const isCompleted = task.status === "COMPLETED";
+  const statusAction = isCompleted ? "恢复为未完成" : "完成";
+  const nextStatus: TaskStatus = isCompleted ? "TODO" : "COMPLETED";
+
   return (
-    <Card className={`task-item priority-${priorityClass(task.priority)}${compact ? " is-compact" : ""}`} key={task.id} pattern="default">
+    <Card
+      className={`task-item priority-${priorityClass(task.priority)}${compact ? " is-compact" : ""}${isCompleted ? " is-completed" : ""}`}
+      pattern="default"
+    >
       <div>
         <div className="task-title-row">
           <h3>{task.title}</h3>
           <span className="status-pill">{task.status}</span>
         </div>
-        <p>{task.notes || "无备注"}</p>
+        <p className="task-notes">{task.notes || "无备注"}</p>
         <div className="task-meta">
           <span>{priorityLabels[task.priority]}</span>
           {task.dueAt ? <span>{new Date(task.dueAt).toLocaleString()}</span> : <span>无截止时间</span>}
@@ -81,14 +89,21 @@ function TaskCard({ task, compact, onDelete, onSetStatus }: TaskCardProps) {
         </div>
       </div>
       <div className="task-actions">
-        <Button icon={<Check size={16} />} size="small" title="完成" type="default" onClick={() => onSetStatus(task, "COMPLETED")} />
-        <Button danger icon={<Trash2 size={16} />} size="small" title="删除" type="default" onClick={() => onDelete(task)} />
+        <Button
+          aria-label={statusAction}
+          icon={isCompleted ? <RotateCcw size={16} /> : <Check size={16} />}
+          size="small"
+          title={statusAction}
+          type="default"
+          onClick={() => onSetStatus(task, nextStatus)}
+        />
+        <Button aria-label="删除" danger icon={<Trash2 size={16} />} size="small" title="删除" type="default" onClick={() => onDelete(task)} />
       </div>
     </Card>
   );
 }
 
-export function TaskPanel({ createOpen, tasks, viewMode, onChanged, onCreateOpenChange }: TaskPanelProps) {
+export function TaskPanel({ createOpen, showCompletedTasks, tasks, viewMode, onChanged, onCreateOpenChange }: TaskPanelProps) {
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
   const [dueAt, setDueAt] = useState("");
@@ -98,6 +113,10 @@ export function TaskPanel({ createOpen, tasks, viewMode, onChanged, onCreateOpen
   const [formMessage, setFormMessage] = useState("");
   const [panelMessage, setPanelMessage] = useState("");
   const [quadrants, setQuadrants] = useState<Record<TaskPriority, ApiTask[]>>(() => emptyQuadrants());
+  const visibleTasks = useMemo(
+    () => showCompletedTasks ? tasks : tasks.filter((task) => task.status !== "COMPLETED"),
+    [showCompletedTasks, tasks]
+  );
 
   async function loadQuadrants() {
     setPanelMessage("");
@@ -177,7 +196,15 @@ export function TaskPanel({ createOpen, tasks, viewMode, onChanged, onCreateOpen
 
   return (
     <>
-      <Modal open={createOpen} title="新建待办" width={720} footer={null} typewriter={false} onClose={closeCreateModal}>
+      <Modal
+        className="task-create-modal"
+        open={createOpen}
+        title="新建待办"
+        width={720}
+        footer={null}
+        typewriter={false}
+        onClose={closeCreateModal}
+      >
         <form className="task-form modal-task-form" onSubmit={submit}>
           <label>
             <span>标题</span>
@@ -219,15 +246,16 @@ export function TaskPanel({ createOpen, tasks, viewMode, onChanged, onCreateOpen
 
         {viewMode === "list" ? (
           <section className="task-list">
-            {tasks.length === 0 ? <Card className="empty-state" type="dashed">暂无待办</Card> : null}
-            {tasks.map((task) => (
+            {visibleTasks.length === 0 ? <Card className="empty-state" type="dashed">暂无待办</Card> : null}
+            {visibleTasks.map((task) => (
               <TaskCard key={task.id} task={task} onDelete={deleteTask} onSetStatus={setStatus} />
             ))}
           </section>
         ) : (
           <section className="quadrant-grid">
             {priorityOrder.map((item) => {
-              const items = quadrants[item];
+              const sourceItems = quadrants[item] ?? [];
+              const items = showCompletedTasks ? sourceItems : sourceItems.filter((task) => task.status !== "COMPLETED");
               return (
                 <Card className={`quadrant-panel priority-${priorityClass(item)}`} key={item} pattern="default">
                   <header>
