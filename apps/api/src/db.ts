@@ -150,6 +150,7 @@ async function ensureIncrementalSchema() {
   await ensureColumn("UserThemePreference", "footerType", "ALTER TABLE `UserThemePreference` ADD COLUMN `footerType` VARCHAR(191) NOT NULL DEFAULT 'sea'");
   await ensureColumn("UserThemePreference", "showCompletedTasks", "ALTER TABLE `UserThemePreference` ADD COLUMN `showCompletedTasks` BOOLEAN NOT NULL DEFAULT TRUE");
   await ensureColumn("UserThemePreference", "taskViewMode", "ALTER TABLE `UserThemePreference` ADD COLUMN `taskViewMode` VARCHAR(191) NOT NULL DEFAULT 'list'");
+  await ensureColumn("UserThemePreference", "displaySize", "ALTER TABLE `UserThemePreference` ADD COLUMN `displaySize` VARCHAR(191) NOT NULL DEFAULT 'default'");
 }
 
 async function runAllMigrations() {

@@ -46,6 +46,7 @@ export const pomodoroStatusValues = ["RUNNING", "COMPLETED", "CANCELLED"] as con
 export const calendarViewValues = ["month", "week", "day"] as const;
 export const themeIdValues = ["default", "shinchan", "labubu", "doraemon"] as const;
 export const taskViewModeValues = ["list", "quadrant"] as const;
+export const displaySizeValues = ["small", "default", "large"] as const;
 export const footerTypeValues = ["sea", "tree"] as const;
 export const titleColorValues = [
   "default",
@@ -108,7 +109,8 @@ export const updateThemePreferenceRequestSchema = z
     footerVisible: z.boolean().optional(),
     footerType: z.enum(footerTypeValues).optional(),
     showCompletedTasks: z.boolean().optional(),
-    taskViewMode: z.enum(taskViewModeValues).optional()
+    taskViewMode: z.enum(taskViewModeValues).optional(),
+    displaySize: z.enum(displaySizeValues).optional()
   })
   .refine((value) => (
     value.themeId ||
@@ -116,9 +118,10 @@ export const updateThemePreferenceRequestSchema = z
     value.footerVisible !== undefined ||
     value.footerType ||
     value.showCompletedTasks !== undefined ||
-    value.taskViewMode
+    value.taskViewMode ||
+    value.displaySize
   ), {
-    message: "Theme, title color, footer, or task display preference is required"
+    message: "Appearance preference is required"
   });
 
 export const updateProfileRequestSchema = z.object({
@@ -151,6 +154,7 @@ export type CalendarView = (typeof calendarViewValues)[number];
 export type TaskStatus = (typeof taskStatusValues)[number];
 export type TaskPriority = (typeof taskPriorityValues)[number];
 export type TaskViewMode = (typeof taskViewModeValues)[number];
+export type DisplaySize = (typeof displaySizeValues)[number];
 export type ThemeId = (typeof themeIdValues)[number];
 export type FooterType = (typeof footerTypeValues)[number];
 export type TitleColor = (typeof titleColorValues)[number];
@@ -164,6 +168,7 @@ export interface ApiThemePreference {
   footerType: FooterType;
   showCompletedTasks: boolean;
   taskViewMode: TaskViewMode;
+  displaySize: DisplaySize;
 }
 
 export interface AuthTokens {

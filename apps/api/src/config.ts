@@ -13,7 +13,10 @@ const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().min(1).max(65535).default(4020),
   APP_ORIGIN: z.string().url().default("http://localhost:5173"),
-  EXTRA_APP_ORIGINS: z.string().optional().default("http://127.0.0.1:5173"),
+  EXTRA_APP_ORIGINS: z
+    .string()
+    .optional()
+    .default("http://127.0.0.1:5173,http://tauri.localhost,https://tauri.localhost,tauri://localhost"),
   API_PUBLIC_URL: z.string().url().default("http://localhost:4020"),
   DB_HOST: z.string().optional(),
   DB_PORT: z.coerce.number().int().min(1).max(65535).optional(),

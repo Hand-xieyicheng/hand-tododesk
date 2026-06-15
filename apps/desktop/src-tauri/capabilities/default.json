@@ -5,7 +5,8 @@
   "windows": ["main", "floating-card"],
   "permissions": [
     "core:default",
+    "core:window:allow-close",
+    "core:window:allow-start-dragging",
     "notification:default"
   ]
 }
-

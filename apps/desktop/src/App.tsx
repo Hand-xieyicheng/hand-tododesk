@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
-import type { ApiTask, ApiUser, FooterType as AppFooterType, TaskViewMode, ThemeId, TitleColor } from "@todo/shared";
+import type { ApiTask, ApiUser, DisplaySize, FooterType as AppFooterType, TaskViewMode, ThemeId, TitleColor } from "@todo/shared";
 import { Button, Footer, Loading, Title } from "animal-island-ui";
 import { Bell, CalendarDays, CheckSquare2, Clock3, Eye, EyeOff, LayoutGrid, ListTodo, LogOut, Pin, Plus, UserRound } from "lucide-react";
 import { api, ApiError } from "./api/client";
@@ -10,6 +10,7 @@ import { PomodoroView } from "./components/PomodoroView";
 import { ProfileCenter } from "./components/ProfileCenter";
 import { TaskPanel } from "./components/TaskPanel";
 import todoDeskLogo from "./assets/tododesk-logo.png";
+import { applyDisplaySize, normalizeDisplaySize } from "./lib/displaySize";
 import { applyTheme } from "./lib/themes";
 import { clearSession, getSavedUser, saveUser } from "./lib/authStorage";
 
@@ -32,6 +33,7 @@ export function App() {
   const [footerVisible, setFooterVisible] = useState(true);
   const [footerType, setFooterType] = useState<AppFooterType>("sea");
   const [showCompletedTasks, setShowCompletedTasks] = useState(true);
+  const [displaySize, setDisplaySize] = useState<DisplaySize>(() => normalizeDisplaySize(localStorage.getItem("tododesk.displaySize")));
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [entryLoading, setEntryLoading] = useState(false);
@@ -42,7 +44,7 @@ export function App() {
   const userInitial = userDisplayName.trim().slice(0, 1).toUpperCase();
   const viewTitle = activeView === "tasks" ? "待办事项" : activeView === "calendar" ? "日历模式" : activeView === "pomodoro" ? "番茄时钟" : "个人中心";
   const workspaceStyle = {
-    "--workspace-footer-height": footerVisible ? (footerType === "sea" ? "80px" : "60px") : "0px",
+    "--workspace-footer-height": footerVisible ? (footerType === "sea" ? "var(--app-footer-height-sea)" : "var(--app-footer-height-tree)") : "0px",
     "--workspace-footer-gap": footerVisible ? "var(--app-footer-gap)" : "0px"
   } as CSSProperties;
 
@@ -64,7 +66,8 @@ export function App() {
           footerVisible: true,
           footerType: "sea",
           showCompletedTasks: true,
-          taskViewMode: "list"
+          taskViewMode: "list",
+          displaySize: "default"
         }) as const),
         api.currentUser()
       ]);
@@ -77,8 +80,12 @@ export function App() {
       setFooterType((preference.footerType ?? "sea") as AppFooterType);
       setShowCompletedTasks(preference.showCompletedTasks ?? true);
       setTaskViewMode((preference.taskViewMode ?? "list") as TaskViewMode);
+      const nextDisplaySize = normalizeDisplaySize(preference.displaySize);
+      setDisplaySize(nextDisplaySize);
       localStorage.setItem("tododesk.theme", preference.themeId);
+      localStorage.setItem("tododesk.displaySize", nextDisplaySize);
       applyTheme(preference.themeId);
+      applyDisplaySize(nextDisplaySize);
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
         await clearSession();
@@ -97,6 +104,10 @@ export function App() {
   useEffect(() => {
     applyTheme(themeId);
   }, [themeId]);
+
+  useEffect(() => {
+    applyDisplaySize(displaySize);
+  }, [displaySize]);
 
   useEffect(() => {
     void loadAppData({ immersive: true });
@@ -176,6 +187,15 @@ export function App() {
     setTaskViewMode(next);
     void api.setThemePreference({ taskViewMode: next }).catch((error) => {
       setMessage(error instanceof Error ? error.message : "待办样式配置保存失败");
+    });
+  }
+
+  function handleDisplaySizeChanged(next: DisplaySize) {
+    setDisplaySize(next);
+    localStorage.setItem("tododesk.displaySize", next);
+    applyDisplaySize(next);
+    void api.setThemePreference({ displaySize: next }).catch((error) => {
+      setMessage(error instanceof Error ? error.message : "界面显示大小保存失败");
     });
   }
 
@@ -330,8 +350,10 @@ export function App() {
             user={user}
             footerType={footerType}
             footerVisible={footerVisible}
+            displaySize={displaySize}
             themeId={themeId}
             titleColor={titleColor}
+            onDisplaySizeChanged={handleDisplaySizeChanged}
             onFooterTypeChanged={handleFooterTypeChanged}
             onFooterVisibleChanged={handleFooterVisibleChanged}
             onPasswordChanged={handlePasswordChanged}

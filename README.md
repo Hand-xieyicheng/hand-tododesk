@@ -52,3 +52,54 @@
    ```
 
 > 当前机器需要安装 Rust/Cargo 才能运行 Tauri 桌面壳。
+
+## macOS 打包
+
+首次打包前确认已安装依赖：
+
+```bash
+npm install
+```
+
+生成 macOS 桌面应用和 DMG 安装包：
+
+```bash
+npm run build:mac
+```
+
+产物位置：
+
+- `.app`：`apps/desktop/src-tauri/target/release/bundle/macos/todoDesk.app`
+- `.dmg`：`apps/desktop/src-tauri/target/release/bundle/dmg/todoDesk_0.1.0_aarch64.dmg`
+
+## macOS 使用教程
+
+1. 启动后端服务。桌面 App 默认连接本机 `http://127.0.0.1:4020`，因此需要先配置 `apps/api/.env`、初始化数据库，并运行：
+
+   ```bash
+   npm run dev:api
+   ```
+
+2. 安装桌面 App。双击 `todoDesk_0.1.0_aarch64.dmg`，把 `todoDesk.app` 拖到 `Applications`。
+
+3. 首次打开。如果 macOS 提示未验证开发者，右键点击 `todoDesk.app`，选择“打开”，再确认一次。
+
+4. 登录或注册后使用待办、日历、番茄钟、主题和个人中心功能。刷新 token 会保存在 macOS Keychain。
+
+### 登录报 `Load failed`
+
+这表示桌面 App 没有连上本机 API。按顺序检查：
+
+1. 确认后端正在运行：
+
+   ```bash
+   npm run dev:api
+   ```
+
+2. 确认 `apps/api/.env` 里的 `EXTRA_APP_ORIGINS` 包含安装版 Tauri 的 Origin：
+
+   ```env
+   EXTRA_APP_ORIGINS=http://127.0.0.1:5173,http://tauri.localhost,https://tauri.localhost,tauri://localhost
+   ```
+
+3. 修改 `.env` 后需要重启后端服务，再重新登录。

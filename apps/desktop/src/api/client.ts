@@ -35,6 +35,10 @@ function resolveApiBaseUrl() {
   }
 
   if (typeof window !== "undefined" && window.location.hostname) {
+    if (window.location.hostname === "tauri.localhost") {
+      return "http://127.0.0.1:4020";
+    }
+
     return `http://${window.location.hostname}:4020`;
   }
 
@@ -42,6 +46,10 @@ function resolveApiBaseUrl() {
 }
 
 const API_BASE_URL = resolveApiBaseUrl();
+
+function networkErrorMessage() {
+  return `无法连接到本机 API（${API_BASE_URL}）。请确认后端服务已启动，并且后端 EXTRA_APP_ORIGINS 包含 http://tauri.localhost。`;
+}
 
 export class ApiError extends Error {
   constructor(
@@ -78,6 +86,11 @@ async function request<T>(path: string, init: RequestInit = {}, retry = true): P
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
     headers
+  }).catch((error: unknown) => {
+    if (error instanceof TypeError) {
+      throw new ApiError(networkErrorMessage(), 0);
+    }
+    throw error;
   });
 
   if (response.status === 401 && retry) {

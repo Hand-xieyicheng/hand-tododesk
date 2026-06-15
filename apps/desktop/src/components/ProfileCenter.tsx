@@ -1,5 +1,5 @@
 import { ChangeEvent, FormEvent, PointerEvent, useEffect, useMemo, useRef, useState } from "react";
-import { titleColorValues, type ApiUser, type FooterType as AppFooterType, type ThemeId, type TitleColor, type UserGender } from "@todo/shared";
+import { displaySizeValues, titleColorValues, type ApiUser, type DisplaySize, type FooterType as AppFooterType, type ThemeId, type TitleColor, type UserGender } from "@todo/shared";
 import { Button, Card, Divider, Input, Modal, Radio, Select, Tabs, Title } from "animal-island-ui";
 import { Camera, Check, KeyRound, Mail, Save } from "lucide-react";
 import { api } from "../api/client";
@@ -14,12 +14,14 @@ import { ThemeSettings } from "./ThemeSettings";
 
 interface ProfileCenterProps {
   user: ApiUser;
+  displaySize: DisplaySize;
   footerVisible: boolean;
   footerType: AppFooterType;
   themeId: ThemeId;
   titleColor: TitleColor;
   onFooterVisibleChanged(visible: boolean): void;
   onFooterTypeChanged(footerType: AppFooterType): void;
+  onDisplaySizeChanged(displaySize: DisplaySize): void;
   onPasswordChanged(): void;
   onTitleColorChanged(titleColor: TitleColor): void;
   onThemeChanged(themeId: ThemeId): void;
@@ -49,6 +51,17 @@ const footerTypeOptions = [
   { label: "sea 样式", value: "sea" },
   { label: "tree 样式", value: "tree" }
 ];
+
+const displaySizeLabels: Record<DisplaySize, string> = {
+  small: "小",
+  default: "默认",
+  large: "大"
+};
+
+const displaySizeOptions = displaySizeValues.map((value) => ({
+  label: displaySizeLabels[value],
+  value
+}));
 
 const titleColorSwatches: Record<TitleColor, string> = {
   default: "var(--color-text)",
@@ -91,12 +104,14 @@ function loadImage(src: string) {
 
 export function ProfileCenter({
   user,
+  displaySize,
   footerVisible,
   footerType,
   themeId,
   titleColor,
   onFooterVisibleChanged,
   onFooterTypeChanged,
+  onDisplaySizeChanged,
   onPasswordChanged,
   onTitleColorChanged,
   onThemeChanged,
@@ -477,6 +492,14 @@ export function ProfileCenter({
                 </button>
               ))}
             </div>
+          </div>
+          <div className="display-size-config">
+            <span className="display-size-config-label">界面显示大小</span>
+            <Radio
+              options={displaySizeOptions}
+              value={displaySize}
+              onChange={(value) => onDisplaySizeChanged(value as DisplaySize)}
+            />
           </div>
           <div className="footer-config">
             <span className="footer-config-label">Footer 配置</span>

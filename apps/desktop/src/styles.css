@@ -15,12 +15,27 @@
   --island-shadow: rgba(61, 52, 40, 0.16);
   --island-soft-shadow: rgba(61, 52, 40, 0.08);
   --island-paper-dots: radial-gradient(circle, rgba(114, 93, 66, 0.08) 1px, transparent 1.6px);
-  --app-sidebar-width: 282px;
-  --app-footer-height: 80px;
-  --app-footer-gap: 28px;
+  --app-ui-scale: 0.9;
+  --app-sidebar-width: calc(282px * var(--app-ui-scale));
+  --app-footer-height-sea: calc(80px * var(--app-ui-scale));
+  --app-footer-height-tree: calc(60px * var(--app-ui-scale));
+  --app-footer-height: var(--app-footer-height-sea);
+  --app-footer-gap: calc(28px * var(--app-ui-scale));
   --app-footer-space: calc(var(--app-footer-height) + var(--app-footer-gap) + env(safe-area-inset-bottom, 0px));
   font-synthesis: none;
   text-rendering: optimizeLegibility;
+}
+
+:root[data-display-size="small"] {
+  --app-ui-scale: 0.82;
+}
+
+:root[data-display-size="default"] {
+  --app-ui-scale: 0.9;
+}
+
+:root[data-display-size="large"] {
+  --app-ui-scale: 1;
 }
 
 * {
@@ -76,12 +91,12 @@ textarea:focus-visible {
   --sidebar-hairline: color-mix(in srgb, var(--color-border) 58%, transparent);
   display: flex;
   flex-direction: column;
-  gap: 22px;
+  gap: calc(22px * var(--app-ui-scale));
   height: 100vh;
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 24px 20px 20px;
+  padding: calc(24px * var(--app-ui-scale)) calc(20px * var(--app-ui-scale)) calc(20px * var(--app-ui-scale));
   border-right: 1px solid var(--sidebar-hairline);
   background:
     linear-gradient(90deg, rgba(25, 200, 185, 0.1), transparent 42%),
@@ -100,22 +115,22 @@ textarea:focus-visible {
 .app-brand {
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: calc(10px * var(--app-ui-scale));
   width: 100%;
-  padding: 4px 0 20px;
+  padding: calc(4px * var(--app-ui-scale)) 0 calc(20px * var(--app-ui-scale));
   border-bottom: 1px solid color-mix(in srgb, var(--color-border) 36%, transparent);
 }
 
 .brand-logo {
   display: block;
-  width: 168px;
+  width: calc(168px * var(--app-ui-scale));
   max-width: 100%;
   height: auto;
   filter: drop-shadow(0 5px 0 rgba(114, 93, 66, 0.12));
 }
 
 .sidebar-brand-logo {
-  width: 146px;
+  width: calc(146px * var(--app-ui-scale));
   filter: drop-shadow(0 5px 0 rgba(114, 93, 66, 0.1)) drop-shadow(0 12px 18px rgba(61, 52, 40, 0.12));
 }
 
@@ -144,7 +159,7 @@ textarea:focus-visible {
 
 .brand-block h1 {
   color: var(--color-text);
-  font-size: 21px;
+  font-size: calc(21px * var(--app-ui-scale));
   font-weight: 900;
   line-height: 1.1;
 }
@@ -157,7 +172,7 @@ textarea:focus-visible {
 .brand-block p {
   max-width: 168px;
   overflow: hidden;
-  font-size: 13px;
+  font-size: calc(13px * var(--app-ui-scale));
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -165,7 +180,7 @@ textarea:focus-visible {
 .nav-list,
 .sidebar-footer {
   display: grid;
-  gap: 8px;
+  gap: calc(8px * var(--app-ui-scale));
 }
 
 .nav-list {
@@ -181,14 +196,14 @@ textarea:focus-visible {
   display: flex !important;
   justify-content: flex-start !important;
   align-items: center !important;
-  min-height: 50px;
-  padding: 0 13px 0 10px !important;
+  min-height: calc(50px * var(--app-ui-scale));
+  padding: 0 calc(13px * var(--app-ui-scale)) 0 calc(10px * var(--app-ui-scale)) !important;
   border: 1px solid transparent !important;
   border-radius: 17px 15px 19px 15px !important;
   background: transparent !important;
   box-shadow: none !important;
   color: var(--color-text) !important;
-  font-size: 16px;
+  font-size: calc(16px * var(--app-ui-scale));
   font-weight: 900;
   letter-spacing: 0;
   text-align: left;
@@ -205,9 +220,9 @@ textarea:focus-visible {
   display: grid;
   width: 100%;
   min-width: 0;
-  grid-template-columns: 36px minmax(0, 1fr);
+  grid-template-columns: calc(36px * var(--app-ui-scale)) minmax(0, 1fr);
   align-items: center;
-  gap: 11px;
+  gap: calc(11px * var(--app-ui-scale));
 }
 
 .nav-button::before {
@@ -243,8 +258,8 @@ textarea:focus-visible {
 
 .nav-button-icon {
   display: grid;
-  width: 36px;
-  height: 36px;
+  width: calc(36px * var(--app-ui-scale));
+  height: calc(36px * var(--app-ui-scale));
   place-items: center;
   border: 1px solid color-mix(in srgb, var(--color-border) 42%, transparent);
   border-radius: 13px 12px 14px 12px;
@@ -273,7 +288,7 @@ textarea:focus-visible {
 .user-menu {
   position: relative;
   display: grid;
-  gap: 8px;
+  gap: calc(8px * var(--app-ui-scale));
 }
 
 .user-menu::before {
@@ -290,10 +305,10 @@ textarea:focus-visible {
   display: grid;
   width: 100%;
   min-width: 0;
-  grid-template-columns: 44px minmax(0, 1fr);
+  grid-template-columns: calc(44px * var(--app-ui-scale)) minmax(0, 1fr);
   align-items: center;
-  gap: 12px;
-  padding: 10px;
+  gap: calc(12px * var(--app-ui-scale));
+  padding: calc(10px * var(--app-ui-scale));
   border: 1px solid color-mix(in srgb, var(--color-accent) 44%, var(--color-border));
   border-radius: 20px 18px 22px 18px;
   background:
@@ -326,9 +341,9 @@ textarea:focus-visible {
 }
 
 .sidebar-user-avatar {
-  width: 44px;
-  height: 44px;
-  font-size: 18px;
+  width: calc(44px * var(--app-ui-scale));
+  height: calc(44px * var(--app-ui-scale));
+  font-size: calc(18px * var(--app-ui-scale));
 }
 
 .sidebar-user-avatar img,
@@ -341,7 +356,7 @@ textarea:focus-visible {
 .sidebar-user-copy {
   display: grid;
   min-width: 0;
-  gap: 3px;
+  gap: calc(3px * var(--app-ui-scale));
 }
 
 .sidebar-user-copy strong,
@@ -352,13 +367,13 @@ textarea:focus-visible {
 }
 
 .sidebar-user-copy strong {
-  font-size: 14px;
+  font-size: calc(14px * var(--app-ui-scale));
   font-weight: 900;
 }
 
 .sidebar-user-copy span {
   color: var(--color-muted);
-  font-size: 11px;
+  font-size: calc(11px * var(--app-ui-scale));
   font-weight: 800;
 }
 
@@ -369,8 +384,8 @@ textarea:focus-visible {
   left: 0;
   z-index: 30;
   display: grid;
-  gap: 8px;
-  padding: 9px;
+  gap: calc(8px * var(--app-ui-scale));
+  padding: calc(9px * var(--app-ui-scale));
   border: 1px solid color-mix(in srgb, var(--color-border) 58%, transparent);
   border-radius: 20px 18px 22px 18px;
   background:
@@ -403,10 +418,10 @@ textarea:focus-visible {
   min-width: 0;
   min-height: 0;
   flex-direction: column;
-  gap: 20px;
+  gap: calc(20px * var(--app-ui-scale));
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 30px 30px calc(30px + var(--workspace-footer-space));
+  padding: calc(30px * var(--app-ui-scale)) calc(30px * var(--app-ui-scale)) calc(calc(30px * var(--app-ui-scale)) + var(--workspace-footer-space));
 }
 
 .workspace-footer-decoration {
@@ -468,13 +483,13 @@ textarea:focus-visible {
   top: clamp(34px, 12vh, 120px);
   left: clamp(28px, 8vw, 96px);
   z-index: 1;
-  padding: 10px 18px 12px;
+  padding: calc(10px * var(--app-ui-scale)) calc(18px * var(--app-ui-scale)) calc(12px * var(--app-ui-scale));
   border: 2px dashed rgba(255, 253, 241, 0.38);
   border-radius: 24px 22px 26px 22px;
   background: rgba(255, 253, 241, 0.08);
   color: #fffdf1;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
-  font-size: 18px;
+  font-size: calc(18px * var(--app-ui-scale));
   font-weight: 900;
 }
 
@@ -482,8 +497,8 @@ textarea:focus-visible {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
-  padding: 6px 2px 10px;
+  gap: calc(20px * var(--app-ui-scale));
+  padding: calc(6px * var(--app-ui-scale)) calc(2px * var(--app-ui-scale)) calc(10px * var(--app-ui-scale));
 }
 
 .view-title {
@@ -491,12 +506,12 @@ textarea:focus-visible {
 }
 
 .topbar-actions {
-  --topbar-action-height: 34px;
+  --topbar-action-height: calc(34px * var(--app-ui-scale));
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: 12px;
+  gap: calc(12px * var(--app-ui-scale));
 }
 
 .task-view-toggle {
@@ -513,13 +528,13 @@ textarea:focus-visible {
 }
 
 .task-view-toggle button {
-  height: 26px !important;
-  min-height: 26px !important;
-  min-width: 68px;
-  padding: 0 11px !important;
+  height: calc(26px * var(--app-ui-scale)) !important;
+  min-height: calc(26px * var(--app-ui-scale)) !important;
+  min-width: calc(68px * var(--app-ui-scale));
+  padding: 0 calc(11px * var(--app-ui-scale)) !important;
   border-radius: 999px !important;
   box-shadow: none !important;
-  font-size: 13px !important;
+  font-size: calc(13px * var(--app-ui-scale)) !important;
   line-height: 1 !important;
 }
 
@@ -530,11 +545,11 @@ textarea:focus-visible {
 .task-completion-toggle {
   height: var(--topbar-action-height) !important;
   min-height: var(--topbar-action-height) !important;
-  min-width: 38px !important;
-  padding: 0 11px !important;
+  min-width: calc(38px * var(--app-ui-scale)) !important;
+  padding: 0 calc(11px * var(--app-ui-scale)) !important;
   border-radius: 999px !important;
   box-shadow: 0 3px 0 rgba(114, 93, 66, 0.12) !important;
-  font-size: 13px !important;
+  font-size: calc(13px * var(--app-ui-scale)) !important;
   line-height: 1 !important;
 }
 
@@ -545,26 +560,26 @@ textarea:focus-visible {
 .topbar-actions .primary-button {
   height: var(--topbar-action-height) !important;
   min-height: var(--topbar-action-height) !important;
-  padding: 0 14px !important;
+  padding: 0 calc(14px * var(--app-ui-scale)) !important;
   border-radius: 999px !important;
-  font-size: 13px !important;
+  font-size: calc(13px * var(--app-ui-scale)) !important;
   line-height: 1 !important;
 }
 
 .status-pill {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: calc(7px * var(--app-ui-scale));
   height: var(--topbar-action-height);
   min-height: var(--topbar-action-height);
   max-width: 100%;
-  padding: 0 13px;
+  padding: 0 calc(13px * var(--app-ui-scale));
   border: 2px solid color-mix(in srgb, var(--color-border) 78%, transparent);
   border-radius: 999px;
   background: var(--color-surface);
   color: var(--color-muted);
   box-shadow: 0 3px 0 rgba(114, 93, 66, 0.12);
-  font-size: 13px;
+  font-size: calc(13px * var(--app-ui-scale));
   font-weight: 800;
   white-space: nowrap;
 }
@@ -572,7 +587,7 @@ textarea:focus-visible {
 .inline-alert,
 .empty-state,
 .inline-muted {
-  padding: 13px 16px;
+  padding: calc(13px * var(--app-ui-scale)) calc(16px * var(--app-ui-scale));
   border: 2px dashed color-mix(in srgb, var(--color-border) 76%, transparent);
   border-radius: 22px 20px 24px 20px;
   background: var(--color-surface);
@@ -590,7 +605,7 @@ textarea:focus-visible {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   align-items: start;
-  gap: 20px;
+  gap: calc(20px * var(--app-ui-scale));
 }
 
 .task-layout-quadrant {
@@ -614,7 +629,7 @@ textarea:focus-visible {
 .task-form,
 .pomodoro-clock {
   display: grid;
-  gap: 15px;
+  gap: calc(15px * var(--app-ui-scale));
 }
 
 .tool-card,
@@ -630,7 +645,7 @@ textarea:focus-visible {
 
 .modal-task-form {
   width: 100%;
-  gap: 16px;
+  gap: calc(16px * var(--app-ui-scale));
   padding: 2px 0 4px;
 }
 
@@ -664,9 +679,9 @@ textarea:focus-visible {
 label {
   display: grid;
   min-width: 0;
-  gap: 7px;
+  gap: calc(7px * var(--app-ui-scale));
   color: var(--color-muted);
-  font-size: 13px;
+  font-size: calc(13px * var(--app-ui-scale));
   font-weight: 900;
 }
 
@@ -681,7 +696,7 @@ label > [class*="animal-wrapper"] * {
 }
 
 .task-form [class*="animal-trigger-2-Ahh"] {
-  min-height: 48px;
+  min-height: calc(48px * var(--app-ui-scale));
   border-color: var(--color-border);
   border-radius: 24px;
   background: #f7f3df;
@@ -690,12 +705,12 @@ label > [class*="animal-wrapper"] * {
 
 .task-create-modal .modal-task-form label > [class*="animal-wrapper-IRrhj"],
 .task-create-modal .modal-task-form [class*="animal-trigger-2-Ahh"] {
-  height: 40px;
-  min-height: 40px;
+  height: calc(40px * var(--app-ui-scale));
+  min-height: calc(40px * var(--app-ui-scale));
 }
 
 .task-create-modal .modal-task-form [class*="animal-trigger-2-Ahh"] {
-  padding: 0 13px;
+  padding: 0 calc(13px * var(--app-ui-scale));
 }
 
 .task-form [class*="animal-dropdown-0l6jF"] {
@@ -711,14 +726,14 @@ label > [class*="animal-wrapper"] * {
 
 textarea {
   width: 100%;
-  min-height: 112px;
+  min-height: calc(112px * var(--app-ui-scale));
   resize: vertical;
   border: 2px solid var(--color-border);
   border-radius: 22px;
   background: #f7f3df;
   color: var(--color-text);
   box-shadow: 0 3px #d4c9b4;
-  padding: 13px 16px;
+  padding: calc(13px * var(--app-ui-scale)) calc(16px * var(--app-ui-scale));
   font-weight: 700;
   line-height: 1.55;
 }
@@ -730,13 +745,13 @@ textarea::placeholder {
 .form-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 13px;
+  gap: calc(13px * var(--app-ui-scale));
 }
 
 .task-list {
   display: grid;
   align-content: start;
-  gap: 14px;
+  gap: calc(14px * var(--app-ui-scale));
 }
 
 .task-item {
@@ -744,8 +759,8 @@ textarea::placeholder {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: start;
-  gap: 16px;
-  padding: 17px 18px 17px 20px !important;
+  gap: calc(16px * var(--app-ui-scale));
+  padding: calc(17px * var(--app-ui-scale)) calc(18px * var(--app-ui-scale)) calc(17px * var(--app-ui-scale)) calc(20px * var(--app-ui-scale)) !important;
   border-width: 2px !important;
   box-shadow: 0 5px 0 rgba(114, 93, 66, 0.12);
 }
@@ -788,12 +803,12 @@ textarea::placeholder {
   min-width: 0;
   overflow-wrap: anywhere;
   color: var(--color-text);
-  font-size: 18px;
+  font-size: calc(18px * var(--app-ui-scale));
   line-height: 1.25;
 }
 
 .task-item p {
-  margin: 9px 0 12px;
+  margin: calc(9px * var(--app-ui-scale)) 0 calc(12px * var(--app-ui-scale));
   color: var(--color-muted);
   line-height: 1.55;
   overflow-wrap: anywhere;
@@ -810,17 +825,17 @@ textarea::placeholder {
 .task-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: calc(8px * var(--app-ui-scale));
 }
 
 .task-meta span {
   max-width: 100%;
   overflow: hidden;
-  padding: 5px 10px;
+  padding: calc(5px * var(--app-ui-scale)) calc(10px * var(--app-ui-scale));
   border-radius: 999px;
   background: color-mix(in srgb, var(--color-surface-strong) 84%, #fff);
   color: var(--color-muted);
-  font-size: 12px;
+  font-size: calc(12px * var(--app-ui-scale));
   font-weight: 800;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -831,21 +846,59 @@ textarea::placeholder {
   align-items: start;
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: 7px;
-  min-width: 84px;
+  gap: calc(7px * var(--app-ui-scale));
+  min-width: calc(84px * var(--app-ui-scale));
+}
+
+.task-actions button,
+.floating-task button {
+  width: calc(44px * var(--app-ui-scale)) !important;
+  min-width: calc(44px * var(--app-ui-scale)) !important;
+  height: calc(34px * var(--app-ui-scale)) !important;
+  min-height: calc(34px * var(--app-ui-scale)) !important;
+  padding: 0 !important;
+  border-radius: 999px !important;
+  font-size: calc(14px * var(--app-ui-scale)) !important;
+  line-height: 1 !important;
+}
+
+.task-actions button svg,
+.floating-task button svg,
+.floating-header > button svg,
+.clock-controls button svg,
+.modal-task-form .primary-button svg {
+  width: calc(16px * var(--app-ui-scale));
+  height: calc(16px * var(--app-ui-scale));
 }
 
 .task-item.is-compact {
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 10px;
-  padding: 14px !important;
+  gap: calc(10px * var(--app-ui-scale));
+  padding: calc(14px * var(--app-ui-scale)) !important;
 }
 
 .task-item.is-compact .task-actions {
   flex-direction: column;
   align-items: flex-end;
   justify-content: flex-start;
-  min-width: 38px;
+  min-width: calc(38px * var(--app-ui-scale));
+}
+
+.task-item.is-compact .task-actions button {
+  width: calc(36px * var(--app-ui-scale)) !important;
+  min-width: calc(36px * var(--app-ui-scale)) !important;
+  height: calc(32px * var(--app-ui-scale)) !important;
+  min-height: calc(32px * var(--app-ui-scale)) !important;
+}
+
+.modal-task-form .primary-button {
+  min-height: calc(42px * var(--app-ui-scale)) !important;
+  padding: 0 calc(18px * var(--app-ui-scale)) !important;
+  font-size: calc(14px * var(--app-ui-scale)) !important;
+}
+
+.modal-task-form .primary-button > span {
+  gap: calc(8px * var(--app-ui-scale));
 }
 
 .task-item.is-compact .task-meta span {
@@ -857,7 +910,7 @@ textarea::placeholder {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   grid-template-rows: repeat(2, minmax(0, 1fr));
   flex: 1 1 auto;
-  gap: 16px;
+  gap: calc(16px * var(--app-ui-scale));
   height: 100%;
   min-height: 0;
 }
@@ -868,9 +921,9 @@ textarea::placeholder {
   min-width: 0;
   min-height: 0;
   align-content: stretch;
-  gap: 12px;
+  gap: calc(12px * var(--app-ui-scale));
   overflow: hidden;
-  padding: 18px !important;
+  padding: calc(18px * var(--app-ui-scale)) !important;
   border: 2px solid color-mix(in srgb, var(--color-border) 74%, transparent) !important;
   box-shadow: 0 6px 0 rgba(114, 93, 66, 0.12);
 }
@@ -879,8 +932,8 @@ textarea::placeholder {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding-left: 12px;
+  gap: calc(12px * var(--app-ui-scale));
+  padding-left: calc(12px * var(--app-ui-scale));
   border-left: 7px solid var(--priority-color, var(--color-primary));
 }
 
@@ -891,21 +944,21 @@ textarea::placeholder {
 
 .quadrant-panel h3 {
   color: var(--color-text);
-  font-size: 18px;
+  font-size: calc(18px * var(--app-ui-scale));
   font-weight: 900;
   line-height: 1.2;
 }
 
 .quadrant-panel header span {
   color: var(--color-muted);
-  font-size: 12px;
+  font-size: calc(12px * var(--app-ui-scale));
   font-weight: 900;
 }
 
 .quadrant-panel header strong {
   display: grid;
-  width: 38px;
-  height: 38px;
+  width: calc(38px * var(--app-ui-scale));
+  height: calc(38px * var(--app-ui-scale));
   flex: 0 0 auto;
   place-items: center;
   border: 2px solid #fff8dc;
@@ -919,7 +972,7 @@ textarea::placeholder {
 .quadrant-task-list {
   display: grid;
   align-content: start;
-  gap: 12px;
+  gap: calc(12px * var(--app-ui-scale));
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -928,21 +981,21 @@ textarea::placeholder {
 
 .calendar-panel {
   display: grid;
-  gap: 16px;
+  gap: calc(16px * var(--app-ui-scale));
 }
 
 .calendar-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 14px;
+  gap: calc(14px * var(--app-ui-scale));
 }
 
 .segmented-control {
   display: inline-grid;
   grid-auto-flow: column;
   align-items: center;
-  height: 36px;
+  height: calc(36px * var(--app-ui-scale));
   gap: 3px;
   padding: 3px;
   border: 2px solid color-mix(in srgb, var(--color-border) 78%, transparent);
@@ -952,10 +1005,10 @@ textarea::placeholder {
 }
 
 .segmented-control button {
-  height: 26px !important;
-  min-width: 48px;
-  min-height: 26px !important;
-  padding: 0 12px !important;
+  height: calc(26px * var(--app-ui-scale)) !important;
+  min-width: calc(48px * var(--app-ui-scale));
+  min-height: calc(26px * var(--app-ui-scale)) !important;
+  padding: 0 calc(12px * var(--app-ui-scale)) !important;
   border-radius: 999px !important;
   box-shadow: none !important;
   line-height: 1 !important;
@@ -968,14 +1021,14 @@ textarea::placeholder {
 .calendar-heading {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: calc(12px * var(--app-ui-scale));
 }
 
 .calendar-today-button {
-  width: 36px !important;
-  min-width: 36px !important;
-  height: 36px !important;
-  min-height: 36px !important;
+  width: calc(36px * var(--app-ui-scale)) !important;
+  min-width: calc(36px * var(--app-ui-scale)) !important;
+  height: calc(36px * var(--app-ui-scale)) !important;
+  min-height: calc(36px * var(--app-ui-scale)) !important;
   padding: 0 !important;
   border-radius: 999px !important;
   color: var(--color-text) !important;
@@ -983,16 +1036,16 @@ textarea::placeholder {
 }
 
 .calendar-heading strong {
-  min-width: 132px;
+  min-width: calc(132px * var(--app-ui-scale));
   color: var(--color-text);
-  font-size: 17px;
+  font-size: calc(17px * var(--app-ui-scale));
   font-weight: 900;
   text-align: center;
 }
 
 .calendar-grid {
   display: grid;
-  gap: 12px;
+  gap: calc(12px * var(--app-ui-scale));
 }
 
 .calendar-month {
@@ -1005,16 +1058,16 @@ textarea::placeholder {
 }
 
 .calendar-week .calendar-cell {
-  min-height: 104px;
+  min-height: calc(104px * var(--app-ui-scale));
 }
 
 .calendar-cell {
   display: grid;
   min-width: 0;
-  min-height: 136px;
-  grid-template-rows: auto minmax(78px, 1fr);
-  gap: 10px;
-  padding: 13px !important;
+  min-height: calc(136px * var(--app-ui-scale));
+  grid-template-rows: auto minmax(calc(78px * var(--app-ui-scale)), 1fr);
+  gap: calc(10px * var(--app-ui-scale));
+  padding: calc(13px * var(--app-ui-scale)) !important;
   border: 2px solid color-mix(in srgb, var(--color-border) 70%, transparent) !important;
 }
 
@@ -1042,8 +1095,8 @@ textarea::placeholder {
 
 .calendar-cell header strong {
   display: grid;
-  width: 30px;
-  height: 30px;
+  width: calc(30px * var(--app-ui-scale));
+  height: calc(30px * var(--app-ui-scale));
   place-items: center;
   border-radius: 50%;
   background: var(--color-surface);
@@ -1062,7 +1115,7 @@ textarea::placeholder {
 .calendar-items {
   display: grid;
   align-content: start;
-  gap: 7px;
+  gap: calc(7px * var(--app-ui-scale));
   min-width: 0;
 }
 
@@ -1088,7 +1141,7 @@ textarea::placeholder {
   overflow: hidden;
   color: var(--color-text) !important;
   cursor: default;
-  font-size: 13px;
+  font-size: calc(13px * var(--app-ui-scale));
   font-weight: 900;
   line-height: 1.45;
   padding: 1px 2px;
@@ -1108,25 +1161,25 @@ textarea::placeholder {
 
 .calendar-task-popover {
   display: grid;
-  gap: 9px;
-  min-width: 220px;
-  max-width: 280px;
-  padding: 4px 2px;
+  gap: calc(9px * var(--app-ui-scale));
+  min-width: calc(220px * var(--app-ui-scale));
+  max-width: calc(280px * var(--app-ui-scale));
+  padding: calc(4px * var(--app-ui-scale)) calc(2px * var(--app-ui-scale));
 }
 
 .calendar-task-popover-title {
   color: var(--color-text);
-  font-size: 15px;
+  font-size: calc(15px * var(--app-ui-scale));
   font-weight: 900;
   line-height: 1.45;
   overflow-wrap: anywhere;
 }
 
 .calendar-task-popover-notes {
-  max-height: 86px;
+  max-height: calc(86px * var(--app-ui-scale));
   overflow-y: auto;
   color: var(--color-muted);
-  font-size: 12px;
+  font-size: calc(12px * var(--app-ui-scale));
   font-weight: 700;
   line-height: 1.55;
   overflow-wrap: anywhere;
@@ -1135,41 +1188,41 @@ textarea::placeholder {
 .calendar-task-popover-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: calc(6px * var(--app-ui-scale));
 }
 
 .calendar-task-popover-meta span {
-  padding: 2px 8px;
+  padding: calc(2px * var(--app-ui-scale)) calc(8px * var(--app-ui-scale));
   border-radius: 999px;
   background: color-mix(in srgb, var(--color-surface-strong) 70%, #ffffff);
   color: var(--color-muted);
-  font-size: 11px;
+  font-size: calc(11px * var(--app-ui-scale));
   font-weight: 900;
   line-height: 1.5;
 }
 
 .calendar-task-popover-action {
   justify-self: start;
-  min-height: 30px !important;
-  padding: 0 13px !important;
-  font-size: 12px !important;
+  min-height: calc(30px * var(--app-ui-scale)) !important;
+  padding: 0 calc(13px * var(--app-ui-scale)) !important;
+  font-size: calc(12px * var(--app-ui-scale)) !important;
 }
 
 .pomodoro-layout {
   display: grid;
-  grid-template-columns: minmax(320px, 1fr) 370px;
+  grid-template-columns: minmax(calc(320px * var(--app-ui-scale)), 1fr) calc(370px * var(--app-ui-scale));
   grid-template-rows: minmax(0, 1fr);
   flex: 1 1 auto;
   min-height: 0;
   align-items: stretch;
-  gap: 20px;
+  gap: calc(20px * var(--app-ui-scale));
 }
 
 .pomodoro-clock {
   min-height: 0;
   align-content: center;
   justify-items: center;
-  padding: 28px !important;
+  padding: calc(28px * var(--app-ui-scale)) !important;
 }
 
 .pomodoro-layout > .tool-card {
@@ -1188,7 +1241,7 @@ textarea::placeholder {
 
 .progress-ring {
   display: grid;
-  width: clamp(240px, min(48vmin, calc(72vh - 120px)), 390px);
+  width: clamp(calc(240px * var(--app-ui-scale)), min(48vmin, calc(72vh - calc(120px * var(--app-ui-scale)))), calc(390px * var(--app-ui-scale)));
   max-width: 100%;
   aspect-ratio: 1;
   place-items: center;
@@ -1206,13 +1259,13 @@ textarea::placeholder {
   border-radius: 50%;
   background: var(--color-surface);
   box-shadow: inset 0 4px 0 rgba(114, 93, 66, 0.08);
-  padding: 20px;
+  padding: calc(20px * var(--app-ui-scale));
   text-align: center;
 }
 
 .progress-ring span {
   color: var(--color-text);
-  font-size: 54px;
+  font-size: calc(54px * var(--app-ui-scale));
   font-weight: 900;
   line-height: 1;
   font-variant-numeric: tabular-nums;
@@ -1231,20 +1284,32 @@ textarea::placeholder {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 10px;
+  gap: calc(10px * var(--app-ui-scale));
+}
+
+.clock-controls button {
+  min-height: calc(40px * var(--app-ui-scale)) !important;
+  padding: 0 calc(18px * var(--app-ui-scale)) !important;
+  border-radius: 999px !important;
+  font-size: calc(14px * var(--app-ui-scale)) !important;
+  line-height: 1 !important;
+}
+
+.clock-controls button > span {
+  gap: calc(8px * var(--app-ui-scale));
 }
 
 .stat-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 11px;
+  gap: calc(11px * var(--app-ui-scale));
 }
 
 .stat-tile {
   display: grid;
-  min-height: 86px;
-  gap: 4px;
-  padding: 13px;
+  min-height: calc(86px * var(--app-ui-scale));
+  gap: calc(4px * var(--app-ui-scale));
+  padding: calc(13px * var(--app-ui-scale));
   border: 2px dashed color-mix(in srgb, var(--color-border) 70%, transparent);
   border-radius: 22px 20px 24px 20px;
   background: color-mix(in srgb, var(--color-surface-strong) 86%, #fff);
@@ -1252,7 +1317,7 @@ textarea::placeholder {
 
 .stat-tile strong {
   color: var(--color-primary);
-  font-size: 26px;
+  font-size: calc(26px * var(--app-ui-scale));
   font-weight: 900;
   line-height: 1;
 }
@@ -1267,16 +1332,16 @@ textarea::placeholder {
 
 .theme-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 15px;
+  grid-template-columns: repeat(auto-fit, minmax(calc(220px * var(--app-ui-scale)), 1fr));
+  gap: calc(15px * var(--app-ui-scale));
 }
 
 .theme-tile {
   display: grid;
-  grid-template-columns: 52px minmax(0, 1fr) 26px;
+  grid-template-columns: calc(52px * var(--app-ui-scale)) minmax(0, 1fr) calc(26px * var(--app-ui-scale));
   align-items: center;
-  gap: 13px;
-  min-height: 94px;
+  gap: calc(13px * var(--app-ui-scale));
+  min-height: calc(94px * var(--app-ui-scale));
   border: 2px solid color-mix(in srgb, var(--color-border) 78%, transparent);
   border-radius: 24px 22px 26px 22px;
   background:
@@ -1284,7 +1349,7 @@ textarea::placeholder {
     var(--color-surface);
   color: var(--color-text);
   box-shadow: 0 5px 0 rgba(114, 93, 66, 0.12);
-  padding: 17px;
+  padding: calc(17px * var(--app-ui-scale));
   text-align: left;
   transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
 }
@@ -1308,15 +1373,15 @@ textarea::placeholder {
 
 .theme-tile strong {
   overflow: hidden;
-  font-size: 16px;
+  font-size: calc(16px * var(--app-ui-scale));
   font-weight: 900;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .theme-swatch {
-  width: 52px;
-  height: 52px;
+  width: calc(52px * var(--app-ui-scale));
+  height: calc(52px * var(--app-ui-scale));
   border: 3px solid #fff8dc;
   border-radius: 18px 16px 20px 16px;
   box-shadow: 0 4px 0 rgba(114, 93, 66, 0.16);
@@ -1324,25 +1389,26 @@ textarea::placeholder {
 
 .title-color-config {
   display: grid;
-  gap: 11px;
+  gap: calc(11px * var(--app-ui-scale));
 }
 
-.title-color-label {
+.title-color-label,
+.display-size-config-label {
   color: var(--color-muted);
-  font-size: 13px;
+  font-size: calc(13px * var(--app-ui-scale));
   font-weight: 900;
 }
 
 .title-color-grid {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: calc(10px * var(--app-ui-scale));
 }
 
 .title-color-swatch {
   display: grid;
-  width: 38px;
-  height: 38px;
+  width: calc(38px * var(--app-ui-scale));
+  height: calc(38px * var(--app-ui-scale));
   place-items: center;
   border: 3px solid #fff8dc;
   border-radius: 50%;
@@ -1372,35 +1438,41 @@ textarea::placeholder {
   color: var(--color-text);
 }
 
+.display-size-config {
+  display: grid;
+  gap: calc(11px * var(--app-ui-scale));
+  padding-top: calc(2px * var(--app-ui-scale));
+}
+
 .footer-config {
   display: grid;
-  gap: 12px;
-  padding-top: 2px;
+  gap: calc(12px * var(--app-ui-scale));
+  padding-top: calc(2px * var(--app-ui-scale));
 }
 
 .footer-config-label {
   color: var(--color-muted);
-  font-size: 13px;
+  font-size: calc(13px * var(--app-ui-scale));
   font-weight: 900;
 }
 
 .footer-config-row {
   display: grid;
   min-width: 0;
-  gap: 8px;
+  gap: calc(8px * var(--app-ui-scale));
 }
 
 .footer-config-row > span {
   color: var(--color-muted);
-  font-size: 12px;
+  font-size: calc(12px * var(--app-ui-scale));
   font-weight: 900;
 }
 
 .profile-layout {
   display: grid;
-  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+  grid-template-columns: minmax(calc(260px * var(--app-ui-scale)), calc(320px * var(--app-ui-scale))) minmax(0, 1fr);
   align-items: start;
-  gap: 20px;
+  gap: calc(20px * var(--app-ui-scale));
 }
 
 .profile-card,
@@ -1411,17 +1483,17 @@ textarea::placeholder {
 
 .profile-overview {
   position: sticky;
-  top: 24px;
+  top: calc(24px * var(--app-ui-scale));
   display: grid;
   justify-items: center;
-  gap: 14px;
-  padding: 22px !important;
+  gap: calc(14px * var(--app-ui-scale));
+  padding: calc(22px * var(--app-ui-scale)) !important;
 }
 
 .profile-avatar-large {
-  width: 116px;
-  height: 116px;
-  font-size: 42px;
+  width: calc(116px * var(--app-ui-scale));
+  height: calc(116px * var(--app-ui-scale));
+  font-size: calc(42px * var(--app-ui-scale));
 }
 
 .profile-avatar-button {
@@ -1445,8 +1517,8 @@ textarea::placeholder {
   top: 50%;
   left: 50%;
   display: grid;
-  width: 42px;
-  height: 42px;
+  width: calc(42px * var(--app-ui-scale));
+  height: calc(42px * var(--app-ui-scale));
   place-items: center;
   border: 2px solid #fff8dc;
   border-radius: 50%;
@@ -1469,7 +1541,7 @@ textarea::placeholder {
   width: 100%;
   min-width: 0;
   justify-items: center;
-  gap: 4px;
+  gap: calc(4px * var(--app-ui-scale));
   text-align: center;
 }
 
@@ -1477,7 +1549,7 @@ textarea::placeholder {
   max-width: 100%;
   overflow: hidden;
   color: var(--color-muted);
-  font-size: 13px;
+  font-size: calc(13px * var(--app-ui-scale));
   font-weight: 800;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1486,20 +1558,20 @@ textarea::placeholder {
 .profile-sections {
   display: grid;
   min-width: 0;
-  gap: 18px;
+  gap: calc(18px * var(--app-ui-scale));
 }
 
 .profile-section-card {
   display: grid;
-  gap: 14px;
-  padding: 20px !important;
+  gap: calc(14px * var(--app-ui-scale));
+  padding: calc(20px * var(--app-ui-scale)) !important;
 }
 
 .profile-section-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 14px;
+  gap: calc(14px * var(--app-ui-scale));
   color: var(--color-primary);
 }
 
@@ -1531,14 +1603,14 @@ textarea::placeholder {
 .profile-security-tab-label {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: calc(6px * var(--app-ui-scale));
   white-space: nowrap;
 }
 
 .profile-security-panel {
   display: grid;
   width: min(100%, 420px);
-  gap: 16px;
+  gap: calc(16px * var(--app-ui-scale));
 }
 
 .profile-security-panel .primary-button {
@@ -1552,7 +1624,7 @@ textarea::placeholder {
 .avatar-editor {
   display: grid;
   justify-items: center;
-  gap: 12px;
+  gap: calc(12px * var(--app-ui-scale));
   width: 100%;
 }
 
@@ -1596,6 +1668,7 @@ textarea::placeholder {
 }
 
 .auth-screen {
+  --app-ui-scale: 1;
   position: relative;
   isolation: isolate;
   display: grid;
@@ -1917,19 +1990,43 @@ textarea::placeholder {
 
 .floating-header {
   display: grid;
-  grid-template-columns: 28px minmax(0, 1fr) 40px;
+  grid-template-columns: minmax(0, 1fr) calc(40px * var(--app-ui-scale));
   align-items: center;
-  gap: 8px;
-  min-height: 50px;
-  padding: 7px 10px;
+  gap: calc(8px * var(--app-ui-scale));
+  min-height: calc(50px * var(--app-ui-scale));
+  padding: calc(7px * var(--app-ui-scale)) calc(10px * var(--app-ui-scale));
   border-bottom: 2px dashed color-mix(in srgb, var(--color-border) 72%, transparent);
   background: var(--color-surface);
   user-select: none;
 }
 
+.floating-header > button:not(.floating-drag-handle) {
+  width: calc(34px * var(--app-ui-scale)) !important;
+  min-width: calc(34px * var(--app-ui-scale)) !important;
+  height: calc(34px * var(--app-ui-scale)) !important;
+  min-height: calc(34px * var(--app-ui-scale)) !important;
+  padding: 0 !important;
+  border-radius: 999px !important;
+}
+
+.floating-drag-handle {
+  display: grid;
+  grid-template-columns: calc(28px * var(--app-ui-scale)) minmax(0, 1fr);
+  align-items: center;
+  min-width: 0;
+  height: calc(36px * var(--app-ui-scale));
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: move;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 .floating-logo {
   display: block;
-  width: min(126px, 100%);
+  width: min(calc(126px * var(--app-ui-scale)), 100%);
   height: auto;
   justify-self: center;
   filter: drop-shadow(0 2px 0 rgba(114, 93, 66, 0.12));
@@ -1944,16 +2041,16 @@ textarea::placeholder {
 
 .floating-card main {
   display: grid;
-  gap: 11px;
-  padding: 13px;
+  gap: calc(11px * var(--app-ui-scale));
+  padding: calc(13px * var(--app-ui-scale));
 }
 
 .floating-task {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 40px;
+  grid-template-columns: minmax(0, 1fr) calc(40px * var(--app-ui-scale));
   align-items: center;
-  gap: 9px;
-  padding: 13px !important;
+  gap: calc(9px * var(--app-ui-scale));
+  padding: calc(13px * var(--app-ui-scale)) !important;
   border: 2px solid color-mix(in srgb, var(--color-border) 74%, transparent) !important;
   box-shadow: 0 4px 0 rgba(114, 93, 66, 0.12);
 }
@@ -1961,7 +2058,7 @@ textarea::placeholder {
 .floating-task div {
   display: grid;
   min-width: 0;
-  gap: 4px;
+  gap: calc(4px * var(--app-ui-scale));
 }
 
 .floating-task strong,
@@ -1973,7 +2070,7 @@ textarea::placeholder {
 
 .floating-task span {
   color: var(--color-muted);
-  font-size: 12px;
+  font-size: calc(12px * var(--app-ui-scale));
   font-weight: 800;
 }
 
