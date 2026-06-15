@@ -1,5 +1,5 @@
 import { ChangeEvent, FormEvent, PointerEvent, useEffect, useMemo, useRef, useState } from "react";
-import { displaySizeValues, titleColorValues, type ApiUser, type AppBootstrapResponse, type DisplaySize, type FooterType as AppFooterType, type ThemeId, type TitleColor, type UserGender } from "@todo/shared";
+import { displaySizeValues, taskCardDisplayModeValues, titleColorValues, type ApiUser, type AppBootstrapResponse, type DisplaySize, type FooterType as AppFooterType, type TaskCardDisplayMode, type ThemeId, type TitleColor, type UserGender } from "@todo/shared";
 import { Button, Card, Divider, Input, Modal, Radio, Select, Tabs, Title } from "animal-island-ui";
 import { Camera, Check, Download, KeyRound, Mail, RefreshCw, RotateCw, Save } from "lucide-react";
 import { api } from "../api/client";
@@ -19,12 +19,14 @@ interface ProfileCenterProps {
   displaySize: DisplaySize;
   footerVisible: boolean;
   footerType: AppFooterType;
+  taskCardDisplayMode: TaskCardDisplayMode;
   themeId: ThemeId;
   titleColor: TitleColor;
   onFooterVisibleChanged(visible: boolean): void;
   onFooterTypeChanged(footerType: AppFooterType): void;
   onDisplaySizeChanged(displaySize: DisplaySize): void;
   onPasswordChanged(): void;
+  onTaskCardDisplayModeChanged(taskCardDisplayMode: TaskCardDisplayMode): void;
   onTitleColorChanged(titleColor: TitleColor): void;
   onThemeChanged(themeId: ThemeId): void;
   onUserChanged(user: ApiUser): void;
@@ -63,6 +65,16 @@ const displaySizeLabels: Record<DisplaySize, string> = {
 
 const displaySizeOptions = displaySizeValues.map((value) => ({
   label: displaySizeLabels[value],
+  value
+}));
+
+const taskCardDisplayModeLabels: Record<TaskCardDisplayMode, string> = {
+  full: "完整卡片",
+  title: "仅标题"
+};
+
+const taskCardDisplayModeOptions = taskCardDisplayModeValues.map((value) => ({
+  label: taskCardDisplayModeLabels[value],
   value
 }));
 
@@ -133,12 +145,14 @@ export function ProfileCenter({
   displaySize,
   footerVisible,
   footerType,
+  taskCardDisplayMode,
   themeId,
   titleColor,
   onFooterVisibleChanged,
   onFooterTypeChanged,
   onDisplaySizeChanged,
   onPasswordChanged,
+  onTaskCardDisplayModeChanged,
   onTitleColorChanged,
   onThemeChanged,
   onUserChanged,
@@ -623,6 +637,22 @@ export function ProfileCenter({
                 onChange={(value) => onFooterTypeChanged(value as AppFooterType)}
               />
             </div>
+          </div>
+        </Card>
+
+        <Card className="profile-section-card" pattern="default">
+          <header className="profile-section-header">
+            <Title size="small" color="app-blue">系统配置</Title>
+            <Check size={18} />
+          </header>
+          <Divider type="dashed-teal" />
+          <div className="display-size-config">
+            <span className="display-size-config-label">待办事项卡片显示</span>
+            <Radio
+              options={taskCardDisplayModeOptions}
+              value={taskCardDisplayMode}
+              onChange={(value) => onTaskCardDisplayModeChanged(value as TaskCardDisplayMode)}
+            />
           </div>
         </Card>
       </div>

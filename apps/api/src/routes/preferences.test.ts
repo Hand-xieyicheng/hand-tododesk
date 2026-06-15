@@ -1,0 +1,92 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { InjectOptions, Response } from "light-my-request";
+import { buildApp } from "../app.js";
+import { signAccessToken } from "../services/tokens.js";
+
+const db = vi.hoisted(() => ({
+  execute: vi.fn(),
+  queryOne: vi.fn()
+}));
+
+vi.mock("../db.js", () => ({
+  execute: db.execute,
+  queryOne: db.queryOne
+}));
+
+const token = signAccessToken({ sub: "user-1", email: "todo@example.com" });
+
+const currentPreference = {
+  themeId: "shinchan",
+  titleColor: "app-teal",
+  footerVisible: 1,
+  footerType: "sea",
+  showCompletedTasks: 1,
+  taskViewMode: "list",
+  taskCardDisplayMode: "full",
+  displaySize: "default"
+};
+
+async function injectPreference(method: "GET" | "PUT", payload?: InjectOptions["payload"]): Promise<Response> {
+  const app = await buildApp();
+  const response = await app.inject({
+    method,
+    url: "/preferences/theme",
+    headers: {
+      authorization: `Bearer ${token}`
+    },
+    payload
+  } satisfies InjectOptions);
+  await app.close();
+  return response;
+}
+
+describe("preference routes", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    db.execute.mockResolvedValue({});
+  });
+
+  it("returns full card display mode by default", async () => {
+    db.queryOne.mockResolvedValue(null);
+
+    const response = await injectPreference("GET");
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      taskCardDisplayMode: "full"
+    });
+  });
+
+  it("saves title card display mode", async () => {
+    db.queryOne.mockResolvedValue(currentPreference);
+
+    const response = await injectPreference("PUT", { taskCardDisplayMode: "title" });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      taskCardDisplayMode: "title"
+    });
+    expect(db.execute).toHaveBeenLastCalledWith(expect.stringContaining("taskCardDisplayMode"), [
+      "user-1",
+      "shinchan",
+      "app-teal",
+      true,
+      "sea",
+      true,
+      "list",
+      "title",
+      "default"
+    ]);
+  });
+
+  it("falls back to full card display mode for invalid stored values", async () => {
+    db.queryOne.mockResolvedValue({ ...currentPreference, taskCardDisplayMode: "compact" });
+
+    const response = await injectPreference("GET");
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      taskCardDisplayMode: "full"
+    });
+  });
+});

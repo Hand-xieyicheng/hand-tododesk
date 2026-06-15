@@ -872,6 +872,62 @@ textarea::placeholder {
   gap: 9px;
 }
 
+.task-copy,
+.task-card-tooltip {
+  display: block;
+  min-width: 0;
+  width: 100%;
+}
+
+.task-card-tooltip:hover {
+  z-index: 30;
+}
+
+.task-card-tooltip [role="tooltip"],
+.floating-task-tooltip [role="tooltip"] {
+  max-width: min(360px, 78vw);
+}
+
+.task-card-tooltip-content,
+.floating-task-tooltip-content {
+  display: grid;
+  gap: calc(8px * var(--app-ui-scale));
+  color: var(--color-text);
+}
+
+.task-card-tooltip-content strong,
+.floating-task-tooltip-content strong {
+  overflow-wrap: anywhere;
+  font-size: calc(14px * var(--app-ui-scale));
+  line-height: 1.35;
+}
+
+.task-card-tooltip-content p,
+.floating-task-tooltip-content p {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: calc(12px * var(--app-ui-scale));
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.task-card-tooltip-meta,
+.floating-task-tooltip-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(6px * var(--app-ui-scale));
+}
+
+.task-card-tooltip-meta span,
+.floating-task-tooltip-meta span {
+  padding: calc(4px * var(--app-ui-scale)) calc(8px * var(--app-ui-scale));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-surface-strong) 84%, #fff);
+  color: var(--color-muted);
+  font-size: calc(11px * var(--app-ui-scale));
+  font-weight: 800;
+}
+
 .task-item h3 {
   min-width: 0;
   overflow-wrap: anywhere;
@@ -886,6 +942,11 @@ textarea::placeholder {
   line-height: 1.55;
   overflow-wrap: anywhere;
   font-size: calc(12px * var(--app-ui-scale));
+}
+
+.task-item .task-card-tooltip-content p {
+  margin: 0;
+  line-height: 1.5;
 }
 
 .task-item.is-completed .task-title-row h3,
@@ -949,6 +1010,10 @@ textarea::placeholder {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: calc(10px * var(--app-ui-scale));
   padding: calc(14px * var(--app-ui-scale)) !important;
+}
+
+.task-item.is-title-only {
+  align-items: center;
 }
 
 .task-item.is-compact .task-actions {
@@ -2380,6 +2445,16 @@ textarea::placeholder {
   gap: calc(6px * var(--app-ui-scale));
 }
 
+.floating-task-tooltip {
+  display: block;
+  min-width: 0;
+  width: 100%;
+}
+
+.floating-task-tooltip:hover {
+  z-index: 30;
+}
+
 .floating-task-title,
 .floating-task-meta span {
   overflow: hidden;
@@ -2427,6 +2502,10 @@ textarea::placeholder {
   display: flex;
   flex-direction: column;
   gap: calc(6px * var(--app-ui-scale));
+}
+
+.floating-task.is-title-only {
+  align-items: center;
 }
 
 .floating-task.is-completed .floating-task-title,

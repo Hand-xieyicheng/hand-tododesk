@@ -99,12 +99,14 @@ function renderProfile(updater: AppUpdaterController) {
       displaySize="default"
       footerVisible
       footerType="sea"
+      taskCardDisplayMode="full"
       themeId="shinchan"
       titleColor="app-teal"
       onFooterVisibleChanged={vi.fn()}
       onFooterTypeChanged={vi.fn()}
       onDisplaySizeChanged={vi.fn()}
       onPasswordChanged={vi.fn()}
+      onTaskCardDisplayModeChanged={vi.fn()}
       onTitleColorChanged={vi.fn()}
       onThemeChanged={vi.fn()}
       onUserChanged={vi.fn()}
@@ -126,5 +128,14 @@ describe("ProfileCenter", () => {
 
     expect(screen.getByText("版本更新")).toBeInTheDocument();
     expect(screen.getByText("检查更新")).toBeInTheDocument();
+  });
+
+  it("shows system card display settings", () => {
+    renderProfile(createUpdater("idle"));
+
+    expect(screen.getByText("系统配置")).toBeInTheDocument();
+    expect(screen.getByText("待办事项卡片显示")).toBeInTheDocument();
+    expect(screen.getByText(/完整卡片/)).toBeInTheDocument();
+    expect(screen.getByText("仅标题")).toBeInTheDocument();
   });
 });

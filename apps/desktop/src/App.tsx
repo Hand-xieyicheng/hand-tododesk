@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties, PointerEvent } from "react";
-import { defaultAppFeatureFlags, type ApiTask, type ApiThemePreference, type ApiUser, type AppBootstrapResponse, type AppFeatureFlags, type DisplaySize, type FooterType as AppFooterType, type TaskViewMode, type ThemeId, type TitleColor } from "@todo/shared";
+import { defaultAppFeatureFlags, type ApiTask, type ApiThemePreference, type ApiUser, type AppBootstrapResponse, type AppFeatureFlags, type DisplaySize, type FooterType as AppFooterType, type TaskCardDisplayMode, type TaskViewMode, type ThemeId, type TitleColor } from "@todo/shared";
 import { Button, Footer, Loading, Title, Tooltip } from "animal-island-ui";
 import type { TitleSize } from "animal-island-ui";
 import { Bell, CalendarDays, CheckSquare2, Clock3, Eye, EyeOff, LayoutGrid, ListTodo, LogOut, Pin, Plus, UserRound } from "lucide-react";
@@ -38,6 +38,7 @@ const defaultThemePreference: ApiThemePreference = {
   footerType: "sea",
   showCompletedTasks: true,
   taskViewMode: "list",
+  taskCardDisplayMode: "full",
   displaySize: "default"
 };
 
@@ -86,6 +87,7 @@ export function App() {
   const [footerVisible, setFooterVisible] = useState(true);
   const [footerType, setFooterType] = useState<AppFooterType>("sea");
   const [showCompletedTasks, setShowCompletedTasks] = useState(true);
+  const [taskCardDisplayMode, setTaskCardDisplayMode] = useState<TaskCardDisplayMode>("full");
   const [displaySize, setDisplaySize] = useState<DisplaySize>(() => normalizeDisplaySize(localStorage.getItem("tododesk.displaySize")));
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
@@ -122,6 +124,7 @@ export function App() {
     setFooterType(preference.footerType);
     setShowCompletedTasks(preference.showCompletedTasks);
     setTaskViewMode(preference.taskViewMode);
+    setTaskCardDisplayMode(preference.taskCardDisplayMode);
     setDisplaySize(nextDisplaySize);
     localStorage.setItem("tododesk.theme", preference.themeId);
     localStorage.setItem("tododesk.displaySize", nextDisplaySize);
@@ -322,6 +325,15 @@ export function App() {
     });
   }
 
+  function handleTaskCardDisplayModeChanged(next: TaskCardDisplayMode) {
+    const previous = taskCardDisplayMode;
+    setTaskCardDisplayMode(next);
+    void api.setThemePreference({ taskCardDisplayMode: next }).catch((error) => {
+      setTaskCardDisplayMode(previous);
+      setMessage(error instanceof Error ? error.message : "待办事项卡片显示配置保存失败");
+    });
+  }
+
   function handleDisplaySizeChanged(next: DisplaySize) {
     setDisplaySize(next);
     localStorage.setItem("tododesk.displaySize", next);
@@ -477,6 +489,7 @@ export function App() {
           <TaskPanel
             createOpen={taskCreateOpen}
             showCompletedTasks={showCompletedTasks}
+            taskCardDisplayMode={taskCardDisplayMode}
             tasks={tasks}
             viewMode={featureFlags.taskQuadrant ? taskViewMode : "list"}
             onChanged={loadAppData}
@@ -501,10 +514,12 @@ export function App() {
             onFooterTypeChanged={handleFooterTypeChanged}
             onFooterVisibleChanged={handleFooterVisibleChanged}
             onPasswordChanged={handlePasswordChanged}
+            onTaskCardDisplayModeChanged={handleTaskCardDisplayModeChanged}
             onTitleColorChanged={handleTitleColorChanged}
             onThemeChanged={handleThemeChanged}
             onUserChanged={handleUserChanged}
             appBootstrap={appBootstrap}
+            taskCardDisplayMode={taskCardDisplayMode}
             updater={updater}
           />
         ) : null}

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent, MouseEvent, PointerEvent } from "react";
-import type { ApiTask, ApiThemePreference, CreateTaskRequest, TaskPriority, TaskStatus, UpdateTaskRequest } from "@todo/shared";
-import { Button, Card, Input, Select } from "animal-island-ui";
+import type { ApiTask, ApiThemePreference, CreateTaskRequest, TaskCardDisplayMode, TaskPriority, TaskStatus, UpdateTaskRequest } from "@todo/shared";
+import { Button, Card, Input, Select, Tooltip } from "animal-island-ui";
 import { Check, Eye, EyeOff, GripHorizontal, Pencil, Plus, RefreshCw, RotateCcw, Save, X } from "lucide-react";
 import { api } from "../api/client";
 import todoDeskLogo from "../assets/tododesk-logo.png";
@@ -41,6 +41,7 @@ const defaultThemePreference: ApiThemePreference = {
   footerType: "sea",
   showCompletedTasks: true,
   taskViewMode: "list",
+  taskCardDisplayMode: "full",
   displaySize: "default"
 };
 
@@ -127,6 +128,7 @@ function FloatingHeader() {
 export function FloatingCard() {
   const [tasks, setTasks] = useState<ApiTask[]>([]);
   const [showCompletedTasks, setShowCompletedTasks] = useState(defaultThemePreference.showCompletedTasks);
+  const [taskCardDisplayMode, setTaskCardDisplayMode] = useState<TaskCardDisplayMode>(defaultThemePreference.taskCardDisplayMode);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [savingTaskId, setSavingTaskId] = useState<string | null>(null);
@@ -144,6 +146,7 @@ export function FloatingCard() {
 
   function applyThemePreference(preference: ApiThemePreference) {
     setShowCompletedTasks(preference.showCompletedTasks);
+    setTaskCardDisplayMode(preference.taskCardDisplayMode);
     localStorage.setItem("tododesk.theme", preference.themeId);
     localStorage.setItem("tododesk.displaySize", preference.displaySize);
     applyTheme(preference.themeId);
@@ -378,20 +381,47 @@ export function FloatingCard() {
           {visibleTasks.length === 0 && !loading ? <Card className="empty-state" type="dashed">暂无待办</Card> : null}
           {visibleTasks.map((task) => {
             const isCompleted = task.status === "COMPLETED";
+            const titleOnly = taskCardDisplayMode === "title";
             const statusAction = isCompleted ? "重置为未完成" : "完成";
             const nextStatus: TaskStatus = isCompleted ? "TODO" : "COMPLETED";
+            const dueAtLabel = task.dueAt ? new Date(task.dueAt).toLocaleString() : "无截止时间";
+            const recurrenceLabel = task.recurrenceRule?.frequency ?? null;
+            const fullContent = (
+              <div className="floating-task-tooltip-content">
+                <strong>{task.title}</strong>
+                <p>{task.notes || "无备注"}</p>
+                <div className="floating-task-tooltip-meta">
+                  <span>{priorityLabels[task.priority]}</span>
+                  <span>{dueAtLabel}</span>
+                  {recurrenceLabel ? <span>{recurrenceLabel}</span> : null}
+                  <span>{task.pomodoroCompletedCount} 个番茄</span>
+                  {task.tags.map((tag) => <span key={tag.id}>#{tag.name}</span>)}
+                </div>
+              </div>
+            );
+            const copy = (
+              <div className="floating-task-copy">
+                <strong className="floating-task-title">{task.title}</strong>
+                {titleOnly ? null : (
+                  <>
+                    <div className="floating-task-meta">
+                      <span>{priorityLabels[task.priority]}</span>
+                      <span>{dueAtLabel}</span>
+                      {task.tags.map((tag) => <span key={tag.id}>#{tag.name}</span>)}
+                    </div>
+                    {task.notes ? <p className="floating-task-notes">{task.notes}</p> : null}
+                  </>
+                )}
+              </div>
+            );
 
             return (
-              <Card className={isCompleted ? "floating-task is-completed" : "floating-task"} key={task.id} pattern="default">
-                <div className="floating-task-copy">
-                  <strong className="floating-task-title">{task.title}</strong>
-                  <div className="floating-task-meta">
-                    <span>{priorityLabels[task.priority]}</span>
-                    {task.dueAt ? <span>{new Date(task.dueAt).toLocaleString()}</span> : <span>无截止时间</span>}
-                    {task.tags.map((tag) => <span key={tag.id}>#{tag.name}</span>)}
-                  </div>
-                  {task.notes ? <p className="floating-task-notes">{task.notes}</p> : null}
-                </div>
+              <Card className={`${isCompleted ? "floating-task is-completed" : "floating-task"}${titleOnly ? " is-title-only" : ""}`} key={task.id} pattern="default">
+                {titleOnly ? (
+                  <Tooltip className="floating-task-tooltip" placement="top-start" title={fullContent} trigger="hover" variant="island">
+                    {copy}
+                  </Tooltip>
+                ) : copy}
                 <div className="floating-task-actions">
                   <Button
                     aria-label="编辑"
