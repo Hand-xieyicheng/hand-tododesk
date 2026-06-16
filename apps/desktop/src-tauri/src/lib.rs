@@ -95,7 +95,7 @@ fn open_floating_card(app: AppHandle, url: String) -> Result<(), String> {
         .title("todoDesk 卡片")
         .inner_size(360.0, 520.0)
         .min_inner_size(300.0, 360.0)
-        .always_on_top(true)
+        .always_on_top(false)
         .decorations(false)
         .resizable(true)
         .build()

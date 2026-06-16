@@ -179,7 +179,7 @@ textarea:focus-visible {
   align-items: center;
   gap: calc(10px * var(--app-ui-scale));
   width: 100%;
-  padding: calc(4px * var(--app-ui-scale)) 0 calc(20px * var(--app-ui-scale));
+  padding: calc(4px * var(--app-ui-scale)) 0 calc(30px * var(--app-ui-scale));
   border-bottom: 1px solid color-mix(in srgb, var(--color-border) 36%, transparent);
 }
 
@@ -2456,7 +2456,8 @@ textarea::placeholder {
   position: relative;
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
+  gap: calc(8px * var(--app-ui-scale));
   min-height: calc(50px * var(--app-ui-scale));
   padding: calc(7px * var(--app-ui-scale)) calc(10px * var(--app-ui-scale));
   border-bottom: 2px dashed color-mix(in srgb, var(--color-border) 72%, transparent);
@@ -2473,6 +2474,16 @@ textarea::placeholder {
   min-height: calc(34px * var(--app-ui-scale)) !important;
   padding: 0 !important;
   border-radius: 999px !important;
+}
+
+.floating-pin-button {
+  color: var(--color-text) !important;
+}
+
+.floating-pin-button.is-active {
+  background: color-mix(in srgb, var(--color-primary) 15%, #ffffff) !important;
+  color: var(--color-primary-strong) !important;
+  box-shadow: 0 3px 0 rgba(114, 93, 66, 0.12) !important;
 }
 
 .floating-drag-handle {

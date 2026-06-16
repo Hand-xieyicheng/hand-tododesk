@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { FormEvent, MouseEvent, PointerEvent } from "react";
 import type { ApiTask, ApiThemePreference, CreateTaskRequest, TaskCardDisplayMode, TaskPriority, TaskStatus, UpdateTaskRequest } from "@todo/shared";
 import { Button, Card, Input, Select, Tooltip } from "animal-island-ui";
-import { Check, Eye, EyeOff, Pencil, Plus, RefreshCw, RotateCcw, Save, X } from "lucide-react";
+import { Check, Eye, EyeOff, Pencil, Pin, Plus, RefreshCw, RotateCcw, Save, X } from "lucide-react";
 import { api } from "../api/client";
 import todoDeskLogo from "../assets/tododesk-logo.png";
 import { applyDisplaySize } from "../lib/displaySize";
@@ -92,6 +92,30 @@ function dueAtToIso(value: string) {
 }
 
 function FloatingHeader() {
+  const [isAlwaysOnTop, setIsAlwaysOnTop] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function syncAlwaysOnTop() {
+      try {
+        const { getCurrentWindow } = await import("@tauri-apps/api/window");
+        const current = await getCurrentWindow().isAlwaysOnTop();
+        if (!cancelled) {
+          setIsAlwaysOnTop(current);
+        }
+      } catch {
+        // Browser preview fallback.
+      }
+    }
+
+    void syncAlwaysOnTop();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   async function dragWindow(event: PointerEvent<HTMLElement>) {
     if (event.button !== 0) {
       return;
@@ -103,6 +127,25 @@ function FloatingHeader() {
       await getCurrentWindow().startDragging();
     } catch {
       // Browser preview fallback.
+    }
+  }
+
+  async function toggleAlwaysOnTop(event: MouseEvent<HTMLButtonElement>) {
+    event.stopPropagation();
+
+    const previous = isAlwaysOnTop;
+    const next = !isAlwaysOnTop;
+    setIsAlwaysOnTop(next);
+
+    try {
+      const { getCurrentWindow } = await import("@tauri-apps/api/window");
+      const currentWindow = getCurrentWindow();
+      await currentWindow.setAlwaysOnTop(next);
+      setIsAlwaysOnTop(await currentWindow.isAlwaysOnTop().catch(() => next));
+    } catch {
+      if ("__TAURI_INTERNALS__" in window) {
+        setIsAlwaysOnTop(previous);
+      }
     }
   }
 
@@ -118,6 +161,15 @@ function FloatingHeader() {
 
   return (
     <header className="floating-header">
+      <Button
+        aria-label={isAlwaysOnTop ? "取消固定在最前" : "固定在最前"}
+        className={isAlwaysOnTop ? "floating-pin-button is-active" : "floating-pin-button"}
+        icon={<Pin size={16} />}
+        size="small"
+        title={isAlwaysOnTop ? "取消固定在最前" : "固定在最前"}
+        type="text"
+        onClick={toggleAlwaysOnTop}
+      />
       <button className="floating-drag-handle" type="button" title="拖动卡片" onPointerDown={dragWindow}>
         <img className="floating-logo" src={todoDeskLogo} alt="todoDesk" />
       </button>

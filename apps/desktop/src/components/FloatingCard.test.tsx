@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ApiTask, ApiThemePreference } from "@todo/shared";
 import { FloatingCard } from "./FloatingCard";
@@ -11,8 +11,19 @@ const apiMock = vi.hoisted(() => ({
   updateTask: vi.fn()
 }));
 
+const windowMock = vi.hoisted(() => ({
+  close: vi.fn(),
+  isAlwaysOnTop: vi.fn(),
+  setAlwaysOnTop: vi.fn(),
+  startDragging: vi.fn()
+}));
+
 vi.mock("../api/client", () => ({
   api: apiMock
+}));
+
+vi.mock("@tauri-apps/api/window", () => ({
+  getCurrentWindow: () => windowMock
 }));
 
 vi.mock("animal-island-ui", () => ({
@@ -69,10 +80,17 @@ const titlePreference: ApiThemePreference = {
 };
 
 describe("FloatingCard", () => {
+  let alwaysOnTop = false;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    alwaysOnTop = false;
     apiMock.tasks.mockResolvedValue({ tasks: [task] });
     apiMock.getThemePreference.mockResolvedValue(titlePreference);
+    windowMock.isAlwaysOnTop.mockImplementation(async () => alwaysOnTop);
+    windowMock.setAlwaysOnTop.mockImplementation(async (value: boolean) => {
+      alwaysOnTop = value;
+    });
   });
 
   it("uses card display preference from synced settings", async () => {
@@ -90,5 +108,22 @@ describe("FloatingCard", () => {
     expect(screen.getByRole("tooltip")).toHaveTextContent("无截止时间");
     expect(screen.getByRole("tooltip")).toHaveTextContent("1 个番茄");
     expect(screen.getByRole("tooltip")).toHaveTextContent("#财务");
+  });
+
+  it("toggles the current floating window always-on-top state", async () => {
+    render(<FloatingCard />);
+
+    const pinButton = await screen.findByRole("button", { name: "固定在最前" });
+    await waitFor(() => expect(windowMock.isAlwaysOnTop).toHaveBeenCalled());
+
+    fireEvent.click(pinButton);
+
+    await waitFor(() => expect(windowMock.setAlwaysOnTop).toHaveBeenCalledWith(true));
+    expect(screen.getByRole("button", { name: "取消固定在最前" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "取消固定在最前" }));
+
+    await waitFor(() => expect(windowMock.setAlwaysOnTop).toHaveBeenLastCalledWith(false));
+    expect(screen.getByRole("button", { name: "固定在最前" })).toBeInTheDocument();
   });
 });
