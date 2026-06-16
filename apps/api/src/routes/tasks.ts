@@ -3,6 +3,7 @@ import type { ApiTag, ApiTask, RecurrenceRuleInput, TaskPriority, TaskStatus } f
 import {
   calendarQuerySchema,
   createTaskRequestSchema,
+  sortTasksForDisplay,
   taskPriorityValues,
   updateTaskRequestSchema
 } from "@todo/shared";
@@ -161,18 +162,18 @@ async function upsertRecurrence(taskId: string, recurrenceRule: RecurrenceRuleIn
 export async function taskRoutes(app: FastifyInstance) {
   app.get("/tasks", { preHandler: app.authenticate }, async (request) => {
     const rows = await queryRows<TaskRow>(
-      "SELECT * FROM `Task` WHERE `userId` = ? AND `status` <> 'ARCHIVED' ORDER BY `dueAt` IS NULL, `dueAt` ASC, `createdAt` DESC",
+      "SELECT * FROM `Task` WHERE `userId` = ? AND `status` <> 'ARCHIVED' ORDER BY CASE WHEN `status` = 'COMPLETED' THEN 1 ELSE 0 END ASC, `createdAt` ASC, `id` ASC",
       [request.user.id]
     );
-    return { tasks: await Promise.all(rows.map(serializeTask)) };
+    return { tasks: sortTasksForDisplay(await Promise.all(rows.map(serializeTask))) };
   });
 
   app.get("/tasks/quadrants", { preHandler: app.authenticate }, async (request) => {
     const rows = await queryRows<TaskRow>(
-      "SELECT * FROM `Task` WHERE `userId` = ? AND `status` <> 'ARCHIVED' ORDER BY `dueAt` IS NULL, `dueAt` ASC, `createdAt` DESC",
+      "SELECT * FROM `Task` WHERE `userId` = ? AND `status` <> 'ARCHIVED' ORDER BY CASE WHEN `status` = 'COMPLETED' THEN 1 ELSE 0 END ASC, `createdAt` ASC, `id` ASC",
       [request.user.id]
     );
-    const tasks = await Promise.all(rows.map(serializeTask));
+    const tasks = sortTasksForDisplay(await Promise.all(rows.map(serializeTask)));
     const quadrants = Object.fromEntries(taskPriorityValues.map((priority) => [priority, [] as ApiTask[]])) as Record<TaskPriority, ApiTask[]>;
 
     for (const task of tasks) {

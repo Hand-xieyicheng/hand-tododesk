@@ -59,11 +59,11 @@ const user: ApiUser = {
 };
 
 const appBootstrap: AppBootstrapResponse = {
-  apiVersion: "0.2.2",
+  apiVersion: "0.2.3",
   releaseChannel: "stable",
   desktop: {
     minimumVersion: "0.1.0",
-    latestVersion: "0.2.2",
+    latestVersion: "0.2.3",
     updateEndpoint: "https://example.com/latest.json"
   },
   featureFlags: {
@@ -77,7 +77,7 @@ const appBootstrap: AppBootstrapResponse = {
 function createUpdater(status: AppUpdaterController["status"]): AppUpdaterController {
   return {
     status,
-    currentVersion: "0.2.2",
+    currentVersion: "0.2.3",
     targetVersion: null,
     releaseDate: null,
     releaseNotes: null,
@@ -96,6 +96,7 @@ function renderProfile(updater: AppUpdaterController) {
     <ProfileCenter
       user={user}
       appBootstrap={appBootstrap}
+      appCloseBehavior="hide"
       displaySize="default"
       footerVisible
       footerType="sea"
@@ -106,6 +107,7 @@ function renderProfile(updater: AppUpdaterController) {
       onFooterVisibleChanged={vi.fn()}
       onFooterTypeChanged={vi.fn()}
       onFontFamilyChanged={vi.fn()}
+      onAppCloseBehaviorChanged={vi.fn()}
       onDisplaySizeChanged={vi.fn()}
       onPasswordChanged={vi.fn()}
       onTaskCardDisplayModeChanged={vi.fn()}
@@ -139,6 +141,9 @@ describe("ProfileCenter", () => {
     expect(screen.getByText("待办事项卡片显示")).toBeInTheDocument();
     expect(screen.getByText(/完整卡片/)).toBeInTheDocument();
     expect(screen.getByText("仅标题")).toBeInTheDocument();
+    expect(screen.getByText("关闭 app 时")).toBeInTheDocument();
+    expect(screen.getByText(/仅关闭页面/)).toBeInTheDocument();
+    expect(screen.getByText("退出应用")).toBeInTheDocument();
   });
 
   it("shows font settings in theme configuration", () => {

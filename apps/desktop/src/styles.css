@@ -1079,6 +1079,7 @@ textarea::placeholder {
 .task-actions button svg,
 .floating-task button svg,
 .floating-header > button svg,
+.floating-header-actions button svg,
 .clock-controls button svg,
 .modal-task-form .primary-button svg {
   width: calc(16px * var(--app-ui-scale));
@@ -2465,7 +2466,16 @@ textarea::placeholder {
   user-select: none;
 }
 
-.floating-header > button:not(.floating-drag-handle) {
+.floating-header-actions {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: calc(8px * var(--app-ui-scale));
+}
+
+.floating-header > button:not(.floating-drag-handle),
+.floating-header-actions button {
   position: relative;
   z-index: 2;
   width: calc(34px * var(--app-ui-scale)) !important;

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   appBootstrapResponseSchema,
+  appCloseBehaviorValues,
   changeEmailRequestSchema,
   changePasswordRequestSchema,
   defaultAppFeatureFlags,
@@ -8,6 +9,7 @@ import {
   fontFamilyValues,
   footerTypeValues,
   releaseChannelValues,
+  sortTasksForDisplay,
   taskCardDisplayModeValues,
   taskViewModeValues,
   titleColorValues,
@@ -15,6 +17,7 @@ import {
   updateProfileRequestSchema,
   userGenderValues
 } from "./index";
+import type { ApiTask } from "./index";
 
 describe("profile schemas", () => {
   it("accepts planned gender values", () => {
@@ -35,6 +38,7 @@ describe("profile schemas", () => {
     expect(footerTypeValues).toEqual(["sea", "tree"]);
     expect(taskViewModeValues).toEqual(["list", "quadrant"]);
     expect(taskCardDisplayModeValues).toEqual(["full", "title"]);
+    expect(appCloseBehaviorValues).toEqual(["hide", "quit"]);
     expect(displaySizeValues).toEqual(["small", "default", "large"]);
     expect(fontFamilyValues).toEqual([
       "system",
@@ -68,6 +72,9 @@ describe("profile schemas", () => {
     expect(updateThemePreferenceRequestSchema.parse({ taskCardDisplayMode: "full" })).toEqual({ taskCardDisplayMode: "full" });
     expect(updateThemePreferenceRequestSchema.parse({ taskCardDisplayMode: "title" })).toEqual({ taskCardDisplayMode: "title" });
     expect(updateThemePreferenceRequestSchema.safeParse({ taskCardDisplayMode: "compact" }).success).toBe(false);
+    expect(updateThemePreferenceRequestSchema.parse({ appCloseBehavior: "hide" })).toEqual({ appCloseBehavior: "hide" });
+    expect(updateThemePreferenceRequestSchema.parse({ appCloseBehavior: "quit" })).toEqual({ appCloseBehavior: "quit" });
+    expect(updateThemePreferenceRequestSchema.safeParse({ appCloseBehavior: "close" }).success).toBe(false);
     expect(updateThemePreferenceRequestSchema.parse({ displaySize: "small" })).toEqual({ displaySize: "small" });
     expect(updateThemePreferenceRequestSchema.parse({ displaySize: "default" })).toEqual({ displaySize: "default" });
     expect(updateThemePreferenceRequestSchema.parse({ displaySize: "large" })).toEqual({ displaySize: "large" });
@@ -96,11 +103,11 @@ describe("app bootstrap schema", () => {
     });
 
     expect(appBootstrapResponseSchema.parse({
-      apiVersion: "0.2.2",
+      apiVersion: "0.2.3",
       releaseChannel: "stable",
       desktop: {
         minimumVersion: "0.1.0",
-        latestVersion: "0.2.2",
+        latestVersion: "0.2.3",
         updateEndpoint: "https://github.com/Hand-xieyicheng/hand-tododesk/releases/latest/download/latest.json"
       },
       featureFlags: {
@@ -114,14 +121,33 @@ describe("app bootstrap schema", () => {
 
   it("rejects unsupported release channels", () => {
     expect(appBootstrapResponseSchema.safeParse({
-      apiVersion: "0.2.2",
+      apiVersion: "0.2.3",
       releaseChannel: "beta",
       desktop: {
         minimumVersion: "0.1.0",
-        latestVersion: "0.2.2",
+        latestVersion: "0.2.3",
         updateEndpoint: "https://github.com/Hand-xieyicheng/hand-tododesk/releases/latest/download/latest.json"
       },
       featureFlags: defaultAppFeatureFlags
     }).success).toBe(false);
+  });
+});
+
+describe("task display sorting", () => {
+  it("puts unfinished tasks first and sorts each group by created date ascending", () => {
+    const tasks = [
+      { id: "done-new", status: "COMPLETED", createdAt: "2026-06-04T00:00:00.000Z" },
+      { id: "todo-new", status: "TODO", createdAt: "2026-06-03T00:00:00.000Z" },
+      { id: "done-old", status: "COMPLETED", createdAt: "2026-06-01T00:00:00.000Z" },
+      { id: "todo-old", status: "TODO", createdAt: "2026-06-02T00:00:00.000Z" }
+    ] satisfies Array<Pick<ApiTask, "id" | "status" | "createdAt">>;
+
+    expect(sortTasksForDisplay(tasks).map((task) => task.id)).toEqual([
+      "todo-old",
+      "todo-new",
+      "done-old",
+      "done-new"
+    ]);
+    expect(tasks.map((task) => task.id)).toEqual(["done-new", "todo-new", "done-old", "todo-old"]);
   });
 });

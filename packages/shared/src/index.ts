@@ -47,6 +47,7 @@ export const calendarViewValues = ["month", "week", "day"] as const;
 export const themeIdValues = ["default", "shinchan", "labubu", "doraemon"] as const;
 export const taskViewModeValues = ["list", "quadrant"] as const;
 export const taskCardDisplayModeValues = ["full", "title"] as const;
+export const appCloseBehaviorValues = ["hide", "quit"] as const;
 export const displaySizeValues = ["small", "default", "large"] as const;
 export const fontFamilyValues = [
   "system",
@@ -122,6 +123,7 @@ export const updateThemePreferenceRequestSchema = z
     showCompletedTasks: z.boolean().optional(),
     taskViewMode: z.enum(taskViewModeValues).optional(),
     taskCardDisplayMode: z.enum(taskCardDisplayModeValues).optional(),
+    appCloseBehavior: z.enum(appCloseBehaviorValues).optional(),
     displaySize: z.enum(displaySizeValues).optional(),
     fontFamily: z.enum(fontFamilyValues).optional()
   })
@@ -133,6 +135,7 @@ export const updateThemePreferenceRequestSchema = z
     value.showCompletedTasks !== undefined ||
     value.taskViewMode ||
     value.taskCardDisplayMode ||
+    value.appCloseBehavior ||
     value.displaySize ||
     value.fontFamily
   ), {
@@ -195,6 +198,7 @@ export type TaskStatus = (typeof taskStatusValues)[number];
 export type TaskPriority = (typeof taskPriorityValues)[number];
 export type TaskViewMode = (typeof taskViewModeValues)[number];
 export type TaskCardDisplayMode = (typeof taskCardDisplayModeValues)[number];
+export type AppCloseBehavior = (typeof appCloseBehaviorValues)[number];
 export type DisplaySize = (typeof displaySizeValues)[number];
 export type FontFamily = (typeof fontFamilyValues)[number];
 export type ReleaseChannel = (typeof releaseChannelValues)[number];
@@ -214,6 +218,7 @@ export interface ApiThemePreference {
   showCompletedTasks: boolean;
   taskViewMode: TaskViewMode;
   taskCardDisplayMode: TaskCardDisplayMode;
+  appCloseBehavior: AppCloseBehavior;
   displaySize: DisplaySize;
   fontFamily: FontFamily;
 }
@@ -252,6 +257,32 @@ export interface ApiTask {
   tags: ApiTag[];
   pomodoroCompletedCount: number;
   pomodoroCompletedMinutes: number;
+}
+
+type DisplaySortableTask = Pick<ApiTask, "id" | "status" | "createdAt">;
+
+function taskCreatedAtTime(task: DisplaySortableTask) {
+  const timestamp = Date.parse(task.createdAt);
+  return Number.isNaN(timestamp) ? Number.MAX_SAFE_INTEGER : timestamp;
+}
+
+export function compareTasksForDisplay(left: DisplaySortableTask, right: DisplaySortableTask) {
+  const leftCompletedRank = left.status === "COMPLETED" ? 1 : 0;
+  const rightCompletedRank = right.status === "COMPLETED" ? 1 : 0;
+  if (leftCompletedRank !== rightCompletedRank) {
+    return leftCompletedRank - rightCompletedRank;
+  }
+
+  const createdAtRank = taskCreatedAtTime(left) - taskCreatedAtTime(right);
+  if (createdAtRank !== 0) {
+    return createdAtRank;
+  }
+
+  return left.id.localeCompare(right.id);
+}
+
+export function sortTasksForDisplay<TTask extends DisplaySortableTask>(tasks: readonly TTask[]) {
+  return [...tasks].sort(compareTasksForDisplay);
 }
 
 export interface CalendarOccurrence {

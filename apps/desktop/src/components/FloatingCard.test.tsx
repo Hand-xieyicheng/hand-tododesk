@@ -11,6 +11,10 @@ const apiMock = vi.hoisted(() => ({
   updateTask: vi.fn()
 }));
 
+const tauriCoreMock = vi.hoisted(() => ({
+  invoke: vi.fn()
+}));
+
 const windowMock = vi.hoisted(() => ({
   close: vi.fn(),
   isAlwaysOnTop: vi.fn(),
@@ -25,6 +29,8 @@ vi.mock("../api/client", () => ({
 vi.mock("@tauri-apps/api/window", () => ({
   getCurrentWindow: () => windowMock
 }));
+
+vi.mock("@tauri-apps/api/core", () => tauriCoreMock);
 
 vi.mock("animal-island-ui", () => ({
   Button: ({ children, disabled, htmlType, icon, loading, onClick, title, ...props }: any) => (
@@ -75,9 +81,18 @@ const titlePreference: ApiThemePreference = {
   showCompletedTasks: true,
   taskViewMode: "list",
   taskCardDisplayMode: "title",
+  appCloseBehavior: "hide",
   displaySize: "default",
   fontFamily: "system"
 };
+
+function taskWith(patch: Partial<ApiTask>): ApiTask {
+  return {
+    ...task,
+    ...patch,
+    tags: patch.tags ?? task.tags
+  };
+}
 
 describe("FloatingCard", () => {
   let alwaysOnTop = false;
@@ -125,5 +140,45 @@ describe("FloatingCard", () => {
 
     await waitFor(() => expect(windowMock.setAlwaysOnTop).toHaveBeenLastCalledWith(false));
     expect(screen.getByRole("button", { name: "固定在最前" })).toBeInTheDocument();
+  });
+
+  it("opens the main desktop window from the header button", async () => {
+    render(<FloatingCard />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "打开桌面" }));
+
+    await waitFor(() => expect(tauriCoreMock.invoke).toHaveBeenCalledWith("show_main_window"));
+  });
+
+  it("sorts visible tasks with unfinished items first and created date ascending", async () => {
+    const completedOld = taskWith({
+      id: "done-old",
+      title: "卡片早创建已完成",
+      status: "COMPLETED",
+      createdAt: "2026-06-01T00:00:00.000Z",
+      completedAt: "2026-06-05T00:00:00.000Z"
+    });
+    const openNew = taskWith({
+      id: "todo-new",
+      title: "卡片晚创建未完成",
+      status: "TODO",
+      createdAt: "2026-06-03T00:00:00.000Z"
+    });
+    const openOld = taskWith({
+      id: "todo-old",
+      title: "卡片早创建未完成",
+      status: "TODO",
+      createdAt: "2026-06-02T00:00:00.000Z"
+    });
+    apiMock.tasks.mockResolvedValue({ tasks: [completedOld, openNew, openOld] });
+
+    const { container } = render(<FloatingCard />);
+
+    await waitFor(() => expect(container.querySelectorAll(".floating-task-title")).toHaveLength(3));
+    expect([...container.querySelectorAll(".floating-task-title")].map((item) => item.textContent)).toEqual([
+      "卡片早创建未完成",
+      "卡片晚创建未完成",
+      "卡片早创建已完成"
+    ]);
   });
 });

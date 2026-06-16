@@ -1,7 +1,14 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { render, screen, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ApiTask } from "@todo/shared";
 import { TaskPanel } from "./TaskPanel";
+
+const apiMock = vi.hoisted(() => ({
+  createTask: vi.fn(),
+  deleteTask: vi.fn(),
+  taskQuadrants: vi.fn(),
+  updateTask: vi.fn()
+}));
 
 vi.mock("animal-island-ui", () => ({
   Button: ({ children, danger, disabled, htmlType, icon, onClick, title, ...props }: any) => (
@@ -31,12 +38,7 @@ vi.mock("animal-island-ui", () => ({
 }));
 
 vi.mock("../api/client", () => ({
-  api: {
-    createTask: vi.fn(),
-    deleteTask: vi.fn(),
-    taskQuadrants: vi.fn(),
-    updateTask: vi.fn()
-  }
+  api: apiMock
 }));
 
 const task: ApiTask = {
@@ -61,13 +63,30 @@ const task: ApiTask = {
   pomodoroCompletedMinutes: 50
 };
 
-function renderPanel(displayMode: "full" | "title") {
+function taskWith(patch: Partial<ApiTask>): ApiTask {
+  return {
+    ...task,
+    ...patch,
+    tags: patch.tags ?? task.tags
+  };
+}
+
+function emptyQuadrants() {
+  return {
+    IMPORTANT_URGENT: [],
+    IMPORTANT_NOT_URGENT: [],
+    NOT_IMPORTANT_URGENT: [],
+    NOT_IMPORTANT_NOT_URGENT: []
+  };
+}
+
+function renderPanel(displayMode: "full" | "title", panelTasks: ApiTask[] = [task]) {
   return render(
     <TaskPanel
       createOpen={false}
       showCompletedTasks
       taskCardDisplayMode={displayMode}
-      tasks={[task]}
+      tasks={panelTasks}
       viewMode="list"
       onChanged={vi.fn(async () => undefined)}
       onCreateOpenChange={vi.fn()}
@@ -76,6 +95,11 @@ function renderPanel(displayMode: "full" | "title") {
 }
 
 describe("TaskPanel", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    apiMock.taskQuadrants.mockResolvedValue({ quadrants: emptyQuadrants() });
+  });
+
   it("shows only title on cards and full content in tooltip for title mode", () => {
     const { container } = renderPanel("title");
 
@@ -96,5 +120,85 @@ describe("TaskPanel", () => {
     expect(container.querySelector(".task-notes")).toHaveTextContent("整理本周项目进展和风险");
     expect(container.querySelector(".task-meta")).toHaveTextContent("重要且紧急");
     expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+  });
+
+  it("sorts list tasks with unfinished items first and created date ascending", () => {
+    const completedOld = taskWith({
+      id: "done-old",
+      title: "早创建已完成",
+      status: "COMPLETED",
+      createdAt: "2026-06-01T00:00:00.000Z",
+      completedAt: "2026-06-05T00:00:00.000Z"
+    });
+    const openNew = taskWith({
+      id: "todo-new",
+      title: "晚创建未完成",
+      status: "TODO",
+      createdAt: "2026-06-03T00:00:00.000Z"
+    });
+    const openOld = taskWith({
+      id: "todo-old",
+      title: "早创建未完成",
+      status: "TODO",
+      createdAt: "2026-06-02T00:00:00.000Z"
+    });
+
+    const { container } = renderPanel("full", [completedOld, openNew, openOld]);
+
+    expect([...container.querySelectorAll(".task-item h3")].map((item) => item.textContent)).toEqual([
+      "早创建未完成",
+      "晚创建未完成",
+      "早创建已完成"
+    ]);
+  });
+
+  it("sorts quadrant tasks with the same display rule", async () => {
+    const completedOld = taskWith({
+      id: "done-old",
+      title: "象限早创建已完成",
+      status: "COMPLETED",
+      createdAt: "2026-06-01T00:00:00.000Z",
+      completedAt: "2026-06-05T00:00:00.000Z"
+    });
+    const openNew = taskWith({
+      id: "todo-new",
+      title: "象限晚创建未完成",
+      status: "TODO",
+      createdAt: "2026-06-03T00:00:00.000Z"
+    });
+    const openOld = taskWith({
+      id: "todo-old",
+      title: "象限早创建未完成",
+      status: "TODO",
+      createdAt: "2026-06-02T00:00:00.000Z"
+    });
+
+    apiMock.taskQuadrants.mockResolvedValue({
+      quadrants: {
+        ...emptyQuadrants(),
+        IMPORTANT_URGENT: [completedOld, openNew, openOld]
+      }
+    });
+
+    const { container } = render(
+      <TaskPanel
+        createOpen={false}
+        showCompletedTasks
+        taskCardDisplayMode="full"
+        tasks={[completedOld, openNew, openOld]}
+        viewMode="quadrant"
+        onChanged={vi.fn(async () => undefined)}
+        onCreateOpenChange={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(apiMock.taskQuadrants).toHaveBeenCalled());
+    await waitFor(() => expect(container.querySelectorAll(".quadrant-task-list .task-item h3")).toHaveLength(3));
+
+    expect([...container.querySelectorAll(".quadrant-task-list .task-item h3")].map((item) => item.textContent)).toEqual([
+      "象限早创建未完成",
+      "象限晚创建未完成",
+      "象限早创建已完成"
+    ]);
   });
 });

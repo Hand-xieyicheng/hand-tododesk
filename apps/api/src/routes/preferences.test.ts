@@ -23,6 +23,7 @@ const currentPreference = {
   showCompletedTasks: 1,
   taskViewMode: "list",
   taskCardDisplayMode: "full",
+  appCloseBehavior: "hide",
   displaySize: "default",
   fontFamily: "system"
 };
@@ -54,7 +55,8 @@ describe("preference routes", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
-      taskCardDisplayMode: "full"
+      taskCardDisplayMode: "full",
+      appCloseBehavior: "hide"
     });
   });
 
@@ -76,6 +78,7 @@ describe("preference routes", () => {
       true,
       "list",
       "title",
+      "hide",
       "default",
       "system"
     ]);
@@ -110,6 +113,7 @@ describe("preference routes", () => {
       true,
       "list",
       "full",
+      "hide",
       "default",
       "lemi-chunxu-wanxing"
     ]);
@@ -123,6 +127,41 @@ describe("preference routes", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
       fontFamily: "system"
+    });
+  });
+
+  it("saves selected app close behavior", async () => {
+    db.queryOne.mockResolvedValue(currentPreference);
+
+    const response = await injectPreference("PUT", { appCloseBehavior: "quit" });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      appCloseBehavior: "quit"
+    });
+    expect(db.execute).toHaveBeenLastCalledWith(expect.stringContaining("appCloseBehavior"), [
+      "user-1",
+      "shinchan",
+      "app-teal",
+      true,
+      "sea",
+      true,
+      "list",
+      "full",
+      "quit",
+      "default",
+      "system"
+    ]);
+  });
+
+  it("falls back to hide on close for invalid stored values", async () => {
+    db.queryOne.mockResolvedValue({ ...currentPreference, appCloseBehavior: "close" });
+
+    const response = await injectPreference("GET");
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      appCloseBehavior: "hide"
     });
   });
 });

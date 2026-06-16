@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent, MouseEvent, PointerEvent } from "react";
-import type { ApiTask, ApiThemePreference, CreateTaskRequest, TaskCardDisplayMode, TaskPriority, TaskStatus, UpdateTaskRequest } from "@todo/shared";
+import { sortTasksForDisplay, type ApiTask, type ApiThemePreference, type CreateTaskRequest, type TaskCardDisplayMode, type TaskPriority, type TaskStatus, type UpdateTaskRequest } from "@todo/shared";
 import { Button, Card, Input, Select, Tooltip } from "animal-island-ui";
-import { Check, Eye, EyeOff, Pencil, Pin, Plus, RefreshCw, RotateCcw, Save, X } from "lucide-react";
+import { Check, Eye, EyeOff, Monitor, Pencil, Pin, Plus, RefreshCw, RotateCcw, Save, X } from "lucide-react";
 import { api } from "../api/client";
 import todoDeskLogo from "../assets/tododesk-logo.png";
 import { applyDisplaySize } from "../lib/displaySize";
@@ -43,6 +43,7 @@ const defaultThemePreference: ApiThemePreference = {
   showCompletedTasks: true,
   taskViewMode: "list",
   taskCardDisplayMode: "full",
+  appCloseBehavior: "hide",
   displaySize: "default",
   fontFamily: "system"
 };
@@ -159,17 +160,38 @@ function FloatingHeader() {
     }
   }
 
+  async function openDesktop(event: MouseEvent<HTMLButtonElement>) {
+    event.stopPropagation();
+    try {
+      const { invoke } = await import("@tauri-apps/api/core");
+      await invoke("show_main_window");
+    } catch {
+      window.opener?.focus?.();
+    }
+  }
+
   return (
     <header className="floating-header">
-      <Button
-        aria-label={isAlwaysOnTop ? "取消固定在最前" : "固定在最前"}
-        className={isAlwaysOnTop ? "floating-pin-button is-active" : "floating-pin-button"}
-        icon={<Pin size={16} />}
-        size="small"
-        title={isAlwaysOnTop ? "取消固定在最前" : "固定在最前"}
-        type="text"
-        onClick={toggleAlwaysOnTop}
-      />
+      <div className="floating-header-actions">
+        <Button
+          aria-label={isAlwaysOnTop ? "取消固定在最前" : "固定在最前"}
+          className={isAlwaysOnTop ? "floating-pin-button is-active" : "floating-pin-button"}
+          icon={<Pin size={16} />}
+          size="small"
+          title={isAlwaysOnTop ? "取消固定在最前" : "固定在最前"}
+          type="text"
+          onClick={toggleAlwaysOnTop}
+        />
+        <Button
+          aria-label="打开桌面"
+          className="floating-desktop-button"
+          icon={<Monitor size={16} />}
+          size="small"
+          title="打开桌面"
+          type="text"
+          onClick={openDesktop}
+        />
+      </div>
       <button className="floating-drag-handle" type="button" title="拖动卡片" onPointerDown={dragWindow}>
         <img className="floating-logo" src={todoDeskLogo} alt="todoDesk" />
       </button>
@@ -191,7 +213,7 @@ export function FloatingCard() {
   const [draft, setDraft] = useState<TaskDraft>(() => emptyDraft());
 
   const visibleTasks = useMemo(() => {
-    return showCompletedTasks ? tasks : tasks.filter((task) => task.status !== "COMPLETED");
+    return sortTasksForDisplay(showCompletedTasks ? tasks : tasks.filter((task) => task.status !== "COMPLETED"));
   }, [showCompletedTasks, tasks]);
   const openTaskCount = useMemo(() => tasks.filter((task) => task.status !== "COMPLETED").length, [tasks]);
   const formTitle = formMode === "edit" ? "编辑待办" : "新增待办";

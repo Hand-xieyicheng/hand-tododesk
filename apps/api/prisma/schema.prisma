@@ -196,6 +196,7 @@ model UserThemePreference {
   showCompletedTasks Boolean  @default(true)
   taskViewMode       String   @default("list")
   taskCardDisplayMode String   @default("full")
+  appCloseBehavior   String   @default("hide")
   displaySize        String   @default("default")
   fontFamily         String   @default("system")
   updatedAt          DateTime @updatedAt

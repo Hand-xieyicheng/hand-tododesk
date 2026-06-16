@@ -1,10 +1,12 @@
 import type { FastifyInstance } from "fastify";
 import {
+  appCloseBehaviorValues,
   displaySizeValues,
   fontFamilyValues,
   taskCardDisplayModeValues,
   taskViewModeValues,
   updateThemePreferenceRequestSchema,
+  type AppCloseBehavior,
   type DisplaySize,
   type FontFamily,
   type TaskCardDisplayMode,
@@ -20,6 +22,7 @@ type ThemePreferenceRow = DbRow & {
   showCompletedTasks: boolean | number;
   taskViewMode: string;
   taskCardDisplayMode: string;
+  appCloseBehavior: string;
   displaySize: string;
   fontFamily: string;
 };
@@ -31,6 +34,7 @@ const defaultFooterType = "sea";
 const defaultShowCompletedTasks = true;
 const defaultTaskViewMode: TaskViewMode = "list";
 const defaultTaskCardDisplayMode: TaskCardDisplayMode = "full";
+const defaultAppCloseBehavior: AppCloseBehavior = "hide";
 const defaultDisplaySize: DisplaySize = "default";
 const defaultFontFamily: FontFamily = "system";
 
@@ -57,10 +61,14 @@ function taskCardDisplayModeFromDb(value: string | null | undefined) {
   return taskCardDisplayModeValues.includes(value as TaskCardDisplayMode) ? value as TaskCardDisplayMode : defaultTaskCardDisplayMode;
 }
 
+function appCloseBehaviorFromDb(value: string | null | undefined) {
+  return appCloseBehaviorValues.includes(value as AppCloseBehavior) ? value as AppCloseBehavior : defaultAppCloseBehavior;
+}
+
 async function ensureThemePreference(userId: string) {
   await execute(
-    "INSERT IGNORE INTO `UserThemePreference` (`userId`, `themeId`, `titleColor`, `footerVisible`, `footerType`, `showCompletedTasks`, `taskViewMode`, `taskCardDisplayMode`, `displaySize`, `fontFamily`, `updatedAt`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(3))",
-    [userId, defaultThemeId, defaultTitleColor, defaultFooterVisible, defaultFooterType, defaultShowCompletedTasks, defaultTaskViewMode, defaultTaskCardDisplayMode, defaultDisplaySize, defaultFontFamily]
+    "INSERT IGNORE INTO `UserThemePreference` (`userId`, `themeId`, `titleColor`, `footerVisible`, `footerType`, `showCompletedTasks`, `taskViewMode`, `taskCardDisplayMode`, `appCloseBehavior`, `displaySize`, `fontFamily`, `updatedAt`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(3))",
+    [userId, defaultThemeId, defaultTitleColor, defaultFooterVisible, defaultFooterType, defaultShowCompletedTasks, defaultTaskViewMode, defaultTaskCardDisplayMode, defaultAppCloseBehavior, defaultDisplaySize, defaultFontFamily]
   );
 }
 
@@ -68,7 +76,7 @@ export async function preferenceRoutes(app: FastifyInstance) {
   app.get("/preferences/theme", { preHandler: app.authenticate }, async (request) => {
     await ensureThemePreference(request.user.id);
     const preference = await queryOne<ThemePreferenceRow>(
-      "SELECT `themeId`, `titleColor`, `footerVisible`, `footerType`, `showCompletedTasks`, `taskViewMode`, `taskCardDisplayMode`, `displaySize`, `fontFamily` FROM `UserThemePreference` WHERE `userId` = ?",
+      "SELECT `themeId`, `titleColor`, `footerVisible`, `footerType`, `showCompletedTasks`, `taskViewMode`, `taskCardDisplayMode`, `appCloseBehavior`, `displaySize`, `fontFamily` FROM `UserThemePreference` WHERE `userId` = ?",
       [request.user.id]
     );
     return {
@@ -79,6 +87,7 @@ export async function preferenceRoutes(app: FastifyInstance) {
       showCompletedTasks: booleanFromDb(preference?.showCompletedTasks, defaultShowCompletedTasks),
       taskViewMode: taskViewModeFromDb(preference?.taskViewMode),
       taskCardDisplayMode: taskCardDisplayModeFromDb(preference?.taskCardDisplayMode),
+      appCloseBehavior: appCloseBehaviorFromDb(preference?.appCloseBehavior),
       displaySize: displaySizeFromDb(preference?.displaySize),
       fontFamily: fontFamilyFromDb(preference?.fontFamily)
     };
@@ -88,7 +97,7 @@ export async function preferenceRoutes(app: FastifyInstance) {
     const body = updateThemePreferenceRequestSchema.parse(request.body);
     await ensureThemePreference(request.user.id);
     const current = await queryOne<ThemePreferenceRow>(
-      "SELECT `themeId`, `titleColor`, `footerVisible`, `footerType`, `showCompletedTasks`, `taskViewMode`, `taskCardDisplayMode`, `displaySize`, `fontFamily` FROM `UserThemePreference` WHERE `userId` = ?",
+      "SELECT `themeId`, `titleColor`, `footerVisible`, `footerType`, `showCompletedTasks`, `taskViewMode`, `taskCardDisplayMode`, `appCloseBehavior`, `displaySize`, `fontFamily` FROM `UserThemePreference` WHERE `userId` = ?",
       [request.user.id]
     );
     const themeId = body.themeId ?? current?.themeId ?? defaultThemeId;
@@ -98,12 +107,13 @@ export async function preferenceRoutes(app: FastifyInstance) {
     const showCompletedTasks = body.showCompletedTasks ?? booleanFromDb(current?.showCompletedTasks, defaultShowCompletedTasks);
     const taskViewMode = body.taskViewMode ?? taskViewModeFromDb(current?.taskViewMode);
     const taskCardDisplayMode = body.taskCardDisplayMode ?? taskCardDisplayModeFromDb(current?.taskCardDisplayMode);
+    const appCloseBehavior = body.appCloseBehavior ?? appCloseBehaviorFromDb(current?.appCloseBehavior);
     const displaySize = body.displaySize ?? displaySizeFromDb(current?.displaySize);
     const fontFamily = body.fontFamily ?? fontFamilyFromDb(current?.fontFamily);
 
     await execute(
-      `INSERT INTO \`UserThemePreference\` (\`userId\`, \`themeId\`, \`titleColor\`, \`footerVisible\`, \`footerType\`, \`showCompletedTasks\`, \`taskViewMode\`, \`taskCardDisplayMode\`, \`displaySize\`, \`fontFamily\`, \`updatedAt\`)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(3))
+      `INSERT INTO \`UserThemePreference\` (\`userId\`, \`themeId\`, \`titleColor\`, \`footerVisible\`, \`footerType\`, \`showCompletedTasks\`, \`taskViewMode\`, \`taskCardDisplayMode\`, \`appCloseBehavior\`, \`displaySize\`, \`fontFamily\`, \`updatedAt\`)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(3))
        ON DUPLICATE KEY UPDATE
         \`themeId\` = VALUES(\`themeId\`),
         \`titleColor\` = VALUES(\`titleColor\`),
@@ -112,11 +122,12 @@ export async function preferenceRoutes(app: FastifyInstance) {
         \`showCompletedTasks\` = VALUES(\`showCompletedTasks\`),
         \`taskViewMode\` = VALUES(\`taskViewMode\`),
         \`taskCardDisplayMode\` = VALUES(\`taskCardDisplayMode\`),
+        \`appCloseBehavior\` = VALUES(\`appCloseBehavior\`),
         \`displaySize\` = VALUES(\`displaySize\`),
         \`fontFamily\` = VALUES(\`fontFamily\`),
         \`updatedAt\` = NOW(3)`,
-      [request.user.id, themeId, titleColor, footerVisible, footerType, showCompletedTasks, taskViewMode, taskCardDisplayMode, displaySize, fontFamily]
+      [request.user.id, themeId, titleColor, footerVisible, footerType, showCompletedTasks, taskViewMode, taskCardDisplayMode, appCloseBehavior, displaySize, fontFamily]
     );
-    return { themeId, titleColor, footerVisible, footerType, showCompletedTasks, taskViewMode, taskCardDisplayMode, displaySize, fontFamily };
+    return { themeId, titleColor, footerVisible, footerType, showCompletedTasks, taskViewMode, taskCardDisplayMode, appCloseBehavior, displaySize, fontFamily };
   });
 }

@@ -15,18 +15,18 @@ function rememberedPasswordFallbackKey(email: string) {
   return `${rememberedPasswordFallbackKeyPrefix}${email}`;
 }
 
-function getRememberedPasswordEmail() {
+export function getRememberedPasswordEmail() {
   return localStorage.getItem(rememberedPasswordEmailKey) ?? "";
 }
 
 async function deleteRememberedPasswordCredential(normalizedEmail: string) {
+  localStorage.removeItem(rememberedPasswordFallbackKey(normalizedEmail));
   try {
     const { invoke } = await import("@tauri-apps/api/core");
     await invoke("delete_remembered_password", { email: normalizedEmail });
   } catch {
     // Browser preview fallback.
   }
-  localStorage.removeItem(rememberedPasswordFallbackKey(normalizedEmail));
 }
 
 export function getAccessToken() {
@@ -42,6 +42,7 @@ export async function getRefreshToken() {
     const { invoke } = await import("@tauri-apps/api/core");
     const token = await invoke<string | null>("load_refresh_token");
     if (token) {
+      localStorage.setItem(refreshTokenKey, token);
       return token;
     }
   } catch {
@@ -51,20 +52,22 @@ export async function getRefreshToken() {
 }
 
 export async function saveRefreshToken(token: string) {
+  localStorage.setItem(refreshTokenKey, token);
   try {
     const { invoke } = await import("@tauri-apps/api/core");
     await invoke("save_refresh_token", { token });
   } catch {
-    localStorage.setItem(refreshTokenKey, token);
+    // Browser preview fallback.
   }
 }
 
 export async function deleteRefreshToken() {
+  localStorage.removeItem(refreshTokenKey);
   try {
     const { invoke } = await import("@tauri-apps/api/core");
     await invoke("delete_refresh_token");
   } catch {
-    localStorage.removeItem(refreshTokenKey);
+    // Browser preview fallback.
   }
 }
 
@@ -91,6 +94,7 @@ export async function getRememberedPassword(email: string) {
     const { invoke } = await import("@tauri-apps/api/core");
     const password = await invoke<string | null>("load_remembered_password", { email: normalizedEmail });
     if (password) {
+      localStorage.setItem(rememberedPasswordFallbackKey(normalizedEmail), password);
       return password;
     }
   } catch {
@@ -111,12 +115,12 @@ export async function saveRememberedPassword(email: string, password: string) {
   }
 
   localStorage.setItem(rememberedPasswordEmailKey, normalizedEmail);
+  localStorage.setItem(rememberedPasswordFallbackKey(normalizedEmail), password);
   try {
     const { invoke } = await import("@tauri-apps/api/core");
     await invoke("save_remembered_password", { email: normalizedEmail, password });
-    localStorage.removeItem(rememberedPasswordFallbackKey(normalizedEmail));
   } catch {
-    localStorage.setItem(rememberedPasswordFallbackKey(normalizedEmail), password);
+    // Browser preview fallback.
   }
 }
 

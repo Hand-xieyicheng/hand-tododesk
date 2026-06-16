@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties, PointerEvent } from "react";
-import { defaultAppFeatureFlags, type ApiTask, type ApiThemePreference, type ApiUser, type AppBootstrapResponse, type AppFeatureFlags, type DisplaySize, type FontFamily, type FooterType as AppFooterType, type TaskCardDisplayMode, type TaskViewMode, type ThemeId, type TitleColor } from "@todo/shared";
+import { defaultAppFeatureFlags, type ApiTask, type ApiThemePreference, type ApiUser, type AppBootstrapResponse, type AppCloseBehavior, type AppFeatureFlags, type DisplaySize, type FontFamily, type FooterType as AppFooterType, type TaskCardDisplayMode, type TaskViewMode, type ThemeId, type TitleColor } from "@todo/shared";
 import { Button, Footer, Loading, Title, Tooltip } from "animal-island-ui";
 import type { TitleSize } from "animal-island-ui";
 import { Bell, CalendarDays, CheckSquare2, Clock3, Eye, EyeOff, LayoutGrid, ListTodo, LogOut, Pin, Plus, UserRound } from "lucide-react";
-import { api, ApiError } from "./api/client";
+import { api, ApiError, authSessionExpiredEvent } from "./api/client";
 import { AuthView } from "./components/AuthView";
 import { CalendarView } from "./components/CalendarView";
 import { PomodoroView } from "./components/PomodoroView";
@@ -40,6 +40,7 @@ const defaultThemePreference: ApiThemePreference = {
   showCompletedTasks: true,
   taskViewMode: "list",
   taskCardDisplayMode: "full",
+  appCloseBehavior: "hide",
   displaySize: "default",
   fontFamily: "system"
 };
@@ -90,6 +91,7 @@ export function App() {
   const [footerType, setFooterType] = useState<AppFooterType>("sea");
   const [showCompletedTasks, setShowCompletedTasks] = useState(true);
   const [taskCardDisplayMode, setTaskCardDisplayMode] = useState<TaskCardDisplayMode>("full");
+  const [appCloseBehavior, setAppCloseBehavior] = useState<AppCloseBehavior>("hide");
   const [displaySize, setDisplaySize] = useState<DisplaySize>(() => normalizeDisplaySize(localStorage.getItem("tododesk.displaySize")));
   const [fontFamily, setFontFamily] = useState<FontFamily>(() => normalizeFontFamily(localStorage.getItem("tododesk.fontFamily")));
   const [message, setMessage] = useState("");
@@ -129,6 +131,7 @@ export function App() {
     setShowCompletedTasks(preference.showCompletedTasks);
     setTaskViewMode(preference.taskViewMode);
     setTaskCardDisplayMode(preference.taskCardDisplayMode);
+    setAppCloseBehavior(preference.appCloseBehavior);
     setDisplaySize(nextDisplaySize);
     setFontFamily(nextFontFamily);
     localStorage.setItem("tododesk.theme", preference.themeId);
@@ -137,6 +140,16 @@ export function App() {
     applyTheme(preference.themeId);
     applyDisplaySize(nextDisplaySize);
     applyFontFamily(nextFontFamily);
+    void syncNativeAppCloseBehavior(preference.appCloseBehavior);
+  }
+
+  async function syncNativeAppCloseBehavior(next: AppCloseBehavior) {
+    try {
+      const { invoke } = await import("@tauri-apps/api/core");
+      await invoke("set_app_close_behavior", { behavior: next });
+    } catch {
+      // Browser preview fallback.
+    }
   }
 
   async function loadAppData(options: { immersive?: boolean } = {}) {
@@ -184,6 +197,20 @@ export function App() {
   useEffect(() => {
     applyFontFamily(fontFamily);
   }, [fontFamily]);
+
+  useEffect(() => {
+    function handleSessionExpired() {
+      setUser(null);
+      setTasks([]);
+      setActiveView("tasks");
+      setMessage("");
+      setLoading(false);
+      setEntryLoading(false);
+    }
+
+    window.addEventListener(authSessionExpiredEvent, handleSessionExpired);
+    return () => window.removeEventListener(authSessionExpiredEvent, handleSessionExpired);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -342,6 +369,17 @@ export function App() {
     void api.setThemePreference({ taskCardDisplayMode: next }).catch((error) => {
       setTaskCardDisplayMode(previous);
       setMessage(error instanceof Error ? error.message : "待办事项卡片显示配置保存失败");
+    });
+  }
+
+  function handleAppCloseBehaviorChanged(next: AppCloseBehavior) {
+    const previous = appCloseBehavior;
+    setAppCloseBehavior(next);
+    void syncNativeAppCloseBehavior(next);
+    void api.setThemePreference({ appCloseBehavior: next }).catch((error) => {
+      setAppCloseBehavior(previous);
+      void syncNativeAppCloseBehavior(previous);
+      setMessage(error instanceof Error ? error.message : "关闭应用配置保存失败");
     });
   }
 
@@ -531,6 +569,7 @@ export function App() {
             user={user}
             footerType={footerType}
             footerVisible={footerVisible}
+            appCloseBehavior={appCloseBehavior}
             displaySize={displaySize}
             fontFamily={fontFamily}
             themeId={themeId}
@@ -539,6 +578,7 @@ export function App() {
             onFontFamilyChanged={handleFontFamilyChanged}
             onFooterTypeChanged={handleFooterTypeChanged}
             onFooterVisibleChanged={handleFooterVisibleChanged}
+            onAppCloseBehaviorChanged={handleAppCloseBehaviorChanged}
             onPasswordChanged={handlePasswordChanged}
             onTaskCardDisplayModeChanged={handleTaskCardDisplayModeChanged}
             onTitleColorChanged={handleTitleColorChanged}

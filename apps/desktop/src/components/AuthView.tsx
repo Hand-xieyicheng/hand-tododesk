@@ -4,7 +4,7 @@ import { Button, Card, Divider, Input, Loading, Title } from "animal-island-ui";
 import { KeyRound, Mail, UserPlus } from "lucide-react";
 import { api } from "../api/client";
 import todoDeskLogo from "../assets/tododesk-logo.png";
-import { deleteRememberedPassword, getLastLoginEmail, getRememberedPassword, saveLastLoginEmail, saveRememberedPassword } from "../lib/authStorage";
+import { deleteRememberedPassword, getLastLoginEmail, getRememberedPassword, getRememberedPasswordEmail, saveLastLoginEmail, saveRememberedPassword } from "../lib/authStorage";
 import { applyTheme } from "../lib/themes";
 
 type AuthMode = "login" | "register" | "forgot";
@@ -19,12 +19,19 @@ interface AuthViewProps {
   onAuthed(user: ApiUser): void;
 }
 
+function getInitialLoginEmail() {
+  return getLastLoginEmail() || getRememberedPasswordEmail();
+}
+
 export function AuthView({ onAuthed }: AuthViewProps) {
   const [mode, setMode] = useState<AuthMode>("login");
-  const [email, setEmail] = useState(() => getLastLoginEmail());
+  const [email, setEmail] = useState(() => getInitialLoginEmail());
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
-  const [rememberPassword, setRememberPassword] = useState(false);
+  const [rememberPassword, setRememberPassword] = useState(() => {
+    const initialEmail = getInitialLoginEmail();
+    return Boolean(initialEmail && initialEmail === getRememberedPasswordEmail());
+  });
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -36,12 +43,11 @@ export function AuthView({ onAuthed }: AuthViewProps) {
     let cancelled = false;
 
     async function restoreRememberedPassword() {
-      const lastLoginEmail = getLastLoginEmail();
-      if (!lastLoginEmail) {
+      if (mode !== "login" || !email) {
         return;
       }
 
-      const rememberedPassword = await getRememberedPassword(lastLoginEmail);
+      const rememberedPassword = await getRememberedPassword(email);
       if (!cancelled && rememberedPassword) {
         setPassword(rememberedPassword);
         setRememberPassword(true);
@@ -53,7 +59,7 @@ export function AuthView({ onAuthed }: AuthViewProps) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [email, mode]);
 
   async function submit(event: FormEvent) {
     event.preventDefault();

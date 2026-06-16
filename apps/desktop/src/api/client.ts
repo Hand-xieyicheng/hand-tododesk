@@ -48,6 +48,13 @@ function resolveApiBaseUrl() {
 }
 
 const API_BASE_URL = resolveApiBaseUrl();
+export const authSessionExpiredEvent = "tododesk:auth-session-expired";
+
+interface RequestOptions {
+  retry?: boolean;
+  includeAuth?: boolean;
+  expireSessionOnUnauthorized?: boolean;
+}
 
 function networkErrorMessage() {
   return `无法连接到本机 API（${API_BASE_URL}）。请确认后端服务已启动，并且后端 EXTRA_APP_ORIGINS 包含 http://tauri.localhost。`;
@@ -74,14 +81,39 @@ async function parseResponse<T>(response: Response): Promise<T> {
   return payload as T;
 }
 
-async function request<T>(path: string, init: RequestInit = {}, retry = true): Promise<T> {
+function normalizeRequestOptions(options: RequestOptions | boolean): Required<RequestOptions> {
+  if (typeof options === "boolean") {
+    return {
+      retry: options,
+      includeAuth: true,
+      expireSessionOnUnauthorized: true
+    };
+  }
+
+  const includeAuth = options.includeAuth ?? true;
+  return {
+    retry: options.retry ?? true,
+    includeAuth,
+    expireSessionOnUnauthorized: options.expireSessionOnUnauthorized ?? includeAuth
+  };
+}
+
+async function expireSession() {
+  await clearSession();
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(authSessionExpiredEvent));
+  }
+}
+
+async function request<T>(path: string, init: RequestInit = {}, options: RequestOptions | boolean = {}): Promise<T> {
+  const requestOptions = normalizeRequestOptions(options);
   const accessToken = getAccessToken();
   const headers = new Headers(init.headers);
   const isFormData = typeof FormData !== "undefined" && init.body instanceof FormData;
   if (init.body && !isFormData && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
-  if (accessToken) {
+  if (requestOptions.includeAuth && accessToken) {
     headers.set("Authorization", `Bearer ${accessToken}`);
   }
 
@@ -95,19 +127,33 @@ async function request<T>(path: string, init: RequestInit = {}, retry = true): P
     throw error;
   });
 
-  if (response.status === 401 && retry) {
+  if (response.status === 401 && requestOptions.includeAuth && requestOptions.retry) {
     const refreshed = await refreshAccessToken();
     if (refreshed) {
-      return request<T>(path, init, false);
+      return request<T>(path, init, { ...requestOptions, retry: false });
     }
+  }
+
+  if (response.status === 401 && requestOptions.includeAuth && !requestOptions.retry && requestOptions.expireSessionOnUnauthorized) {
+    await expireSession();
   }
 
   return parseResponse<T>(response);
 }
 
+let refreshAccessTokenPromise: Promise<boolean> | null = null;
+
 async function refreshAccessToken() {
+  refreshAccessTokenPromise ??= refreshAccessTokenOnce().finally(() => {
+    refreshAccessTokenPromise = null;
+  });
+  return refreshAccessTokenPromise;
+}
+
+async function refreshAccessTokenOnce() {
   const refreshToken = await getRefreshToken();
   if (!refreshToken) {
+    await expireSession();
     return false;
   }
 
@@ -115,31 +161,31 @@ async function refreshAccessToken() {
     const payload = await request<AuthTokens>("/auth/refresh", {
       method: "POST",
       body: JSON.stringify({ refreshToken } satisfies RefreshRequest)
-    }, false);
+    }, { retry: false, includeAuth: false, expireSessionOnUnauthorized: false });
     saveAccessToken(payload.accessToken);
     await saveRefreshToken(payload.refreshToken);
     return true;
   } catch {
-    await clearSession();
+    await expireSession();
     return false;
   }
 }
 
 export const api = {
   async appBootstrap() {
-    return appBootstrapResponseSchema.parse(await request<AppBootstrapResponse>("/app/bootstrap", {}, false));
+    return appBootstrapResponseSchema.parse(await request<AppBootstrapResponse>("/app/bootstrap", {}, { retry: false, includeAuth: false, expireSessionOnUnauthorized: false }));
   },
   async register(input: RegisterRequest) {
     return request<{ user: ApiUser; verificationEmailSent: boolean }>("/auth/register", {
       method: "POST",
       body: JSON.stringify(registerRequestSchema.parse(input))
-    }, false);
+    }, { retry: false, includeAuth: false, expireSessionOnUnauthorized: false });
   },
   async login(email: string, password: string) {
     const payload = await request<{ user: ApiUser; tokens: AuthTokens }>("/auth/login", {
       method: "POST",
       body: JSON.stringify(loginRequestSchema.parse({ email, password }))
-    }, false);
+    }, { retry: false, includeAuth: false, expireSessionOnUnauthorized: false });
     saveAccessToken(payload.tokens.accessToken);
     await saveRefreshToken(payload.tokens.refreshToken);
     return payload;
@@ -150,7 +196,7 @@ export const api = {
       await request<void>("/auth/logout", {
         method: "POST",
         body: JSON.stringify({ refreshToken })
-      }, false).catch(() => undefined);
+      }, { retry: false, includeAuth: false, expireSessionOnUnauthorized: false }).catch(() => undefined);
     }
     await clearSession();
   },
@@ -158,13 +204,13 @@ export const api = {
     return request<{ ok: true }>("/auth/forgot-password", {
       method: "POST",
       body: JSON.stringify(forgotPasswordRequestSchema.parse({ email }))
-    }, false);
+    }, { retry: false, includeAuth: false, expireSessionOnUnauthorized: false });
   },
   async resetPassword(token: string, password: string) {
     return request<{ ok: true }>("/auth/reset-password", {
       method: "POST",
       body: JSON.stringify(resetPasswordRequestSchema.parse({ token, password }))
-    }, false);
+    }, { retry: false, includeAuth: false, expireSessionOnUnauthorized: false });
   },
   async tasks() {
     return request<{ tasks: ApiTask[] }>("/tasks");

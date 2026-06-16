@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import type { ApiTask, CreateTaskRequest, TaskCardDisplayMode, TaskPriority, TaskStatus, TaskViewMode } from "@todo/shared";
+import { sortTasksForDisplay, type ApiTask, type CreateTaskRequest, type TaskCardDisplayMode, type TaskPriority, type TaskStatus, type TaskViewMode } from "@todo/shared";
 import { Button, Card, Divider, Input, Modal, Select, Tooltip } from "animal-island-ui";
 import { Check, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { api } from "../api/client";
@@ -145,7 +145,7 @@ export function TaskPanel({ createOpen, showCompletedTasks, taskCardDisplayMode,
   const [panelMessage, setPanelMessage] = useState("");
   const [quadrants, setQuadrants] = useState<Record<TaskPriority, ApiTask[]>>(() => emptyQuadrants());
   const visibleTasks = useMemo(
-    () => showCompletedTasks ? tasks : tasks.filter((task) => task.status !== "COMPLETED"),
+    () => sortTasksForDisplay(showCompletedTasks ? tasks : tasks.filter((task) => task.status !== "COMPLETED")),
     [showCompletedTasks, tasks]
   );
 
@@ -286,7 +286,7 @@ export function TaskPanel({ createOpen, showCompletedTasks, taskCardDisplayMode,
           <section className="quadrant-grid">
             {priorityOrder.map((item) => {
               const sourceItems = quadrants[item] ?? [];
-              const items = showCompletedTasks ? sourceItems : sourceItems.filter((task) => task.status !== "COMPLETED");
+              const items = sortTasksForDisplay(showCompletedTasks ? sourceItems : sourceItems.filter((task) => task.status !== "COMPLETED"));
               return (
                 <Card className={`quadrant-panel priority-${priorityClass(item)}`} key={item} pattern="default">
                   <header>

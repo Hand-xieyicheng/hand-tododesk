@@ -1,13 +1,32 @@
 use keyring::Entry;
+use std::sync::Mutex;
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    AppHandle, Manager, WebviewUrl, WebviewWindowBuilder,
+    AppHandle, Manager, TitleBarStyle, WebviewUrl, WebviewWindowBuilder, WindowEvent,
 };
 
 const KEYCHAIN_SERVICE: &str = "todoDesk";
 const KEYCHAIN_REFRESH_ACCOUNT: &str = "refresh_token";
 const KEYCHAIN_REMEMBERED_PASSWORD_PREFIX: &str = "remembered_password:";
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum AppCloseBehavior {
+    Hide,
+    Quit,
+}
+
+struct AppWindowPreferences {
+    close_behavior: Mutex<AppCloseBehavior>,
+}
+
+impl Default for AppWindowPreferences {
+    fn default() -> Self {
+        Self {
+            close_behavior: Mutex::new(AppCloseBehavior::Hide),
+        }
+    }
+}
 
 fn remembered_password_account(email: &str) -> Result<String, String> {
     let normalized_email = email.trim().to_lowercase();
@@ -53,8 +72,7 @@ fn delete_refresh_token() -> Result<(), String> {
 #[tauri::command]
 fn save_remembered_password(email: String, password: String) -> Result<(), String> {
     let account = remembered_password_account(&email)?;
-    let entry = Entry::new(KEYCHAIN_SERVICE, &account)
-        .map_err(|error| error.to_string())?;
+    let entry = Entry::new(KEYCHAIN_SERVICE, &account).map_err(|error| error.to_string())?;
     entry
         .set_password(&password)
         .map_err(|error| error.to_string())
@@ -63,8 +81,7 @@ fn save_remembered_password(email: String, password: String) -> Result<(), Strin
 #[tauri::command]
 fn load_remembered_password(email: String) -> Result<Option<String>, String> {
     let account = remembered_password_account(&email)?;
-    let entry = Entry::new(KEYCHAIN_SERVICE, &account)
-        .map_err(|error| error.to_string())?;
+    let entry = Entry::new(KEYCHAIN_SERVICE, &account).map_err(|error| error.to_string())?;
     match entry.get_password() {
         Ok(password) => Ok(Some(password)),
         Err(keyring::Error::NoEntry) => Ok(None),
@@ -75,8 +92,7 @@ fn load_remembered_password(email: String) -> Result<Option<String>, String> {
 #[tauri::command]
 fn delete_remembered_password(email: String) -> Result<(), String> {
     let account = remembered_password_account(&email)?;
-    let entry = Entry::new(KEYCHAIN_SERVICE, &account)
-        .map_err(|error| error.to_string())?;
+    let entry = Entry::new(KEYCHAIN_SERVICE, &account).map_err(|error| error.to_string())?;
     match entry.delete_credential() {
         Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
         Err(error) => Err(error.to_string()),
@@ -103,11 +119,50 @@ fn open_floating_card(app: AppHandle, url: String) -> Result<(), String> {
         .map_err(|error| error.to_string())
 }
 
-fn show_main_window(app: &AppHandle) {
+#[tauri::command]
+fn set_app_close_behavior(
+    preferences: tauri::State<'_, AppWindowPreferences>,
+    behavior: String,
+) -> Result<(), String> {
+    let close_behavior = match behavior.as_str() {
+        "hide" => AppCloseBehavior::Hide,
+        "quit" => AppCloseBehavior::Quit,
+        _ => return Err("Unsupported app close behavior".to_string()),
+    };
+    let mut current = preferences
+        .close_behavior
+        .lock()
+        .map_err(|_| "App close behavior state is unavailable".to_string())?;
+    *current = close_behavior;
+    Ok(())
+}
+
+#[tauri::command]
+fn show_main_window(app: AppHandle) -> Result<(), String> {
+    show_main_window_inner(&app)
+}
+
+fn show_main_window_inner(app: &AppHandle) -> Result<(), String> {
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.show();
+        let _ = window.unminimize();
         let _ = window.set_focus();
+        return Ok(());
     }
+
+    WebviewWindowBuilder::new(app, "main", WebviewUrl::App("/".into()))
+        .title("todoDesk")
+        .inner_size(1180.0, 760.0)
+        .min_inner_size(960.0, 640.0)
+        .decorations(true)
+        .title_bar_style(TitleBarStyle::Overlay)
+        .hidden_title(true)
+        .accept_first_mouse(true)
+        .build()
+        .map(|window| {
+            let _ = window.set_focus();
+        })
+        .map_err(|error| error.to_string())
 }
 
 fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
@@ -120,7 +175,9 @@ fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match event.id().as_ref() {
-            "show" => show_main_window(app),
+            "show" => {
+                let _ = show_main_window_inner(app);
+            }
             "quit" => app.exit(0),
             _ => {}
         })
@@ -131,7 +188,7 @@ fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
                 ..
             } = event
             {
-                show_main_window(tray.app_handle());
+                let _ = show_main_window_inner(tray.app_handle());
             }
         })
         .build(app)?;
@@ -139,8 +196,34 @@ fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
     Ok(())
 }
 
+fn handle_main_window_close(window: &tauri::Window, event: &WindowEvent) {
+    if window.label() != "main" {
+        return;
+    }
+
+    if let WindowEvent::CloseRequested { api, .. } = event {
+        api.prevent_close();
+        let close_behavior = window
+            .state::<AppWindowPreferences>()
+            .close_behavior
+            .lock()
+            .map(|current| *current)
+            .unwrap_or(AppCloseBehavior::Hide);
+
+        match close_behavior {
+            AppCloseBehavior::Hide => {
+                let _ = window.hide();
+            }
+            AppCloseBehavior::Quit => {
+                window.app_handle().exit(0);
+            }
+        }
+    }
+}
+
 pub fn run() {
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
+        .manage(AppWindowPreferences::default())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
@@ -151,12 +234,22 @@ pub fn run() {
             save_remembered_password,
             load_remembered_password,
             delete_remembered_password,
-            open_floating_card
+            open_floating_card,
+            set_app_close_behavior,
+            show_main_window
         ])
+        .on_window_event(handle_main_window_close)
         .setup(|app| {
             setup_tray(app.handle())?;
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running todoDesk");
+        .build(tauri::generate_context!())
+        .expect("error while building todoDesk");
+
+    app.run(|app_handle, event| {
+        #[cfg(target_os = "macos")]
+        if let tauri::RunEvent::Reopen { .. } = event {
+            let _ = show_main_window_inner(app_handle);
+        }
+    });
 }

@@ -1,5 +1,5 @@
 import { ChangeEvent, FormEvent, PointerEvent, useEffect, useMemo, useRef, useState } from "react";
-import { displaySizeValues, fontFamilyValues, taskCardDisplayModeValues, titleColorValues, type ApiUser, type AppBootstrapResponse, type DisplaySize, type FontFamily, type FooterType as AppFooterType, type TaskCardDisplayMode, type ThemeId, type TitleColor, type UserGender } from "@todo/shared";
+import { appCloseBehaviorValues, displaySizeValues, fontFamilyValues, taskCardDisplayModeValues, titleColorValues, type ApiUser, type AppBootstrapResponse, type AppCloseBehavior, type DisplaySize, type FontFamily, type FooterType as AppFooterType, type TaskCardDisplayMode, type ThemeId, type TitleColor, type UserGender } from "@todo/shared";
 import { Button, Card, Divider, Input, Modal, Radio, Select, Tabs, Title } from "animal-island-ui";
 import { Camera, Check, Download, KeyRound, Mail, RefreshCw, RotateCw, Save } from "lucide-react";
 import { api } from "../api/client";
@@ -17,6 +17,7 @@ import { ThemeSettings } from "./ThemeSettings";
 interface ProfileCenterProps {
   user: ApiUser;
   appBootstrap: AppBootstrapResponse | null;
+  appCloseBehavior: AppCloseBehavior;
   displaySize: DisplaySize;
   footerVisible: boolean;
   footerType: AppFooterType;
@@ -24,6 +25,7 @@ interface ProfileCenterProps {
   taskCardDisplayMode: TaskCardDisplayMode;
   themeId: ThemeId;
   titleColor: TitleColor;
+  onAppCloseBehaviorChanged(appCloseBehavior: AppCloseBehavior): void;
   onFooterVisibleChanged(visible: boolean): void;
   onFooterTypeChanged(footerType: AppFooterType): void;
   onFontFamilyChanged(fontFamily: FontFamily): void;
@@ -78,6 +80,16 @@ const taskCardDisplayModeLabels: Record<TaskCardDisplayMode, string> = {
 
 const taskCardDisplayModeOptions = taskCardDisplayModeValues.map((value) => ({
   label: taskCardDisplayModeLabels[value],
+  value
+}));
+
+const appCloseBehaviorLabels: Record<AppCloseBehavior, string> = {
+  hide: "仅关闭页面",
+  quit: "退出应用"
+};
+
+const appCloseBehaviorOptions = appCloseBehaviorValues.map((value) => ({
+  label: appCloseBehaviorLabels[value],
   value
 }));
 
@@ -145,6 +157,7 @@ function formatBytes(bytes: number) {
 export function ProfileCenter({
   user,
   appBootstrap,
+  appCloseBehavior,
   displaySize,
   footerVisible,
   footerType,
@@ -152,6 +165,7 @@ export function ProfileCenter({
   taskCardDisplayMode,
   themeId,
   titleColor,
+  onAppCloseBehaviorChanged,
   onFooterVisibleChanged,
   onFooterTypeChanged,
   onFontFamilyChanged,
@@ -678,6 +692,14 @@ export function ProfileCenter({
               options={taskCardDisplayModeOptions}
               value={taskCardDisplayMode}
               onChange={(value) => onTaskCardDisplayModeChanged(value as TaskCardDisplayMode)}
+            />
+          </div>
+          <div className="display-size-config">
+            <span className="display-size-config-label">关闭 app 时</span>
+            <Radio
+              options={appCloseBehaviorOptions}
+              value={appCloseBehavior}
+              onChange={(value) => onAppCloseBehaviorChanged(value as AppCloseBehavior)}
             />
           </div>
         </Card>
