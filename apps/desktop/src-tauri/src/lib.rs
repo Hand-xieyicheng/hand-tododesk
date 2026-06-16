@@ -1,9 +1,11 @@
 use keyring::Entry;
 use std::sync::Mutex;
+#[cfg(target_os = "macos")]
+use tauri::TitleBarStyle;
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    AppHandle, Manager, TitleBarStyle, WebviewUrl, WebviewWindowBuilder, WindowEvent,
+    AppHandle, Manager, WebviewUrl, WebviewWindowBuilder, WindowEvent,
 };
 
 const KEYCHAIN_SERVICE: &str = "todoDesk";
@@ -150,14 +152,22 @@ fn show_main_window_inner(app: &AppHandle) -> Result<(), String> {
         return Ok(());
     }
 
-    WebviewWindowBuilder::new(app, "main", WebviewUrl::App("/".into()))
+    let builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::App("/".into()))
         .title("todoDesk")
         .inner_size(1180.0, 760.0)
         .min_inner_size(960.0, 640.0)
-        .decorations(true)
+        .decorations(true);
+
+    #[cfg(target_os = "macos")]
+    let builder = builder
         .title_bar_style(TitleBarStyle::Overlay)
         .hidden_title(true)
-        .accept_first_mouse(true)
+        .accept_first_mouse(true);
+
+    #[cfg(not(target_os = "macos"))]
+    let builder = builder;
+
+    builder
         .build()
         .map(|window| {
             let _ = window.set_focus();
