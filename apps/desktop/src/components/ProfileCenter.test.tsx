@@ -59,11 +59,11 @@ const user: ApiUser = {
 };
 
 const appBootstrap: AppBootstrapResponse = {
-  apiVersion: "0.2.4",
+  apiVersion: "0.2.5",
   releaseChannel: "stable",
   desktop: {
     minimumVersion: "0.1.0",
-    latestVersion: "0.2.4",
+    latestVersion: "0.2.5",
     updateEndpoint: "https://example.com/latest.json"
   },
   featureFlags: {
@@ -84,7 +84,7 @@ const sidebarModuleOptions: Array<{ id: SidebarModule; label: string }> = [
 function createUpdater(status: AppUpdaterController["status"]): AppUpdaterController {
   return {
     status,
-    currentVersion: "0.2.4",
+    currentVersion: "0.2.5",
     targetVersion: null,
     releaseDate: null,
     releaseNotes: null,
