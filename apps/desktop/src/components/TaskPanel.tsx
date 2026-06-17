@@ -1,8 +1,9 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { type FormEvent, type KeyboardEvent, useEffect, useMemo, useState } from "react";
 import { sortTasksForDisplay, type ApiTask, type CreateTaskRequest, type TaskCardDisplayMode, type TaskPriority, type TaskStatus, type TaskViewMode } from "@todo/shared";
-import { Button, Card, Divider, Input, Modal, Select, Tooltip } from "animal-island-ui";
+import { Button, Card, Divider, Input, Modal, Select } from "animal-island-ui";
 import { Check, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { api } from "../api/client";
+import { getTodayEndDatetimeLocal } from "../lib/datetime";
 
 interface TaskPanelProps {
   createOpen: boolean;
@@ -30,6 +31,20 @@ const priorityOrder: TaskPriority[] = [
 
 const priorityOptions = priorityOrder.map((priority) => ({ key: priority, label: priorityLabels[priority] }));
 
+const statusLabels: Record<TaskStatus, string> = {
+  ARCHIVED: "已归档",
+  COMPLETED: "已完成",
+  IN_PROGRESS: "进行中",
+  TODO: "未完成"
+};
+
+const recurrenceFrequencyLabels: Record<string, string> = {
+  DAILY: "每天",
+  MONTHLY: "每月",
+  WEEKLY: "每周",
+  YEARLY: "每年"
+};
+
 const quadrantMeta: Record<TaskPriority, { title: string; hint: string }> = {
   IMPORTANT_URGENT: { title: "重要且紧急", hint: "马上处理" },
   IMPORTANT_NOT_URGENT: { title: "重要不紧急", hint: "安排时间" },
@@ -56,41 +71,103 @@ function priorityClass(priority: TaskPriority) {
   return priority.toLowerCase().replaceAll("_", "-");
 }
 
+function getDueAtLabel(task: ApiTask) {
+  return task.dueAt ? new Date(task.dueAt).toLocaleString() : "无截止时间";
+}
+
+function getRecurrenceLabel(task: ApiTask) {
+  const frequency = task.recurrenceRule?.frequency;
+  return frequency ? recurrenceFrequencyLabels[frequency] ?? frequency : null;
+}
+
+function getTaskMetaItems(task: ApiTask) {
+  return [
+    getDueAtLabel(task),
+    getRecurrenceLabel(task),
+    `${task.pomodoroCompletedCount} 个番茄`,
+    ...task.tags.map((tag) => `#${tag.name}`)
+  ].filter((item): item is string => Boolean(item));
+}
+
+interface TaskDetailModalProps {
+  task: ApiTask | null;
+  onClose(): void;
+}
+
+function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {
+  if (!task) {
+    return null;
+  }
+
+  const metaItems = getTaskMetaItems(task);
+
+  return (
+    <Modal
+      className="task-detail-modal"
+      open
+      title="待办详情"
+      width={560}
+      footer={null}
+      typewriter={false}
+      onClose={onClose}
+    >
+      <div className={`task-detail-content priority-${priorityClass(task.priority)}`}>
+        <div className="task-detail-status-row">
+          <span>{priorityLabels[task.priority]}</span>
+          <span>{statusLabels[task.status]}</span>
+        </div>
+        <h2>{task.title}</h2>
+        <section className="task-detail-section">
+          <span>备注</span>
+          <p>{task.notes || "无备注"}</p>
+        </section>
+        <div className="task-detail-meta">
+          {metaItems.map((item) => <span key={item}>{item}</span>)}
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 interface TaskCardProps {
   task: ApiTask;
   compact?: boolean;
   displayMode: TaskCardDisplayMode;
   onDelete(task: ApiTask): Promise<void>;
+  onOpenDetails(task: ApiTask): void;
   onSetStatus(task: ApiTask, status: TaskStatus): Promise<void>;
 }
 
-function TaskCard({ task, compact, displayMode, onDelete, onSetStatus }: TaskCardProps) {
+function TaskCard({ task, compact, displayMode, onDelete, onOpenDetails, onSetStatus }: TaskCardProps) {
   const isCompleted = task.status === "COMPLETED";
   const titleOnly = displayMode === "title";
   const statusAction = isCompleted ? "恢复为未完成" : "完成";
   const nextStatus: TaskStatus = isCompleted ? "TODO" : "COMPLETED";
-  const dueAtLabel = task.dueAt ? new Date(task.dueAt).toLocaleString() : "无截止时间";
-  const recurrenceLabel = task.recurrenceRule?.frequency ?? null;
-  const metaItems = [
-    priorityLabels[task.priority],
-    dueAtLabel,
-    recurrenceLabel,
-    `${task.pomodoroCompletedCount} 个番茄`,
-    ...task.tags.map((tag) => `#${tag.name}`)
-  ].filter((item): item is string => Boolean(item));
+  const dueAtLabel = getDueAtLabel(task);
+  const recurrenceLabel = getRecurrenceLabel(task);
 
-  const fullContent = (
-    <div className="task-card-tooltip-content">
-      <strong>{task.title}</strong>
-      <p>{task.notes || "无备注"}</p>
-      <div className="task-card-tooltip-meta">
-        {metaItems.map((item) => <span key={item}>{item}</span>)}
-      </div>
-    </div>
-  );
+  function openDetails() {
+    onOpenDetails(task);
+  }
+
+  function handleCopyKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.key !== "Enter" && event.key !== " ") {
+      return;
+    }
+
+    event.preventDefault();
+    openDetails();
+  }
 
   const copy = (
-    <div className="task-copy">
+    <div
+      aria-label={`查看${task.title}详情`}
+      className="task-copy"
+      role="button"
+      tabIndex={0}
+      onClick={openDetails}
+      onKeyDown={handleCopyKeyDown}
+    >
       <div className="task-title-row">
         <h3>{task.title}</h3>
       </div>
@@ -114,11 +191,7 @@ function TaskCard({ task, compact, displayMode, onDelete, onSetStatus }: TaskCar
       className={`task-item priority-${priorityClass(task.priority)}${compact ? " is-compact" : ""}${isCompleted ? " is-completed" : ""}${titleOnly ? " is-title-only" : ""}`}
       pattern="default"
     >
-      {titleOnly ? (
-        <Tooltip className="task-card-tooltip" placement="top-start" title={fullContent} trigger="hover" variant="default">
-          {copy}
-        </Tooltip>
-      ) : copy}
+      {copy}
       <div className="task-actions">
         <Button
           aria-label={statusAction}
@@ -137,12 +210,13 @@ function TaskCard({ task, compact, displayMode, onDelete, onSetStatus }: TaskCar
 export function TaskPanel({ createOpen, showCompletedTasks, taskCardDisplayMode, tasks, viewMode, onChanged, onCreateOpenChange }: TaskPanelProps) {
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
-  const [dueAt, setDueAt] = useState("");
+  const [dueAt, setDueAt] = useState(() => getTodayEndDatetimeLocal());
   const [priority, setPriority] = useState<TaskPriority>("IMPORTANT_NOT_URGENT");
   const [tags, setTags] = useState("");
   const [repeat, setRepeat] = useState<"NONE" | "DAILY" | "WEEKLY" | "MONTHLY">("NONE");
   const [formMessage, setFormMessage] = useState("");
   const [panelMessage, setPanelMessage] = useState("");
+  const [detailTask, setDetailTask] = useState<ApiTask | null>(null);
   const [quadrants, setQuadrants] = useState<Record<TaskPriority, ApiTask[]>>(() => emptyQuadrants());
   const visibleTasks = useMemo(
     () => sortTasksForDisplay(showCompletedTasks ? tasks : tasks.filter((task) => task.status !== "COMPLETED")),
@@ -165,6 +239,12 @@ export function TaskPanel({ createOpen, showCompletedTasks, taskCardDisplayMode,
     }
   }, [viewMode, tasks.length]);
 
+  useEffect(() => {
+    if (createOpen) {
+      setDueAt(getTodayEndDatetimeLocal());
+    }
+  }, [createOpen]);
+
   async function refreshAfterChange() {
     await onChanged();
     if (viewMode === "quadrant") {
@@ -175,7 +255,7 @@ export function TaskPanel({ createOpen, showCompletedTasks, taskCardDisplayMode,
   function resetForm() {
     setTitle("");
     setNotes("");
-    setDueAt("");
+    setDueAt(getTodayEndDatetimeLocal());
     setPriority("IMPORTANT_NOT_URGENT");
     setTags("");
     setRepeat("NONE");
@@ -227,6 +307,8 @@ export function TaskPanel({ createOpen, showCompletedTasks, taskCardDisplayMode,
 
   return (
     <>
+      <TaskDetailModal task={detailTask} onClose={() => setDetailTask(null)} />
+
       <Modal
         className="task-create-modal"
         open={createOpen}
@@ -279,7 +361,7 @@ export function TaskPanel({ createOpen, showCompletedTasks, taskCardDisplayMode,
           <section className="task-list">
             {visibleTasks.length === 0 ? <Card className="empty-state" type="dashed">暂无待办</Card> : null}
             {visibleTasks.map((task) => (
-              <TaskCard displayMode={taskCardDisplayMode} key={task.id} task={task} onDelete={deleteTask} onSetStatus={setStatus} />
+              <TaskCard displayMode={taskCardDisplayMode} key={task.id} task={task} onDelete={deleteTask} onOpenDetails={setDetailTask} onSetStatus={setStatus} />
             ))}
           </section>
         ) : (
@@ -300,7 +382,7 @@ export function TaskPanel({ createOpen, showCompletedTasks, taskCardDisplayMode,
                   <div className="quadrant-task-list">
                     {items.length === 0 ? <div className="empty-state">暂无待办</div> : null}
                     {items.map((task) => (
-                      <TaskCard compact displayMode={taskCardDisplayMode} key={task.id} task={task} onDelete={deleteTask} onSetStatus={setStatus} />
+                      <TaskCard compact displayMode={taskCardDisplayMode} key={task.id} task={task} onDelete={deleteTask} onOpenDetails={setDetailTask} onSetStatus={setStatus} />
                     ))}
                   </div>
                 </Card>

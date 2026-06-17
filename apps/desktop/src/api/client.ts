@@ -1,5 +1,8 @@
 import type {
   AppBootstrapResponse,
+  ApiMemo,
+  ApiMemoAsset,
+  ApiMemoListItem,
   ApiTask,
   ApiThemePreference,
   ApiUser,
@@ -8,12 +11,14 @@ import type {
   CalendarView,
   ChangeEmailRequest,
   ChangePasswordRequest,
+  CreateMemoRequest,
   CreateTaskRequest,
   PomodoroSession,
   PomodoroStats,
   RefreshRequest,
   RegisterRequest,
   TaskPriority,
+  UpdateMemoRequest,
   UpdateProfileRequest,
   UpdateThemePreferenceRequest,
   UpdateTaskRequest
@@ -22,10 +27,12 @@ import {
   appBootstrapResponseSchema,
   changeEmailRequestSchema,
   changePasswordRequestSchema,
+  createMemoRequestSchema,
   forgotPasswordRequestSchema,
   loginRequestSchema,
   registerRequestSchema,
   resetPasswordRequestSchema,
+  updateMemoRequestSchema,
   updateThemePreferenceRequestSchema,
   updateProfileRequestSchema
 } from "@todo/shared";
@@ -211,6 +218,39 @@ export const api = {
       method: "POST",
       body: JSON.stringify(resetPasswordRequestSchema.parse({ token, password }))
     }, { retry: false, includeAuth: false, expireSessionOnUnauthorized: false });
+  },
+  async memos(query = "", archived = false) {
+    const params = new URLSearchParams({ archived: String(archived) });
+    if (query.trim()) {
+      params.set("query", query.trim());
+    }
+    return request<{ memos: ApiMemoListItem[] }>(`/memos?${params}`);
+  },
+  async memo(id: string) {
+    return request<{ memo: ApiMemo }>(`/memos/${id}`);
+  },
+  async createMemo(input: CreateMemoRequest = {}) {
+    return request<{ memo: ApiMemo }>("/memos", {
+      method: "POST",
+      body: JSON.stringify(createMemoRequestSchema.parse(input))
+    });
+  },
+  async updateMemo(id: string, input: UpdateMemoRequest) {
+    return request<{ memo: ApiMemo }>(`/memos/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(updateMemoRequestSchema.parse(input))
+    });
+  },
+  async deleteMemo(id: string) {
+    return request<void>(`/memos/${id}`, { method: "DELETE" });
+  },
+  async uploadMemoAsset(memoId: string, image: Blob, filename = "memo-image.png") {
+    const formData = new FormData();
+    formData.append("image", image, filename);
+    return request<{ asset: ApiMemoAsset }>(`/memos/${memoId}/assets`, {
+      method: "POST",
+      body: formData
+    });
   },
   async tasks() {
     return request<{ tasks: ApiTask[] }>("/tasks");

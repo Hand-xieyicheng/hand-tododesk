@@ -1,6 +1,7 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ApiTask } from "@todo/shared";
+import { getTodayEndDatetimeLocal } from "../lib/datetime";
 import { TaskPanel } from "./TaskPanel";
 
 const apiMock = vi.hoisted(() => ({
@@ -20,7 +21,14 @@ vi.mock("animal-island-ui", () => ({
   Card: ({ children, className }: any) => <section className={className}>{children}</section>,
   Divider: () => <hr />,
   Input: ({ onChange, value }: any) => <input value={value} onChange={onChange} />,
-  Modal: ({ children, open }: any) => (open ? <div role="dialog">{children}</div> : null),
+  Modal: ({ children, onClose, open, title }: any) => (
+    open ? (
+      <div aria-label={typeof title === "string" ? title : undefined} role="dialog">
+        <button aria-label="关闭" type="button" onClick={onClose}>关闭</button>
+        {children}
+      </div>
+    ) : null
+  ),
   Select: ({ onChange, options, value }: any) => (
     <select value={value} onChange={(event) => onChange(event.target.value)}>
       {options.map((option: any) => {
@@ -100,7 +108,7 @@ describe("TaskPanel", () => {
     apiMock.taskQuadrants.mockResolvedValue({ quadrants: emptyQuadrants() });
   });
 
-  it("shows only title on cards and full content in tooltip for title mode", () => {
+  it("shows only title on cards and opens full content in a detail modal for title mode", () => {
     const { container } = renderPanel("title");
 
     expect(screen.getByRole("heading", { name: "准备周报" })).toBeInTheDocument();
@@ -108,10 +116,15 @@ describe("TaskPanel", () => {
     expect(container.querySelector(".task-meta")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "完成" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "删除" })).toBeInTheDocument();
-    expect(screen.getByRole("tooltip")).toHaveTextContent("整理本周项目进展和风险");
-    expect(screen.getByRole("tooltip")).toHaveTextContent("重要且紧急");
-    expect(screen.getByRole("tooltip")).toHaveTextContent("2 个番茄");
-    expect(screen.getByRole("tooltip")).toHaveTextContent("#工作");
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "查看准备周报详情" }));
+
+    const dialog = screen.getByRole("dialog", { name: "待办详情" });
+    expect(dialog).toHaveTextContent("整理本周项目进展和风险");
+    expect(dialog).toHaveTextContent("重要且紧急");
+    expect(dialog).toHaveTextContent("2 个番茄");
+    expect(dialog).toHaveTextContent("#工作");
   });
 
   it("keeps normal card details in full mode", () => {
@@ -120,6 +133,22 @@ describe("TaskPanel", () => {
     expect(container.querySelector(".task-notes")).toHaveTextContent("整理本周项目进展和风险");
     expect(container.querySelector(".task-meta")).toHaveTextContent("重要且紧急");
     expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+  });
+
+  it("defaults the create deadline to today at 23:59", () => {
+    render(
+      <TaskPanel
+        createOpen
+        showCompletedTasks
+        taskCardDisplayMode="full"
+        tasks={[]}
+        viewMode="list"
+        onChanged={vi.fn(async () => undefined)}
+        onCreateOpenChange={vi.fn()}
+      />
+    );
+
+    expect(screen.getByLabelText("截止时间")).toHaveValue(getTodayEndDatetimeLocal());
   });
 
   it("sorts list tasks with unfinished items first and created date ascending", () => {

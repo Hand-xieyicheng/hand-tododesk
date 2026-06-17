@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { ApiTask, ApiThemePreference } from "@todo/shared";
+import { defaultVisibleSidebarModules, type ApiTask, type ApiThemePreference } from "@todo/shared";
+import { getTodayEndDatetimeLocal } from "../lib/datetime";
 import { FloatingCard } from "./FloatingCard";
 
 const apiMock = vi.hoisted(() => ({
@@ -83,6 +84,8 @@ const titlePreference: ApiThemePreference = {
   taskCardDisplayMode: "title",
   appCloseBehavior: "hide",
   displaySize: "default",
+  visibleSidebarModules: defaultVisibleSidebarModules,
+  sidebarCollapsed: false,
   fontFamily: "system"
 };
 
@@ -148,6 +151,14 @@ describe("FloatingCard", () => {
     fireEvent.click(await screen.findByRole("button", { name: "打开桌面" }));
 
     await waitFor(() => expect(tauriCoreMock.invoke).toHaveBeenCalledWith("show_main_window"));
+  });
+
+  it("defaults the new task deadline to today at 23:59", async () => {
+    render(<FloatingCard />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "新增" }));
+
+    expect(screen.getByLabelText("截止时间")).toHaveValue(getTodayEndDatetimeLocal());
   });
 
   it("sorts visible tasks with unfinished items first and created date ascending", async () => {

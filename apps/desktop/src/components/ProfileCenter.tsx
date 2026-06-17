@@ -1,7 +1,10 @@
 import { ChangeEvent, FormEvent, PointerEvent, useEffect, useMemo, useRef, useState } from "react";
-import { appCloseBehaviorValues, displaySizeValues, fontFamilyValues, taskCardDisplayModeValues, titleColorValues, type ApiUser, type AppBootstrapResponse, type AppCloseBehavior, type DisplaySize, type FontFamily, type FooterType as AppFooterType, type TaskCardDisplayMode, type ThemeId, type TitleColor, type UserGender } from "@todo/shared";
+import { closestCenter, DndContext, KeyboardSensor, PointerSensor, type DragEndEvent, type DragStartEvent, useSensor, useSensors } from "@dnd-kit/core";
+import { arrayMove, rectSortingStrategy, SortableContext, sortableKeyboardCoordinates, useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { appCloseBehaviorValues, displaySizeValues, fontFamilyValues, taskCardDisplayModeValues, titleColorValues, type ApiUser, type AppBootstrapResponse, type AppCloseBehavior, type DisplaySize, type FontFamily, type FooterType as AppFooterType, type SidebarModule, type TaskCardDisplayMode, type ThemeId, type TitleColor, type UserGender } from "@todo/shared";
 import { Button, Card, Divider, Input, Modal, Radio, Select, Tabs, Title } from "animal-island-ui";
-import { Camera, Check, Download, KeyRound, Mail, RefreshCw, RotateCw, Save } from "lucide-react";
+import { Camera, Check, Download, GripVertical, KeyRound, Mail, RefreshCw, RotateCw, Save } from "lucide-react";
 import { api } from "../api/client";
 import {
   AVATAR_CROP_SIZE,
@@ -22,9 +25,11 @@ interface ProfileCenterProps {
   footerVisible: boolean;
   footerType: AppFooterType;
   fontFamily: FontFamily;
+  sidebarModuleOptions: SidebarModuleOption[];
   taskCardDisplayMode: TaskCardDisplayMode;
   themeId: ThemeId;
   titleColor: TitleColor;
+  visibleSidebarModules: SidebarModule[];
   onAppCloseBehaviorChanged(appCloseBehavior: AppCloseBehavior): void;
   onFooterVisibleChanged(visible: boolean): void;
   onFooterTypeChanged(footerType: AppFooterType): void;
@@ -35,7 +40,13 @@ interface ProfileCenterProps {
   onTitleColorChanged(titleColor: TitleColor): void;
   onThemeChanged(themeId: ThemeId): void;
   onUserChanged(user: ApiUser): void;
+  onVisibleSidebarModulesChanged(modules: SidebarModule[]): void;
   updater: AppUpdaterController;
+}
+
+interface SidebarModuleOption {
+  id: SidebarModule;
+  label: string;
 }
 
 interface AvatarDraft {
@@ -154,6 +165,92 @@ function formatBytes(bytes: number) {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
+function arrayEquals<T>(left: readonly T[], right: readonly T[]) {
+  return left.length === right.length && left.every((item, index) => item === right[index]);
+}
+
+function mergeSidebarModuleOrder(
+  currentOrder: readonly SidebarModule[],
+  visibleModules: readonly SidebarModule[],
+  options: readonly SidebarModuleOption[]
+) {
+  const availableModules = options.map((option) => option.id);
+  const availableSet = new Set(availableModules);
+  const nextOrder: SidebarModule[] = [];
+  const addModule = (module: SidebarModule) => {
+    if (availableSet.has(module) && !nextOrder.includes(module)) {
+      nextOrder.push(module);
+    }
+  };
+
+  currentOrder.forEach(addModule);
+  visibleModules.forEach(addModule);
+  availableModules.forEach(addModule);
+  return nextOrder;
+}
+
+function isSidebarModule(value: unknown): value is SidebarModule {
+  return typeof value === "string" && ["tasks", "memos", "calendar", "pomodoro"].includes(value);
+}
+
+interface SortableSidebarModuleOptionProps {
+  checked: boolean;
+  dragging: boolean;
+  option: SidebarModuleOption;
+  onToggle(module: SidebarModule): void;
+}
+
+function SortableSidebarModuleOption({ checked, dragging, option, onToggle }: SortableSidebarModuleOptionProps) {
+  const {
+    attributes,
+    isDragging,
+    listeners,
+    setActivatorNodeRef,
+    setNodeRef,
+    transform,
+    transition
+  } = useSortable({ id: option.id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition
+  };
+
+  return (
+    <div
+      className={[
+        "module-option",
+        checked ? "is-active" : "",
+        dragging || isDragging ? "is-dragging" : ""
+      ].filter(Boolean).join(" ")}
+      data-sidebar-module={option.id}
+      ref={setNodeRef}
+      style={style}
+    >
+      <label className="module-option-toggle">
+        <input
+          checked={checked}
+          type="checkbox"
+          onChange={() => onToggle(option.id)}
+        />
+        <span className="module-option-check" aria-hidden="true">
+          {checked ? <Check size={14} /> : null}
+        </span>
+        <span>{option.label}</span>
+      </label>
+      <button
+        {...attributes}
+        {...listeners}
+        aria-label={`拖动排序 ${option.label}`}
+        className="module-option-drag"
+        ref={setActivatorNodeRef}
+        type="button"
+      >
+        <GripVertical size={15} />
+      </button>
+    </div>
+  );
+}
+
 export function ProfileCenter({
   user,
   appBootstrap,
@@ -162,9 +259,11 @@ export function ProfileCenter({
   footerVisible,
   footerType,
   fontFamily,
+  sidebarModuleOptions,
   taskCardDisplayMode,
   themeId,
   titleColor,
+  visibleSidebarModules,
   onAppCloseBehaviorChanged,
   onFooterVisibleChanged,
   onFooterTypeChanged,
@@ -175,6 +274,7 @@ export function ProfileCenter({
   onTitleColorChanged,
   onThemeChanged,
   onUserChanged,
+  onVisibleSidebarModulesChanged,
   updater
 }: ProfileCenterProps) {
   const [name, setName] = useState(user.name ?? "");
@@ -199,8 +299,21 @@ export function ProfileCenter({
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordMessage, setPasswordMessage] = useState("");
   const [passwordBusy, setPasswordBusy] = useState(false);
+  const [sidebarModuleOrder, setSidebarModuleOrder] = useState<SidebarModule[]>(() => sidebarModuleOptions.map((option) => option.id));
+  const [draggingSidebarModule, setDraggingSidebarModule] = useState<SidebarModule | null>(null);
 
   const avatarFileRef = useRef<HTMLInputElement | null>(null);
+  const sidebarModuleOrderRef = useRef<SidebarModule[]>(sidebarModuleOptions.map((option) => option.id));
+  const sidebarModuleSensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5
+      }
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates
+    })
+  );
 
   useEffect(() => {
     setName(user.name ?? "");
@@ -214,6 +327,14 @@ export function ProfileCenter({
       }
     };
   }, [avatarDraft?.url]);
+
+  useEffect(() => {
+    setSidebarModuleOrder((currentOrder) => {
+      const nextOrder = mergeSidebarModuleOrder(currentOrder, visibleSidebarModules, sidebarModuleOptions);
+      sidebarModuleOrderRef.current = nextOrder;
+      return arrayEquals(currentOrder, nextOrder) ? currentOrder : nextOrder;
+    });
+  }, [sidebarModuleOptions, visibleSidebarModules]);
 
   const avatarLayout = useMemo(() => {
     if (!avatarDraft) {
@@ -235,7 +356,15 @@ export function ProfileCenter({
     ? `${formatBytes(updater.receivedBytes)} / ${formatBytes(updater.totalBytes)}`
     : updater.status === "downloading"
       ? `${formatBytes(updater.receivedBytes)} 已下载`
-      : "";
+    : "";
+  const sidebarModuleOptionMap = useMemo(() => (
+    new Map(sidebarModuleOptions.map((option) => [option.id, option]))
+  ), [sidebarModuleOptions]);
+  const orderedSidebarModuleOptions = useMemo(() => (
+    sidebarModuleOrder
+      .map((module) => sidebarModuleOptionMap.get(module))
+      .filter((option): option is SidebarModuleOption => Boolean(option))
+  ), [sidebarModuleOrder, sidebarModuleOptionMap]);
 
   async function submitProfile(event: FormEvent) {
     event.preventDefault();
@@ -393,6 +522,49 @@ export function ProfileCenter({
     }
   }
 
+  function toggleSidebarModule(module: SidebarModule) {
+    const nextModuleSet = new Set(visibleSidebarModules);
+    if (nextModuleSet.has(module)) {
+      nextModuleSet.delete(module);
+    } else {
+      nextModuleSet.add(module);
+    }
+
+    const nextOrder = mergeSidebarModuleOrder(sidebarModuleOrderRef.current, [...nextModuleSet], sidebarModuleOptions);
+    onVisibleSidebarModulesChanged(nextOrder.filter((item) => nextModuleSet.has(item)));
+  }
+
+  function commitSidebarModuleOrder(order: readonly SidebarModule[]) {
+    const visibleModuleSet = new Set(visibleSidebarModules);
+    onVisibleSidebarModulesChanged(order.filter((module) => visibleModuleSet.has(module)));
+  }
+
+  function handleSidebarModuleDragStart(event: DragStartEvent) {
+    if (isSidebarModule(event.active.id)) {
+      setDraggingSidebarModule(event.active.id);
+    }
+  }
+
+  function handleSidebarModuleDragEnd(event: DragEndEvent) {
+    setDraggingSidebarModule(null);
+    const activeModule = event.active.id;
+    const overModule = event.over?.id;
+    if (!isSidebarModule(activeModule) || !isSidebarModule(overModule) || activeModule === overModule) {
+      return;
+    }
+
+    const oldIndex = sidebarModuleOrderRef.current.indexOf(activeModule);
+    const newIndex = sidebarModuleOrderRef.current.indexOf(overModule);
+    if (oldIndex < 0 || newIndex < 0) {
+      return;
+    }
+
+    const nextOrder = arrayMove(sidebarModuleOrderRef.current, oldIndex, newIndex);
+    sidebarModuleOrderRef.current = nextOrder;
+    setSidebarModuleOrder(nextOrder);
+    commitSidebarModuleOrder(nextOrder);
+  }
+
   const securityTabs = [
     {
       key: "email",
@@ -522,9 +694,12 @@ export function ProfileCenter({
         <Card className="profile-section-card" pattern="default">
           <header className="profile-section-header">
             <Title size="small" color="app-teal">个人资料</Title>
+            <Button className="primary-button profile-header-save-button" disabled={profileBusy} form="profile-form" htmlType="submit" icon={<Save size={16} />} loading={profileBusy} type="primary">
+              保存资料
+            </Button>
           </header>
           <Divider type="dashed-teal" />
-          <form className="task-form profile-form" onSubmit={submitProfile}>
+          <form id="profile-form" className="task-form profile-form" onSubmit={submitProfile}>
             <div className="form-grid">
               <label>
                 <span>用户名</span>
@@ -536,9 +711,6 @@ export function ProfileCenter({
               </label>
             </div>
             {profileMessage ? <div className="inline-alert">{profileMessage}</div> : null}
-            <Button className="primary-button" disabled={profileBusy} htmlType="submit" icon={<Save size={16} />} loading={profileBusy} type="primary">
-              保存资料
-            </Button>
           </form>
         </Card>
 
@@ -693,6 +865,30 @@ export function ProfileCenter({
               value={taskCardDisplayMode}
               onChange={(value) => onTaskCardDisplayModeChanged(value as TaskCardDisplayMode)}
             />
+          </div>
+          <div className="module-display-config">
+            <span className="module-display-config-label">显示模块</span>
+            <DndContext
+              collisionDetection={closestCenter}
+              sensors={sidebarModuleSensors}
+              onDragCancel={() => setDraggingSidebarModule(null)}
+              onDragEnd={handleSidebarModuleDragEnd}
+              onDragStart={handleSidebarModuleDragStart}
+            >
+              <SortableContext items={sidebarModuleOrder} strategy={rectSortingStrategy}>
+                <div className="module-option-grid" aria-label="侧边导航显示模块">
+                  {orderedSidebarModuleOptions.map((option) => (
+                    <SortableSidebarModuleOption
+                      checked={visibleSidebarModules.includes(option.id)}
+                      dragging={draggingSidebarModule === option.id}
+                      key={option.id}
+                      option={option}
+                      onToggle={toggleSidebarModule}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
           </div>
           <div className="display-size-config">
             <span className="display-size-config-label">关闭 app 时</span>

@@ -15,3 +15,4 @@ vite.config.js
 vite.config.d.ts
 apps/desktop/src/**/*.js
 apps/desktop/src/**/*.d.ts
+apps/api/public/memo-assets/

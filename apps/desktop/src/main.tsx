@@ -1,5 +1,6 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
+import { HashRouter } from "react-router-dom";
 import "animal-island-ui/style";
 import { Cursor } from "animal-island-ui";
 import { App } from "./App";
@@ -13,7 +14,13 @@ const isFloatingWindow = search.get("window") === "floating";
 root.render(
   <React.StrictMode>
     <Cursor>
-      {isFloatingWindow ? <FloatingCard /> : <App />}
+      {isFloatingWindow ? (
+        <FloatingCard />
+      ) : (
+        <HashRouter>
+          <App />
+        </HashRouter>
+      )}
     </Cursor>
   </React.StrictMode>
 );

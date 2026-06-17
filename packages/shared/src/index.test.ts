@@ -4,6 +4,7 @@ import {
   appCloseBehaviorValues,
   changeEmailRequestSchema,
   changePasswordRequestSchema,
+  createMemoRequestSchema,
   defaultAppFeatureFlags,
   displaySizeValues,
   fontFamilyValues,
@@ -13,6 +14,7 @@ import {
   taskCardDisplayModeValues,
   taskViewModeValues,
   titleColorValues,
+  updateMemoRequestSchema,
   updateThemePreferenceRequestSchema,
   updateProfileRequestSchema,
   userGenderValues
@@ -78,6 +80,8 @@ describe("profile schemas", () => {
     expect(updateThemePreferenceRequestSchema.parse({ displaySize: "small" })).toEqual({ displaySize: "small" });
     expect(updateThemePreferenceRequestSchema.parse({ displaySize: "default" })).toEqual({ displaySize: "default" });
     expect(updateThemePreferenceRequestSchema.parse({ displaySize: "large" })).toEqual({ displaySize: "large" });
+    expect(updateThemePreferenceRequestSchema.parse({ sidebarCollapsed: true })).toEqual({ sidebarCollapsed: true });
+    expect(updateThemePreferenceRequestSchema.parse({ sidebarCollapsed: false })).toEqual({ sidebarCollapsed: false });
     expect(updateThemePreferenceRequestSchema.parse({ fontFamily: "system" })).toEqual({ fontFamily: "system" });
     expect(updateThemePreferenceRequestSchema.parse({ fontFamily: "lemi-muhe-yuanti" })).toEqual({ fontFamily: "lemi-muhe-yuanti" });
     expect(updateThemePreferenceRequestSchema.parse({ fontFamily: "nanxi-xin-yuanti" })).toEqual({ fontFamily: "nanxi-xin-yuanti" });
@@ -130,6 +134,22 @@ describe("app bootstrap schema", () => {
       },
       featureFlags: defaultAppFeatureFlags
     }).success).toBe(false);
+  });
+});
+
+describe("memo schemas", () => {
+  it("accepts rich text memo input and rejects empty updates", () => {
+    expect(createMemoRequestSchema.parse({
+      title: " 周会记录 ",
+      contentHtml: "<h2>周会记录</h2><table><tbody><tr><td>A</td><td>B</td></tr></tbody></table>",
+      isPinned: true
+    })).toEqual({
+      title: "周会记录",
+      contentHtml: "<h2>周会记录</h2><table><tbody><tr><td>A</td><td>B</td></tr></tbody></table>",
+      isPinned: true
+    });
+    expect(updateMemoRequestSchema.parse({ archived: true })).toEqual({ archived: true });
+    expect(updateMemoRequestSchema.safeParse({}).success).toBe(false);
   });
 });
 

@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent, MouseEvent, PointerEvent } from "react";
-import { sortTasksForDisplay, type ApiTask, type ApiThemePreference, type CreateTaskRequest, type TaskCardDisplayMode, type TaskPriority, type TaskStatus, type UpdateTaskRequest } from "@todo/shared";
+import { defaultVisibleSidebarModules, sortTasksForDisplay, type ApiTask, type ApiThemePreference, type CreateTaskRequest, type TaskCardDisplayMode, type TaskPriority, type TaskStatus, type UpdateTaskRequest } from "@todo/shared";
 import { Button, Card, Input, Select, Tooltip } from "animal-island-ui";
 import { Check, Eye, EyeOff, Monitor, Pencil, Pin, Plus, RefreshCw, RotateCcw, Save, X } from "lucide-react";
 import { api } from "../api/client";
 import todoDeskLogo from "../assets/tododesk-logo.png";
 import { applyDisplaySize } from "../lib/displaySize";
+import { getTodayEndDatetimeLocal, toDatetimeLocal } from "../lib/datetime";
 import { applyFontFamily } from "../lib/fonts";
 import { applyTheme } from "../lib/themes";
 
@@ -45,6 +46,8 @@ const defaultThemePreference: ApiThemePreference = {
   taskCardDisplayMode: "full",
   appCloseBehavior: "hide",
   displaySize: "default",
+  visibleSidebarModules: defaultVisibleSidebarModules,
+  sidebarCollapsed: false,
   fontFamily: "system"
 };
 
@@ -54,24 +57,10 @@ function emptyDraft(): TaskDraft {
   return {
     title: "",
     notes: "",
-    dueAt: "",
+    dueAt: getTodayEndDatetimeLocal(),
     priority: "IMPORTANT_NOT_URGENT",
     tags: ""
   };
-}
-
-function toDatetimeLocal(value: string | null) {
-  if (!value) {
-    return "";
-  }
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return "";
-  }
-
-  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
-  return localDate.toISOString().slice(0, 16);
 }
 
 function draftFromTask(task: ApiTask): TaskDraft {

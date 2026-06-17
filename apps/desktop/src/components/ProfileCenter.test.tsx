@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import type { ApiUser, AppBootstrapResponse } from "@todo/shared";
+import { defaultVisibleSidebarModules, type ApiUser, type AppBootstrapResponse, type SidebarModule } from "@todo/shared";
 import type { AppUpdaterController } from "../lib/useAppUpdater";
 import { ProfileCenter } from "./ProfileCenter";
 
@@ -74,6 +74,13 @@ const appBootstrap: AppBootstrapResponse = {
   }
 };
 
+const sidebarModuleOptions: Array<{ id: SidebarModule; label: string }> = [
+  { id: "tasks", label: "待办事项" },
+  { id: "memos", label: "备忘录" },
+  { id: "calendar", label: "日历" },
+  { id: "pomodoro", label: "番茄时钟" }
+];
+
 function createUpdater(status: AppUpdaterController["status"]): AppUpdaterController {
   return {
     status,
@@ -91,7 +98,7 @@ function createUpdater(status: AppUpdaterController["status"]): AppUpdaterContro
   };
 }
 
-function renderProfile(updater: AppUpdaterController) {
+function renderProfile(updater: AppUpdaterController, props: Partial<Parameters<typeof ProfileCenter>[0]> = {}) {
   return render(
     <ProfileCenter
       user={user}
@@ -101,9 +108,11 @@ function renderProfile(updater: AppUpdaterController) {
       footerVisible
       footerType="sea"
       fontFamily="system"
+      sidebarModuleOptions={sidebarModuleOptions}
       taskCardDisplayMode="full"
       themeId="shinchan"
       titleColor="app-teal"
+      visibleSidebarModules={defaultVisibleSidebarModules}
       onFooterVisibleChanged={vi.fn()}
       onFooterTypeChanged={vi.fn()}
       onFontFamilyChanged={vi.fn()}
@@ -114,7 +123,9 @@ function renderProfile(updater: AppUpdaterController) {
       onTitleColorChanged={vi.fn()}
       onThemeChanged={vi.fn()}
       onUserChanged={vi.fn()}
+      onVisibleSidebarModulesChanged={vi.fn()}
       updater={updater}
+      {...props}
     />
   );
 }
@@ -144,6 +155,28 @@ describe("ProfileCenter", () => {
     expect(screen.getByText("关闭 app 时")).toBeInTheDocument();
     expect(screen.getByText(/仅关闭页面/)).toBeInTheDocument();
     expect(screen.getByText("退出应用")).toBeInTheDocument();
+    expect(screen.getByText("显示模块")).toBeInTheDocument();
+    expect(screen.getByLabelText("侧边导航显示模块")).toBeInTheDocument();
+    expect(screen.getByText("待办事项")).toBeInTheDocument();
+    expect(screen.getByText("备忘录")).toBeInTheDocument();
+    expect(screen.getByText("日历")).toBeInTheDocument();
+    expect(screen.getByText("番茄时钟")).toBeInTheDocument();
+    expect(screen.getByLabelText("拖动排序 待办事项")).toBeInTheDocument();
+  });
+
+  it("renders sortable module items with module color identifiers", () => {
+    renderProfile(createUpdater("idle"));
+    const tasksOption = screen.getByText("待办事项").closest(".module-option");
+    const memosOption = screen.getByText("备忘录").closest(".module-option");
+    const calendarOption = screen.getByText("日历").closest(".module-option");
+    const pomodoroOption = screen.getByText("番茄时钟").closest(".module-option");
+
+    expect(tasksOption).toHaveAttribute("data-sidebar-module", "tasks");
+    expect(memosOption).toHaveAttribute("data-sidebar-module", "memos");
+    expect(calendarOption).toHaveAttribute("data-sidebar-module", "calendar");
+    expect(pomodoroOption).toHaveAttribute("data-sidebar-module", "pomodoro");
+    expect(screen.getByLabelText("拖动排序 待办事项")).toBeInTheDocument();
+    expect(screen.getByLabelText("拖动排序 备忘录")).toBeInTheDocument();
   });
 
   it("shows font settings in theme configuration", () => {

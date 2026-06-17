@@ -63,6 +63,8 @@ model User {
   passwordResetTokens PasswordResetToken[]
   themePreference    UserThemePreference?
   pomodoroSessions   PomodoroSession[]
+  memos              Memo[]
+  memoAssets         MemoAsset[]
 }
 
 model EmailVerificationToken {
@@ -187,6 +189,42 @@ model PomodoroSession {
   @@index([taskId, status])
 }
 
+model Memo {
+  id              String      @id @default(cuid())
+  userId          String
+  title           String
+  contentHtml     String      @db.MediumText
+  excerpt         String?     @db.VarChar(500)
+  isPinned        Boolean     @default(false)
+  archivedAt      DateTime?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assets          MemoAsset[]
+
+  @@index([userId, isPinned])
+  @@index([userId, updatedAt])
+  @@index([userId, archivedAt])
+}
+
+model MemoAsset {
+  id        String   @id @default(cuid())
+  memoId    String
+  userId    String
+  filename  String
+  mimeType  String
+  sizeBytes Int
+  width     Int?
+  height    Int?
+  path      String
+  createdAt DateTime @default(now())
+  memo      Memo     @relation(fields: [memoId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([memoId])
+  @@index([userId])
+}
+
 model UserThemePreference {
   userId             String   @id
   themeId            String   @default("default")
@@ -198,6 +236,8 @@ model UserThemePreference {
   taskCardDisplayMode String   @default("full")
   appCloseBehavior   String   @default("hide")
   displaySize        String   @default("default")
+  visibleSidebarModules String @default("tasks,memos,calendar,pomodoro")
+  sidebarCollapsed   Boolean  @default(false)
   fontFamily         String   @default("system")
   updatedAt          DateTime @updatedAt
   user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)

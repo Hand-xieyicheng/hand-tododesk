@@ -25,6 +25,8 @@ const currentPreference = {
   taskCardDisplayMode: "full",
   appCloseBehavior: "hide",
   displaySize: "default",
+  visibleSidebarModules: "tasks,memos,calendar,pomodoro",
+  sidebarCollapsed: 0,
   fontFamily: "system"
 };
 
@@ -56,7 +58,9 @@ describe("preference routes", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
       taskCardDisplayMode: "full",
-      appCloseBehavior: "hide"
+      appCloseBehavior: "hide",
+      visibleSidebarModules: ["tasks", "memos", "calendar", "pomodoro"],
+      sidebarCollapsed: false
     });
   });
 
@@ -80,6 +84,8 @@ describe("preference routes", () => {
       "title",
       "hide",
       "default",
+      "tasks,memos,calendar,pomodoro",
+      false,
       "system"
     ]);
   });
@@ -115,6 +121,8 @@ describe("preference routes", () => {
       "full",
       "hide",
       "default",
+      "tasks,memos,calendar,pomodoro",
+      false,
       "lemi-chunxu-wanxing"
     ]);
   });
@@ -150,6 +158,8 @@ describe("preference routes", () => {
       "full",
       "quit",
       "default",
+      "tasks,memos,calendar,pomodoro",
+      false,
       "system"
     ]);
   });
@@ -163,5 +173,83 @@ describe("preference routes", () => {
     expect(response.json()).toMatchObject({
       appCloseBehavior: "hide"
     });
+  });
+
+  it("saves sidebar collapsed state", async () => {
+    db.queryOne.mockResolvedValue(currentPreference);
+
+    const response = await injectPreference("PUT", { sidebarCollapsed: true });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      sidebarCollapsed: true
+    });
+    expect(db.execute).toHaveBeenLastCalledWith(expect.stringContaining("sidebarCollapsed"), [
+      "user-1",
+      "shinchan",
+      "app-teal",
+      true,
+      "sea",
+      true,
+      "list",
+      "full",
+      "hide",
+      "default",
+      "tasks,memos,calendar,pomodoro",
+      true,
+      "system"
+    ]);
+  });
+
+  it("saves selected sidebar modules", async () => {
+    db.queryOne.mockResolvedValue(currentPreference);
+
+    const response = await injectPreference("PUT", { visibleSidebarModules: ["memos", "tasks"] });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      visibleSidebarModules: ["memos", "tasks"]
+    });
+    expect(db.execute).toHaveBeenLastCalledWith(expect.stringContaining("visibleSidebarModules"), [
+      "user-1",
+      "shinchan",
+      "app-teal",
+      true,
+      "sea",
+      true,
+      "list",
+      "full",
+      "hide",
+      "default",
+      "memos,tasks",
+      false,
+      "system"
+    ]);
+  });
+
+  it("allows hiding every sidebar module", async () => {
+    db.queryOne.mockResolvedValue(currentPreference);
+
+    const response = await injectPreference("PUT", { visibleSidebarModules: [] });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      visibleSidebarModules: []
+    });
+    expect(db.execute).toHaveBeenLastCalledWith(expect.stringContaining("visibleSidebarModules"), [
+      "user-1",
+      "shinchan",
+      "app-teal",
+      true,
+      "sea",
+      true,
+      "list",
+      "full",
+      "hide",
+      "default",
+      "",
+      false,
+      "system"
+    ]);
   });
 });

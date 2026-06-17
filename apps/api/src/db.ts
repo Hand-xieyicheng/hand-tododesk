@@ -141,8 +141,60 @@ async function ensureTaskPrioritySchema() {
   );
 }
 
+async function ensureMemoSchema() {
+  await execute(
+    `CREATE TABLE IF NOT EXISTS \`Memo\` (
+      \`id\` VARCHAR(191) NOT NULL,
+      \`userId\` VARCHAR(191) NOT NULL,
+      \`title\` VARCHAR(191) NOT NULL,
+      \`contentHtml\` MEDIUMTEXT NOT NULL,
+      \`excerpt\` VARCHAR(500) NULL,
+      \`isPinned\` BOOLEAN NOT NULL DEFAULT FALSE,
+      \`archivedAt\` DATETIME(3) NULL,
+      \`createdAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+      \`updatedAt\` DATETIME(3) NOT NULL,
+      PRIMARY KEY (\`id\`),
+      INDEX \`Memo_userId_isPinned_idx\` (\`userId\`, \`isPinned\`),
+      INDEX \`Memo_userId_updatedAt_idx\` (\`userId\`, \`updatedAt\`),
+      INDEX \`Memo_userId_archivedAt_idx\` (\`userId\`, \`archivedAt\`),
+      CONSTRAINT \`Memo_userId_fkey\` FOREIGN KEY (\`userId\`) REFERENCES \`User\`(\`id\`) ON DELETE CASCADE ON UPDATE CASCADE
+    ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`
+  );
+
+  const contentHtmlColumn = await columnExists("Memo", "contentHtml");
+  const contentMarkdownColumn = await columnExists("Memo", "contentMarkdown");
+  if (!contentHtmlColumn && contentMarkdownColumn) {
+    await execute("ALTER TABLE `Memo` CHANGE COLUMN `contentMarkdown` `contentHtml` MEDIUMTEXT NOT NULL");
+  } else if (!contentHtmlColumn) {
+    await execute("ALTER TABLE `Memo` ADD COLUMN `contentHtml` MEDIUMTEXT NULL");
+    await execute("UPDATE `Memo` SET `contentHtml` = '' WHERE `contentHtml` IS NULL");
+    await execute("ALTER TABLE `Memo` MODIFY COLUMN `contentHtml` MEDIUMTEXT NOT NULL");
+  }
+
+  await execute(
+    `CREATE TABLE IF NOT EXISTS \`MemoAsset\` (
+      \`id\` VARCHAR(191) NOT NULL,
+      \`memoId\` VARCHAR(191) NOT NULL,
+      \`userId\` VARCHAR(191) NOT NULL,
+      \`filename\` VARCHAR(191) NOT NULL,
+      \`mimeType\` VARCHAR(191) NOT NULL,
+      \`sizeBytes\` INTEGER NOT NULL,
+      \`width\` INTEGER NULL,
+      \`height\` INTEGER NULL,
+      \`path\` VARCHAR(255) NOT NULL,
+      \`createdAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+      PRIMARY KEY (\`id\`),
+      INDEX \`MemoAsset_memoId_idx\` (\`memoId\`),
+      INDEX \`MemoAsset_userId_idx\` (\`userId\`),
+      CONSTRAINT \`MemoAsset_memoId_fkey\` FOREIGN KEY (\`memoId\`) REFERENCES \`Memo\`(\`id\`) ON DELETE CASCADE ON UPDATE CASCADE,
+      CONSTRAINT \`MemoAsset_userId_fkey\` FOREIGN KEY (\`userId\`) REFERENCES \`User\`(\`id\`) ON DELETE CASCADE ON UPDATE CASCADE
+    ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`
+  );
+}
+
 async function ensureIncrementalSchema() {
   await ensureTaskPrioritySchema();
+  await ensureMemoSchema();
   await ensureColumn("User", "gender", "ALTER TABLE `User` ADD COLUMN `gender` ENUM('PRIVATE', 'MALE', 'FEMALE', 'OTHER') NOT NULL DEFAULT 'PRIVATE'");
   await ensureColumn("User", "avatarPath", "ALTER TABLE `User` ADD COLUMN `avatarPath` VARCHAR(191) NULL");
   await ensureColumn("UserThemePreference", "titleColor", "ALTER TABLE `UserThemePreference` ADD COLUMN `titleColor` VARCHAR(191) NOT NULL DEFAULT 'app-teal'");
@@ -153,6 +205,8 @@ async function ensureIncrementalSchema() {
   await ensureColumn("UserThemePreference", "taskCardDisplayMode", "ALTER TABLE `UserThemePreference` ADD COLUMN `taskCardDisplayMode` VARCHAR(191) NOT NULL DEFAULT 'full'");
   await ensureColumn("UserThemePreference", "appCloseBehavior", "ALTER TABLE `UserThemePreference` ADD COLUMN `appCloseBehavior` VARCHAR(191) NOT NULL DEFAULT 'hide'");
   await ensureColumn("UserThemePreference", "displaySize", "ALTER TABLE `UserThemePreference` ADD COLUMN `displaySize` VARCHAR(191) NOT NULL DEFAULT 'default'");
+  await ensureColumn("UserThemePreference", "visibleSidebarModules", "ALTER TABLE `UserThemePreference` ADD COLUMN `visibleSidebarModules` VARCHAR(191) NOT NULL DEFAULT 'tasks,memos,calendar,pomodoro'");
+  await ensureColumn("UserThemePreference", "sidebarCollapsed", "ALTER TABLE `UserThemePreference` ADD COLUMN `sidebarCollapsed` BOOLEAN NOT NULL DEFAULT FALSE");
   await ensureColumn("UserThemePreference", "fontFamily", "ALTER TABLE `UserThemePreference` ADD COLUMN `fontFamily` VARCHAR(191) NOT NULL DEFAULT 'system'");
 }
 

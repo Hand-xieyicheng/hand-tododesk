@@ -49,6 +49,8 @@ export const taskViewModeValues = ["list", "quadrant"] as const;
 export const taskCardDisplayModeValues = ["full", "title"] as const;
 export const appCloseBehaviorValues = ["hide", "quit"] as const;
 export const displaySizeValues = ["small", "default", "large"] as const;
+export const sidebarModuleValues = ["tasks", "memos", "calendar", "pomodoro"] as const;
+export const defaultVisibleSidebarModules = [...sidebarModuleValues] as Array<(typeof sidebarModuleValues)[number]>;
 export const fontFamilyValues = [
   "system",
   "lemi-chunxu-wanxing",
@@ -76,6 +78,33 @@ export const titleColorValues = [
   "warm-peach-pink"
 ] as const;
 export const userGenderValues = ["PRIVATE", "MALE", "FEMALE", "OTHER"] as const;
+
+export const memoListQuerySchema = z.object({
+  query: z.string().trim().max(100).optional().default(""),
+  archived: z.enum(["true", "false"]).optional().default("false")
+});
+
+export const createMemoRequestSchema = z.object({
+  title: z.string().trim().max(160).optional(),
+  contentHtml: z.string().max(500000).optional(),
+  isPinned: z.boolean().optional()
+});
+
+export const updateMemoRequestSchema = z
+  .object({
+    title: z.string().trim().max(160).optional(),
+    contentHtml: z.string().max(500000).optional(),
+    isPinned: z.boolean().optional(),
+    archived: z.boolean().optional()
+  })
+  .refine((value) => (
+    value.title !== undefined ||
+    value.contentHtml !== undefined ||
+    value.isPinned !== undefined ||
+    value.archived !== undefined
+  ), {
+    message: "Memo update is required"
+  });
 
 export const recurrenceRuleSchema = z.object({
   frequency: z.enum(recurrenceFrequencyValues),
@@ -125,6 +154,8 @@ export const updateThemePreferenceRequestSchema = z
     taskCardDisplayMode: z.enum(taskCardDisplayModeValues).optional(),
     appCloseBehavior: z.enum(appCloseBehaviorValues).optional(),
     displaySize: z.enum(displaySizeValues).optional(),
+    visibleSidebarModules: z.array(z.enum(sidebarModuleValues)).optional(),
+    sidebarCollapsed: z.boolean().optional(),
     fontFamily: z.enum(fontFamilyValues).optional()
   })
   .refine((value) => (
@@ -137,6 +168,8 @@ export const updateThemePreferenceRequestSchema = z
     value.taskCardDisplayMode ||
     value.appCloseBehavior ||
     value.displaySize ||
+    value.visibleSidebarModules !== undefined ||
+    value.sidebarCollapsed !== undefined ||
     value.fontFamily
   ), {
     message: "Appearance preference is required"
@@ -189,6 +222,9 @@ export type UpdateProfileRequest = z.infer<typeof updateProfileRequestSchema>;
 export type ChangeEmailRequest = z.infer<typeof changeEmailRequestSchema>;
 export type ChangePasswordRequest = z.infer<typeof changePasswordRequestSchema>;
 export type UpdateThemePreferenceRequest = z.infer<typeof updateThemePreferenceRequestSchema>;
+export type MemoListQuery = z.infer<typeof memoListQuerySchema>;
+export type CreateMemoRequest = z.infer<typeof createMemoRequestSchema>;
+export type UpdateMemoRequest = z.infer<typeof updateMemoRequestSchema>;
 export type CreateTaskRequest = z.infer<typeof createTaskRequestSchema>;
 export type UpdateTaskRequest = z.infer<typeof updateTaskRequestSchema>;
 export type RecurrenceRuleInput = z.infer<typeof recurrenceRuleSchema>;
@@ -200,6 +236,7 @@ export type TaskViewMode = (typeof taskViewModeValues)[number];
 export type TaskCardDisplayMode = (typeof taskCardDisplayModeValues)[number];
 export type AppCloseBehavior = (typeof appCloseBehaviorValues)[number];
 export type DisplaySize = (typeof displaySizeValues)[number];
+export type SidebarModule = (typeof sidebarModuleValues)[number];
 export type FontFamily = (typeof fontFamilyValues)[number];
 export type ReleaseChannel = (typeof releaseChannelValues)[number];
 export type ThemeId = (typeof themeIdValues)[number];
@@ -220,6 +257,8 @@ export interface ApiThemePreference {
   taskCardDisplayMode: TaskCardDisplayMode;
   appCloseBehavior: AppCloseBehavior;
   displaySize: DisplaySize;
+  visibleSidebarModules: SidebarModule[];
+  sidebarCollapsed: boolean;
   fontFamily: FontFamily;
 }
 
@@ -241,6 +280,33 @@ export interface ApiUser {
 export interface ApiTag {
   id: string;
   name: string;
+}
+
+export interface ApiMemoAsset {
+  id: string;
+  memoId: string;
+  filename: string;
+  mimeType: string;
+  sizeBytes: number;
+  width: number | null;
+  height: number | null;
+  url: string;
+  createdAt: string;
+}
+
+export interface ApiMemoListItem {
+  id: string;
+  title: string;
+  excerpt: string | null;
+  isPinned: boolean;
+  archivedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ApiMemo extends ApiMemoListItem {
+  contentHtml: string;
+  assets: ApiMemoAsset[];
 }
 
 export interface ApiTask {

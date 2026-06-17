@@ -1,12 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CSSProperties, PointerEvent } from "react";
-import { defaultAppFeatureFlags, type ApiTask, type ApiThemePreference, type ApiUser, type AppBootstrapResponse, type AppCloseBehavior, type AppFeatureFlags, type DisplaySize, type FontFamily, type FooterType as AppFooterType, type TaskCardDisplayMode, type TaskViewMode, type ThemeId, type TitleColor } from "@todo/shared";
+import { defaultAppFeatureFlags, defaultVisibleSidebarModules, type ApiTask, type ApiThemePreference, type ApiUser, type AppBootstrapResponse, type AppCloseBehavior, type AppFeatureFlags, type DisplaySize, type FontFamily, type FooterType as AppFooterType, type SidebarModule, type TaskCardDisplayMode, type TaskViewMode, type ThemeId, type TitleColor } from "@todo/shared";
 import { Button, Footer, Loading, Title, Tooltip } from "animal-island-ui";
 import type { TitleSize } from "animal-island-ui";
-import { Bell, CalendarDays, CheckSquare2, Clock3, Eye, EyeOff, LayoutGrid, ListTodo, LogOut, Pin, Plus, UserRound } from "lucide-react";
+import { Bell, CalendarDays, CheckSquare2, Clock3, Eye, EyeOff, LayoutGrid, ListTodo, LogOut, NotebookPen, PanelLeftOpen, Pin, Plus, UserRound } from "lucide-react";
+import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { api, ApiError, authSessionExpiredEvent } from "./api/client";
 import { AuthView } from "./components/AuthView";
 import { CalendarView } from "./components/CalendarView";
+import { MemoPanel } from "./components/MemoPanel";
 import { PomodoroView } from "./components/PomodoroView";
 import { ProfileCenter } from "./components/ProfileCenter";
 import { TaskPanel } from "./components/TaskPanel";
@@ -18,10 +20,19 @@ import { clearSession, getSavedUser, saveUser } from "./lib/authStorage";
 import { useAppUpdater } from "./lib/useAppUpdater";
 import { compareVersions } from "./lib/version";
 
-type View = "tasks" | "calendar" | "pomodoro" | "profile";
+type View = SidebarModule | "profile";
 
-const navItems: Array<{ id: View; label: string; icon: typeof CheckSquare2 }> = [
+const viewRoutes: Record<View, string> = {
+  tasks: "/tasks",
+  memos: "/memos",
+  calendar: "/calendar",
+  pomodoro: "/pomodoro",
+  profile: "/profile"
+};
+
+const navItems: Array<{ id: SidebarModule; label: string; icon: typeof CheckSquare2 }> = [
   { id: "tasks", label: "待办事项", icon: CheckSquare2 },
+  { id: "memos", label: "备忘录", icon: NotebookPen },
   { id: "calendar", label: "日历", icon: CalendarDays },
   { id: "pomodoro", label: "番茄时钟", icon: Clock3 }
 ];
@@ -42,6 +53,8 @@ const defaultThemePreference: ApiThemePreference = {
   taskCardDisplayMode: "full",
   appCloseBehavior: "hide",
   displaySize: "default",
+  visibleSidebarModules: defaultVisibleSidebarModules,
+  sidebarCollapsed: false,
   fontFamily: "system"
 };
 
@@ -64,6 +77,27 @@ function isDragIgnoredTarget(target: EventTarget | null) {
   return target instanceof Element && Boolean(target.closest(dragIgnoredTargetSelector));
 }
 
+function getSavedSidebarCollapsed() {
+  return localStorage.getItem("tododesk.sidebarCollapsed") === "true";
+}
+
+function viewFromPathname(pathname: string): View {
+  const normalizedPathname = pathname.replace(/\/+$/, "") || "/";
+  if (normalizedPathname === viewRoutes.calendar) {
+    return "calendar";
+  }
+  if (normalizedPathname === viewRoutes.memos) {
+    return "memos";
+  }
+  if (normalizedPathname === viewRoutes.pomodoro) {
+    return "pomodoro";
+  }
+  if (normalizedPathname === viewRoutes.profile) {
+    return "profile";
+  }
+  return "tasks";
+}
+
 async function startWindowDrag(event: PointerEvent<HTMLElement>) {
   if (event.button !== 0 || isDragIgnoredTarget(event.target)) {
     return;
@@ -79,10 +113,11 @@ async function startWindowDrag(event: PointerEvent<HTMLElement>) {
 }
 
 export function App() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [user, setUser] = useState<ApiUser | null>(() => getSavedUser());
   const [tasks, setTasks] = useState<ApiTask[]>([]);
   const [appBootstrap, setAppBootstrap] = useState<AppBootstrapResponse | null>(null);
-  const [activeView, setActiveView] = useState<View>("tasks");
   const [taskViewMode, setTaskViewMode] = useState<TaskViewMode>("list");
   const [taskCreateOpen, setTaskCreateOpen] = useState(false);
   const [themeId, setThemeId] = useState<ThemeId>("default");
@@ -93,6 +128,8 @@ export function App() {
   const [taskCardDisplayMode, setTaskCardDisplayMode] = useState<TaskCardDisplayMode>("full");
   const [appCloseBehavior, setAppCloseBehavior] = useState<AppCloseBehavior>("hide");
   const [displaySize, setDisplaySize] = useState<DisplaySize>(() => normalizeDisplaySize(localStorage.getItem("tododesk.displaySize")));
+  const [visibleSidebarModules, setVisibleSidebarModules] = useState<SidebarModule[]>(defaultVisibleSidebarModules);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => getSavedSidebarCollapsed());
   const [fontFamily, setFontFamily] = useState<FontFamily>(() => normalizeFontFamily(localStorage.getItem("tododesk.fontFamily")));
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
@@ -100,25 +137,46 @@ export function App() {
   const [showEntryLoading, setShowEntryLoading] = useState(false);
   const updater = useAppUpdater();
 
+  const activeView = viewFromPathname(location.pathname);
   const featureFlags: AppFeatureFlags = appBootstrap?.featureFlags ?? defaultAppFeatureFlags;
-  const visibleNavItems = useMemo(() => navItems.filter((item) => (
+  const availableNavItems = useMemo(() => navItems.filter((item) => (
     (item.id !== "calendar" || featureFlags.calendar) &&
     (item.id !== "pomodoro" || featureFlags.pomodoro)
   )), [featureFlags.calendar, featureFlags.pomodoro]);
+  const visibleNavItems = useMemo(() => {
+    const availableItemMap = new Map(availableNavItems.map((item) => [item.id, item]));
+    return visibleSidebarModules
+      .map((module) => availableItemMap.get(module))
+      .filter((item): item is typeof availableNavItems[number] => Boolean(item));
+  }, [availableNavItems, visibleSidebarModules]);
+  const sidebarModuleOptions = useMemo(() => (
+    availableNavItems.map((item) => ({ id: item.id, label: item.label }))
+  ), [availableNavItems]);
   const openTasks = useMemo(() => tasks.filter((task) => task.status !== "COMPLETED"), [tasks]);
   const userDisplayName = user?.name || user?.email || "";
   const userInitial = userDisplayName.trim().slice(0, 1).toUpperCase();
-  const viewTitle = activeView === "tasks" ? "待办事项" : activeView === "calendar" ? "日历模式" : activeView === "pomodoro" ? "番茄时钟" : "个人中心";
+  const viewTitle = activeView === "tasks"
+    ? "待办事项"
+    : activeView === "memos"
+      ? "备忘录"
+      : activeView === "calendar"
+        ? "日历模式"
+        : activeView === "pomodoro" ? "番茄时钟" : "个人中心";
   const viewTitleSize = viewTitleSizes[displaySize];
   const workspaceStyle = {
     "--workspace-footer-height": footerVisible ? (footerType === "sea" ? "var(--app-footer-height-sea)" : "var(--app-footer-height-tree)") : "0px",
     "--workspace-footer-gap": footerVisible ? "var(--app-footer-gap)" : "0px"
   } as CSSProperties;
   const showCompletedTasksAction = showCompletedTasks ? "隐藏已完成事项" : "显示已完成事项";
+  const sidebarToggleAction = sidebarCollapsed ? "展开侧边栏" : "收起侧边栏";
   const updateRequired = appBootstrap ? compareVersions(updater.currentVersion, appBootstrap.desktop.minimumVersion) < 0 : false;
   const forcedUpdateMessage = updateRequired
     ? `当前版本 ${updater.currentVersion} 低于最低支持版本 ${appBootstrap?.desktop.minimumVersion}，请尽快更新。`
     : "";
+
+  const navigateToView = useCallback((view: View, replace = false) => {
+    navigate(viewRoutes[view], { replace });
+  }, [navigate]);
 
   function applyThemePreference(preference: ApiThemePreference) {
     const nextDisplaySize = normalizeDisplaySize(preference.displaySize);
@@ -133,9 +191,12 @@ export function App() {
     setTaskCardDisplayMode(preference.taskCardDisplayMode);
     setAppCloseBehavior(preference.appCloseBehavior);
     setDisplaySize(nextDisplaySize);
+    setVisibleSidebarModules(preference.visibleSidebarModules ?? defaultVisibleSidebarModules);
+    setSidebarCollapsed(preference.sidebarCollapsed ?? false);
     setFontFamily(nextFontFamily);
     localStorage.setItem("tododesk.theme", preference.themeId);
     localStorage.setItem("tododesk.displaySize", nextDisplaySize);
+    localStorage.setItem("tododesk.sidebarCollapsed", String(preference.sidebarCollapsed ?? false));
     localStorage.setItem("tododesk.fontFamily", nextFontFamily);
     applyTheme(preference.themeId);
     applyDisplaySize(nextDisplaySize);
@@ -202,7 +263,7 @@ export function App() {
     function handleSessionExpired() {
       setUser(null);
       setTasks([]);
-      setActiveView("tasks");
+      navigateToView("tasks", true);
       setMessage("");
       setLoading(false);
       setEntryLoading(false);
@@ -210,7 +271,7 @@ export function App() {
 
     window.addEventListener(authSessionExpiredEvent, handleSessionExpired);
     return () => window.removeEventListener(authSessionExpiredEvent, handleSessionExpired);
-  }, []);
+  }, [navigateToView]);
 
   useEffect(() => {
     let cancelled = false;
@@ -239,9 +300,9 @@ export function App() {
 
   useEffect(() => {
     if ((activeView === "calendar" && !featureFlags.calendar) || (activeView === "pomodoro" && !featureFlags.pomodoro)) {
-      setActiveView("tasks");
+      navigateToView("tasks", true);
     }
-  }, [activeView, featureFlags.calendar, featureFlags.pomodoro]);
+  }, [activeView, featureFlags.calendar, featureFlags.pomodoro, navigateToView]);
 
   useEffect(() => {
     if (!featureFlags.taskQuadrant && taskViewMode === "quadrant") {
@@ -296,14 +357,14 @@ export function App() {
   async function handleAuthed(nextUser: ApiUser) {
     saveUser(nextUser);
     setUser(nextUser);
-    setActiveView("tasks");
+    navigateToView("tasks", true);
   }
 
   async function handleLogout() {
     await api.logout();
     setUser(null);
     setTasks([]);
-    setActiveView("tasks");
+    navigateToView("tasks", true);
   }
 
   function handleUserChanged(nextUser: ApiUser) {
@@ -314,7 +375,7 @@ export function App() {
   function handlePasswordChanged() {
     setUser(null);
     setTasks([]);
-    setActiveView("tasks");
+    navigateToView("tasks", true);
   }
 
   function handleThemeChanged(next: ThemeId) {
@@ -392,6 +453,26 @@ export function App() {
     });
   }
 
+  function handleVisibleSidebarModulesChanged(next: SidebarModule[]) {
+    const previous = visibleSidebarModules;
+    setVisibleSidebarModules(next);
+    void api.setThemePreference({ visibleSidebarModules: next }).catch((error) => {
+      setVisibleSidebarModules(previous);
+      setMessage(error instanceof Error ? error.message : "显示模块配置保存失败");
+    });
+  }
+
+  function handleSidebarCollapsedChanged(next: boolean) {
+    const previous = sidebarCollapsed;
+    setSidebarCollapsed(next);
+    localStorage.setItem("tododesk.sidebarCollapsed", String(next));
+    void api.setThemePreference({ sidebarCollapsed: next }).catch((error) => {
+      setSidebarCollapsed(previous);
+      localStorage.setItem("tododesk.sidebarCollapsed", String(previous));
+      setMessage(error instanceof Error ? error.message : "侧边栏配置保存失败");
+    });
+  }
+
   function handleFontFamilyChanged(next: FontFamily) {
     const previous = fontFamily;
     const normalized = applyFontFamily(next);
@@ -420,8 +501,28 @@ export function App() {
     return <AuthView onAuthed={handleAuthed} />;
   }
 
+  const sidebarToggleButton = (
+    <button
+      aria-expanded={!sidebarCollapsed}
+      aria-label={sidebarToggleAction}
+      className="sidebar-collapse-button"
+      type="button"
+      onClick={() => handleSidebarCollapsedChanged(!sidebarCollapsed)}
+    >
+      {sidebarCollapsed ? (
+        <PanelLeftOpen size={16} />
+      ) : (
+        <span className="sidebar-collapse-caret" aria-hidden="true">
+          <svg viewBox="0 0 20 24" focusable="false">
+            <path d="M4.32 10.07 15.22 3.7c1.67-.98 3.78.23 3.78 2.17v12.26c0 1.94-2.11 3.15-3.78 2.17L4.32 13.93c-1.49-.87-1.49-2.99 0-3.86Z" />
+          </svg>
+        </span>
+      )}
+    </button>
+  );
+
   return (
-    <div className="app-shell">
+    <div className={sidebarCollapsed ? "app-shell is-sidebar-collapsed" : "app-shell"}>
       <div
         aria-hidden="true"
         className="window-drag-strip"
@@ -430,6 +531,13 @@ export function App() {
       />
       <aside className="sidebar">
         <div className="brand-block app-brand app-drag-region" onPointerDown={startWindowDrag}>
+          {sidebarCollapsed ? (
+            <span className="sidebar-collapse-tooltip">{sidebarToggleButton}</span>
+          ) : (
+            <Tooltip className="sidebar-collapse-tooltip" placement="right" title={sidebarToggleAction} trigger="hover" variant="default">
+              {sidebarToggleButton}
+            </Tooltip>
+          )}
           <img className="brand-logo sidebar-brand-logo" src={todoDeskLogo} alt="todoDesk" />
         </div>
 
@@ -437,13 +545,13 @@ export function App() {
           {visibleNavItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeView === item.id;
-            return (
+            const button = (
               <Button
-                key={item.id}
                 block
+                aria-label={item.label}
                 aria-current={isActive ? "page" : undefined}
                 className={isActive ? "nav-button is-active" : "nav-button"}
-                onClick={() => setActiveView(item.id)}
+                onClick={() => navigateToView(item.id)}
                 type="text"
               >
                 <span className="nav-button-icon" aria-hidden="true">
@@ -452,12 +560,19 @@ export function App() {
                 <span className="nav-button-label">{item.label}</span>
               </Button>
             );
+            return sidebarCollapsed ? (
+              <Tooltip className="sidebar-nav-tooltip" key={item.id} placement="right" title={item.label} trigger="hover" variant="default">
+                <span className="sidebar-tooltip-target">{button}</span>
+              </Tooltip>
+            ) : (
+              <span className="sidebar-tooltip-target" key={item.id}>{button}</span>
+            );
           })}
         </nav>
 
         <div className="sidebar-footer">
           <div className="user-menu">
-            <button className={activeView === "profile" ? "sidebar-user-card is-active" : "sidebar-user-card"} type="button" aria-haspopup="menu" onClick={() => setActiveView("profile")}>
+            <button className={activeView === "profile" ? "sidebar-user-card is-active" : "sidebar-user-card"} type="button" aria-haspopup="menu" aria-label={`打开个人中心：${userDisplayName}`} title={sidebarCollapsed ? userDisplayName : undefined} onClick={() => navigateToView("profile")}>
               <span className="sidebar-user-avatar">
                 {user.avatarUrl ? <img src={user.avatarUrl} alt={userDisplayName} /> : <span>{userInitial}</span>}
               </span>
@@ -467,7 +582,7 @@ export function App() {
               </span>
             </button>
             <div className="user-menu-panel" role="menu">
-              <Button className="ghost-button" icon={<UserRound size={16} />} type="default" onClick={() => setActiveView("profile")}>
+              <Button className="ghost-button" icon={<UserRound size={16} />} type="default" onClick={() => navigateToView("profile")}>
                 个人中心
               </Button>
               {featureFlags.floatingCard ? (
@@ -498,7 +613,9 @@ export function App() {
             </Title>
           </div>
           <div className="topbar-actions">
-            <span className="status-pill"><Bell size={14} /> {openTasks.length} 个未完成</span>
+            {activeView === "tasks" || activeView === "calendar" || activeView === "pomodoro" ? (
+              <span className="status-pill"><Bell size={14} /> {openTasks.length} 个未完成</span>
+            ) : null}
             {activeView === "tasks" ? (
               <>
                 <Tooltip className="task-completion-toggle-tooltip" placement="bottom" title={showCompletedTasksAction} trigger="hover" variant="default">
@@ -547,48 +664,64 @@ export function App() {
         {message ? <div className="inline-alert">{message}</div> : null}
         {loading && !entryLoading ? <div className="inline-muted">加载中...</div> : null}
 
-        {activeView === "tasks" ? (
-          <TaskPanel
-            createOpen={taskCreateOpen}
-            showCompletedTasks={showCompletedTasks}
-            taskCardDisplayMode={taskCardDisplayMode}
-            tasks={tasks}
-            viewMode={featureFlags.taskQuadrant ? taskViewMode : "list"}
-            onChanged={loadAppData}
-            onCreateOpenChange={setTaskCreateOpen}
+        <Routes>
+          <Route path="/" element={<Navigate to={viewRoutes.tasks} replace />} />
+          <Route
+            path={viewRoutes.tasks}
+            element={(
+              <TaskPanel
+                createOpen={taskCreateOpen}
+                showCompletedTasks={showCompletedTasks}
+                taskCardDisplayMode={taskCardDisplayMode}
+                tasks={tasks}
+                viewMode={featureFlags.taskQuadrant ? taskViewMode : "list"}
+                onChanged={loadAppData}
+                onCreateOpenChange={setTaskCreateOpen}
+              />
+            )}
           />
-        ) : null}
-        {activeView === "calendar" && featureFlags.calendar ? (
-          <CalendarView onChanged={loadAppData} />
-        ) : null}
-        {activeView === "pomodoro" && featureFlags.pomodoro ? (
-          <PomodoroView tasks={openTasks} onChanged={loadAppData} />
-        ) : null}
-        {activeView === "profile" ? (
-          <ProfileCenter
-            user={user}
-            footerType={footerType}
-            footerVisible={footerVisible}
-            appCloseBehavior={appCloseBehavior}
-            displaySize={displaySize}
-            fontFamily={fontFamily}
-            themeId={themeId}
-            titleColor={titleColor}
-            onDisplaySizeChanged={handleDisplaySizeChanged}
-            onFontFamilyChanged={handleFontFamilyChanged}
-            onFooterTypeChanged={handleFooterTypeChanged}
-            onFooterVisibleChanged={handleFooterVisibleChanged}
-            onAppCloseBehaviorChanged={handleAppCloseBehaviorChanged}
-            onPasswordChanged={handlePasswordChanged}
-            onTaskCardDisplayModeChanged={handleTaskCardDisplayModeChanged}
-            onTitleColorChanged={handleTitleColorChanged}
-            onThemeChanged={handleThemeChanged}
-            onUserChanged={handleUserChanged}
-            appBootstrap={appBootstrap}
-            taskCardDisplayMode={taskCardDisplayMode}
-            updater={updater}
+          <Route path={viewRoutes.memos} element={<MemoPanel />} />
+          <Route
+            path={viewRoutes.calendar}
+            element={featureFlags.calendar ? <CalendarView onChanged={loadAppData} /> : <Navigate to={viewRoutes.tasks} replace />}
           />
-        ) : null}
+          <Route
+            path={viewRoutes.pomodoro}
+            element={featureFlags.pomodoro ? <PomodoroView tasks={openTasks} onChanged={loadAppData} /> : <Navigate to={viewRoutes.tasks} replace />}
+          />
+          <Route
+            path={viewRoutes.profile}
+            element={(
+              <ProfileCenter
+                user={user}
+                footerType={footerType}
+                footerVisible={footerVisible}
+                appCloseBehavior={appCloseBehavior}
+                displaySize={displaySize}
+                fontFamily={fontFamily}
+                sidebarModuleOptions={sidebarModuleOptions}
+                themeId={themeId}
+                titleColor={titleColor}
+                visibleSidebarModules={visibleSidebarModules}
+                onDisplaySizeChanged={handleDisplaySizeChanged}
+                onFontFamilyChanged={handleFontFamilyChanged}
+                onFooterTypeChanged={handleFooterTypeChanged}
+                onFooterVisibleChanged={handleFooterVisibleChanged}
+                onAppCloseBehaviorChanged={handleAppCloseBehaviorChanged}
+                onPasswordChanged={handlePasswordChanged}
+                onTaskCardDisplayModeChanged={handleTaskCardDisplayModeChanged}
+                onTitleColorChanged={handleTitleColorChanged}
+                onThemeChanged={handleThemeChanged}
+                onUserChanged={handleUserChanged}
+                onVisibleSidebarModulesChanged={handleVisibleSidebarModulesChanged}
+                appBootstrap={appBootstrap}
+                taskCardDisplayMode={taskCardDisplayMode}
+                updater={updater}
+              />
+            )}
+          />
+          <Route path="*" element={<Navigate to={viewRoutes.tasks} replace />} />
+        </Routes>
         {footerVisible ? (
           <div className="workspace-footer-decoration" aria-hidden="true">
             <Footer

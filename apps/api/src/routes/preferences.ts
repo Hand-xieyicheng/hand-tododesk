@@ -1,14 +1,17 @@
 import type { FastifyInstance } from "fastify";
 import {
   appCloseBehaviorValues,
+  defaultVisibleSidebarModules,
   displaySizeValues,
   fontFamilyValues,
+  sidebarModuleValues,
   taskCardDisplayModeValues,
   taskViewModeValues,
   updateThemePreferenceRequestSchema,
   type AppCloseBehavior,
   type DisplaySize,
   type FontFamily,
+  type SidebarModule,
   type TaskCardDisplayMode,
   type TaskViewMode
 } from "@todo/shared";
@@ -24,6 +27,8 @@ type ThemePreferenceRow = DbRow & {
   taskCardDisplayMode: string;
   appCloseBehavior: string;
   displaySize: string;
+  visibleSidebarModules: string | null;
+  sidebarCollapsed: boolean | number;
   fontFamily: string;
 };
 
@@ -37,6 +42,8 @@ const defaultTaskCardDisplayMode: TaskCardDisplayMode = "full";
 const defaultAppCloseBehavior: AppCloseBehavior = "hide";
 const defaultDisplaySize: DisplaySize = "default";
 const defaultFontFamily: FontFamily = "system";
+const defaultSidebarCollapsed = false;
+const defaultVisibleSidebarModuleValue = defaultVisibleSidebarModules.join(",");
 
 function booleanFromDb(value: boolean | number | null | undefined, fallback: boolean) {
   if (value === undefined || value === null) {
@@ -65,10 +72,34 @@ function appCloseBehaviorFromDb(value: string | null | undefined) {
   return appCloseBehaviorValues.includes(value as AppCloseBehavior) ? value as AppCloseBehavior : defaultAppCloseBehavior;
 }
 
+function normalizeSidebarModules(values: readonly string[]) {
+  const modules: SidebarModule[] = [];
+  for (const value of values) {
+    if (sidebarModuleValues.includes(value as SidebarModule) && !modules.includes(value as SidebarModule)) {
+      modules.push(value as SidebarModule);
+    }
+  }
+  return modules;
+}
+
+function sidebarModulesFromDb(value: string | null | undefined) {
+  if (value === undefined || value === null) {
+    return defaultVisibleSidebarModules;
+  }
+
+  const tokens = value.split(",").map((module) => module.trim()).filter(Boolean);
+  if (tokens.length === 0) {
+    return [];
+  }
+
+  const modules = normalizeSidebarModules(tokens);
+  return modules.length > 0 ? modules : defaultVisibleSidebarModules;
+}
+
 async function ensureThemePreference(userId: string) {
   await execute(
-    "INSERT IGNORE INTO `UserThemePreference` (`userId`, `themeId`, `titleColor`, `footerVisible`, `footerType`, `showCompletedTasks`, `taskViewMode`, `taskCardDisplayMode`, `appCloseBehavior`, `displaySize`, `fontFamily`, `updatedAt`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(3))",
-    [userId, defaultThemeId, defaultTitleColor, defaultFooterVisible, defaultFooterType, defaultShowCompletedTasks, defaultTaskViewMode, defaultTaskCardDisplayMode, defaultAppCloseBehavior, defaultDisplaySize, defaultFontFamily]
+    "INSERT IGNORE INTO `UserThemePreference` (`userId`, `themeId`, `titleColor`, `footerVisible`, `footerType`, `showCompletedTasks`, `taskViewMode`, `taskCardDisplayMode`, `appCloseBehavior`, `displaySize`, `visibleSidebarModules`, `sidebarCollapsed`, `fontFamily`, `updatedAt`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(3))",
+    [userId, defaultThemeId, defaultTitleColor, defaultFooterVisible, defaultFooterType, defaultShowCompletedTasks, defaultTaskViewMode, defaultTaskCardDisplayMode, defaultAppCloseBehavior, defaultDisplaySize, defaultVisibleSidebarModuleValue, defaultSidebarCollapsed, defaultFontFamily]
   );
 }
 
@@ -76,7 +107,7 @@ export async function preferenceRoutes(app: FastifyInstance) {
   app.get("/preferences/theme", { preHandler: app.authenticate }, async (request) => {
     await ensureThemePreference(request.user.id);
     const preference = await queryOne<ThemePreferenceRow>(
-      "SELECT `themeId`, `titleColor`, `footerVisible`, `footerType`, `showCompletedTasks`, `taskViewMode`, `taskCardDisplayMode`, `appCloseBehavior`, `displaySize`, `fontFamily` FROM `UserThemePreference` WHERE `userId` = ?",
+      "SELECT `themeId`, `titleColor`, `footerVisible`, `footerType`, `showCompletedTasks`, `taskViewMode`, `taskCardDisplayMode`, `appCloseBehavior`, `displaySize`, `visibleSidebarModules`, `sidebarCollapsed`, `fontFamily` FROM `UserThemePreference` WHERE `userId` = ?",
       [request.user.id]
     );
     return {
@@ -89,6 +120,8 @@ export async function preferenceRoutes(app: FastifyInstance) {
       taskCardDisplayMode: taskCardDisplayModeFromDb(preference?.taskCardDisplayMode),
       appCloseBehavior: appCloseBehaviorFromDb(preference?.appCloseBehavior),
       displaySize: displaySizeFromDb(preference?.displaySize),
+      visibleSidebarModules: sidebarModulesFromDb(preference?.visibleSidebarModules),
+      sidebarCollapsed: booleanFromDb(preference?.sidebarCollapsed, defaultSidebarCollapsed),
       fontFamily: fontFamilyFromDb(preference?.fontFamily)
     };
   });
@@ -97,7 +130,7 @@ export async function preferenceRoutes(app: FastifyInstance) {
     const body = updateThemePreferenceRequestSchema.parse(request.body);
     await ensureThemePreference(request.user.id);
     const current = await queryOne<ThemePreferenceRow>(
-      "SELECT `themeId`, `titleColor`, `footerVisible`, `footerType`, `showCompletedTasks`, `taskViewMode`, `taskCardDisplayMode`, `appCloseBehavior`, `displaySize`, `fontFamily` FROM `UserThemePreference` WHERE `userId` = ?",
+      "SELECT `themeId`, `titleColor`, `footerVisible`, `footerType`, `showCompletedTasks`, `taskViewMode`, `taskCardDisplayMode`, `appCloseBehavior`, `displaySize`, `visibleSidebarModules`, `sidebarCollapsed`, `fontFamily` FROM `UserThemePreference` WHERE `userId` = ?",
       [request.user.id]
     );
     const themeId = body.themeId ?? current?.themeId ?? defaultThemeId;
@@ -109,11 +142,16 @@ export async function preferenceRoutes(app: FastifyInstance) {
     const taskCardDisplayMode = body.taskCardDisplayMode ?? taskCardDisplayModeFromDb(current?.taskCardDisplayMode);
     const appCloseBehavior = body.appCloseBehavior ?? appCloseBehaviorFromDb(current?.appCloseBehavior);
     const displaySize = body.displaySize ?? displaySizeFromDb(current?.displaySize);
+    const visibleSidebarModules = body.visibleSidebarModules !== undefined
+      ? normalizeSidebarModules(body.visibleSidebarModules)
+      : sidebarModulesFromDb(current?.visibleSidebarModules);
+    const visibleSidebarModuleValue = visibleSidebarModules.join(",");
+    const sidebarCollapsed = body.sidebarCollapsed ?? booleanFromDb(current?.sidebarCollapsed, defaultSidebarCollapsed);
     const fontFamily = body.fontFamily ?? fontFamilyFromDb(current?.fontFamily);
 
     await execute(
-      `INSERT INTO \`UserThemePreference\` (\`userId\`, \`themeId\`, \`titleColor\`, \`footerVisible\`, \`footerType\`, \`showCompletedTasks\`, \`taskViewMode\`, \`taskCardDisplayMode\`, \`appCloseBehavior\`, \`displaySize\`, \`fontFamily\`, \`updatedAt\`)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(3))
+      `INSERT INTO \`UserThemePreference\` (\`userId\`, \`themeId\`, \`titleColor\`, \`footerVisible\`, \`footerType\`, \`showCompletedTasks\`, \`taskViewMode\`, \`taskCardDisplayMode\`, \`appCloseBehavior\`, \`displaySize\`, \`visibleSidebarModules\`, \`sidebarCollapsed\`, \`fontFamily\`, \`updatedAt\`)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(3))
        ON DUPLICATE KEY UPDATE
         \`themeId\` = VALUES(\`themeId\`),
         \`titleColor\` = VALUES(\`titleColor\`),
@@ -124,10 +162,12 @@ export async function preferenceRoutes(app: FastifyInstance) {
         \`taskCardDisplayMode\` = VALUES(\`taskCardDisplayMode\`),
         \`appCloseBehavior\` = VALUES(\`appCloseBehavior\`),
         \`displaySize\` = VALUES(\`displaySize\`),
+        \`visibleSidebarModules\` = VALUES(\`visibleSidebarModules\`),
+        \`sidebarCollapsed\` = VALUES(\`sidebarCollapsed\`),
         \`fontFamily\` = VALUES(\`fontFamily\`),
         \`updatedAt\` = NOW(3)`,
-      [request.user.id, themeId, titleColor, footerVisible, footerType, showCompletedTasks, taskViewMode, taskCardDisplayMode, appCloseBehavior, displaySize, fontFamily]
+      [request.user.id, themeId, titleColor, footerVisible, footerType, showCompletedTasks, taskViewMode, taskCardDisplayMode, appCloseBehavior, displaySize, visibleSidebarModuleValue, sidebarCollapsed, fontFamily]
     );
-    return { themeId, titleColor, footerVisible, footerType, showCompletedTasks, taskViewMode, taskCardDisplayMode, appCloseBehavior, displaySize, fontFamily };
+    return { themeId, titleColor, footerVisible, footerType, showCompletedTasks, taskViewMode, taskCardDisplayMode, appCloseBehavior, displaySize, visibleSidebarModules, sidebarCollapsed, fontFamily };
   });
 }

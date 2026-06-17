@@ -12,6 +12,8 @@ import { preferenceRoutes } from "./routes/preferences.js";
 import { taskRoutes } from "./routes/tasks.js";
 import { userRoutes } from "./routes/users.js";
 import { AVATAR_MAX_BYTES, avatarDirectory, ensureAvatarDirectory } from "./services/avatar.js";
+import { memoRoutes } from "./routes/memos.js";
+import { MEMO_ASSET_MAX_BYTES, ensureMemoAssetDirectory, memoAssetDirectory } from "./services/memo-assets.js";
 
 export async function buildApp() {
   const app = Fastify({
@@ -34,6 +36,7 @@ export async function buildApp() {
   });
 
   await ensureAvatarDirectory();
+  await ensureMemoAssetDirectory();
 
   await app.register(cors, {
     origin: appOrigins,
@@ -43,9 +46,14 @@ export async function buildApp() {
     root: avatarDirectory,
     prefix: "/avatar/"
   });
+  await app.register(fastifyStatic, {
+    root: memoAssetDirectory,
+    prefix: "/memo-assets/",
+    decorateReply: false
+  });
   await app.register(multipart, {
     limits: {
-      fileSize: AVATAR_MAX_BYTES,
+      fileSize: Math.max(AVATAR_MAX_BYTES, MEMO_ASSET_MAX_BYTES),
       files: 1
     }
   });
@@ -53,6 +61,7 @@ export async function buildApp() {
   await authPlugin(app);
   await app.register(appBootstrapRoutes);
   await app.register(authRoutes);
+  await app.register(memoRoutes);
   await app.register(taskRoutes);
   await app.register(pomodoroRoutes);
   await app.register(preferenceRoutes);
