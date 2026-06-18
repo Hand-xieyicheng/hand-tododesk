@@ -40,7 +40,7 @@ const envSchema = z.object({
   SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(587),
   SMTP_USER: z.string().optional().default(""),
   SMTP_PASS: z.string().optional().default(""),
-  SMTP_FROM: z.string().default("todoDesk <noreply@tododesk.local>")
+  SMTP_FROM: z.string().default("小柴记 <noreply@tododesk.local>")
 });
 
 const parsedConfig = envSchema.parse(process.env);

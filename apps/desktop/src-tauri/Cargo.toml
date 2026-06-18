@@ -1,8 +1,8 @@
 [package]
 name = "tododesk"
 version = "0.2.5"
-description = "todoDesk desktop app"
-authors = ["todoDesk"]
+description = "小柴记 desktop app"
+authors = ["小柴记"]
 edition = "2021"
 
 [lib]

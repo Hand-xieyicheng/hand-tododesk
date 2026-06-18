@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "todoDesk desktop permissions",
+  "description": "小柴记 desktop permissions",
   "windows": ["main", "floating-card"],
   "permissions": [
     "core:default",

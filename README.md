@@ -1,4 +1,4 @@
-# todoDesk
+# 小柴记
 
 桌面端待办事项应用。首版使用 Tauri 2 + React + TypeScript 构建 macOS 优先桌面端，Node.js + Fastify + Prisma + MySQL 构建同步后端。
 
@@ -43,7 +43,7 @@
    npm run dev:desktop
    ```
 
-   当前机器上如有其他服务监听 `localhost:5173` 的 IPv6 地址，请使用 `http://127.0.0.1:5173/` 访问 todoDesk。
+   当前机器上如有其他服务监听 `localhost:5173` 的 IPv6 地址，请使用 `http://127.0.0.1:5173/` 访问小柴记。
 
 6. 启动 Tauri 桌面应用：
 
@@ -69,8 +69,8 @@ npm run build:mac
 
 产物位置：
 
-- `.app`：`apps/desktop/src-tauri/target/release/bundle/macos/todoDesk.app`
-- `.dmg`：`apps/desktop/src-tauri/target/release/bundle/dmg/todoDesk_0.2.0_aarch64.dmg`
+- `.app`：`apps/desktop/src-tauri/target/release/bundle/macos/小柴记.app`
+- `.dmg`：`apps/desktop/src-tauri/target/release/bundle/dmg/小柴记_0.2.0_aarch64.dmg`
 
 ## 应用内更新发布
 
@@ -112,9 +112,9 @@ FEATURE_FLAGS_JSON={"calendar":true,"pomodoro":true,"taskQuadrant":true,"floatin
    npm run dev:api
    ```
 
-2. 安装桌面 App。双击 `todoDesk_0.2.0_aarch64.dmg`，把 `todoDesk.app` 拖到 `Applications`。
+2. 安装桌面 App。双击 `小柴记_0.2.0_aarch64.dmg`，把 `小柴记.app` 拖到 `Applications`。
 
-3. 首次打开。如果 macOS 提示未验证开发者，右键点击 `todoDesk.app`，选择“打开”，再确认一次。
+3. 首次打开。如果 macOS 提示未验证开发者，右键点击 `小柴记.app`，选择“打开”，再确认一次。
 
 4. 登录或注册后使用待办、日历、番茄钟、主题和个人中心功能。刷新 token 会保存在 macOS Keychain。
 

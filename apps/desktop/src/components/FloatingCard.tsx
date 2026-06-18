@@ -182,7 +182,7 @@ function FloatingHeader() {
         />
       </div>
       <button className="floating-drag-handle" type="button" title="拖动卡片" onPointerDown={dragWindow}>
-        <img className="floating-logo" src={todoDeskLogo} alt="todoDesk" />
+        <img className="floating-logo" src={todoDeskLogo} alt="小柴记" />
       </button>
       <Button aria-label="关闭" icon={<X size={16} />} size="small" title="关闭" type="text" onClick={closeWindow} />
     </header>

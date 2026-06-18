@@ -38,10 +38,10 @@ export async function sendEmail(to: string, subject: string, text: string) {
 
 export async function sendVerificationEmail(email: string, token: string) {
   const url = `${config.API_PUBLIC_URL}/auth/verify-email?token=${encodeURIComponent(token)}`;
-  return sendEmail(email, "验证 todoDesk 邮箱", `请打开以下链接完成邮箱验证：\n\n${url}`);
+  return sendEmail(email, "验证小柴记邮箱", `请打开以下链接完成邮箱验证：\n\n${url}`);
 }
 
 export async function sendPasswordResetEmail(email: string, token: string) {
   const url = `${config.APP_ORIGIN}/reset-password?token=${encodeURIComponent(token)}`;
-  return sendEmail(email, "重置 todoDesk 密码", `请打开以下链接重置密码：\n\n${url}`);
+  return sendEmail(email, "重置小柴记密码", `请打开以下链接重置密码：\n\n${url}`);
 }

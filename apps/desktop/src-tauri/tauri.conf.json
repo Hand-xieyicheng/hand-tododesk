@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "todoDesk",
+  "productName": "小柴记",
   "version": "0.2.5",
   "identifier": "com.tododesk.desktop",
   "build": {
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "todoDesk",
+        "title": "小柴记",
         "width": 1180,
         "height": 760,
         "minWidth": 960,

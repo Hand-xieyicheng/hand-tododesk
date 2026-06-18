@@ -12,7 +12,7 @@ async function main() {
     update: {},
     create: {
       email,
-      name: "todoDesk Demo",
+      name: "小柴记 Demo",
       passwordHash: await bcrypt.hash(password, 12),
       emailVerifiedAt: new Date(),
       themePreference: {

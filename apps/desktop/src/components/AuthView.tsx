@@ -101,8 +101,8 @@ export function AuthView({ onAuthed }: AuthViewProps) {
         <span className="auth-drift-leaf auth-drift-leaf-two" />
         <span className="auth-drift-leaf auth-drift-leaf-three" />
       </div>
-      <div className="auth-page-brand" aria-label="todoDesk 桌面待办">
-        <img className="brand-logo auth-page-logo" src={todoDeskLogo} alt="todoDesk" />
+      <div className="auth-page-brand" aria-label="小柴记 桌面待办">
+        <img className="brand-logo auth-page-logo" src={todoDeskLogo} alt="小柴记" />
       </div>
       <Card className="auth-panel" pattern="default">
         <div className="auth-card-header">

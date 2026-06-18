@@ -81,6 +81,16 @@ function getSavedSidebarCollapsed() {
   return localStorage.getItem("tododesk.sidebarCollapsed") === "true";
 }
 
+function isMacosDesktopRuntime() {
+  if (typeof window === "undefined" || !("__TAURI_INTERNALS__" in window)) {
+    return false;
+  }
+
+  const platform = navigator.platform.toLowerCase();
+  const userAgent = navigator.userAgent.toLowerCase();
+  return platform.includes("mac") || userAgent.includes("mac os x");
+}
+
 function viewFromPathname(pathname: string): View {
   const normalizedPathname = pathname.replace(/\/+$/, "") || "/";
   if (normalizedPathname === viewRoutes.calendar) {
@@ -167,6 +177,7 @@ export function App() {
     "--workspace-footer-height": footerVisible ? (footerType === "sea" ? "var(--app-footer-height-sea)" : "var(--app-footer-height-tree)") : "0px",
     "--workspace-footer-gap": footerVisible ? "var(--app-footer-gap)" : "0px"
   } as CSSProperties;
+  const appShellClassName = `app-shell${sidebarCollapsed ? " is-sidebar-collapsed" : ""}${isMacosDesktopRuntime() ? " is-macos-desktop" : ""}`;
   const showCompletedTasksAction = showCompletedTasks ? "隐藏已完成事项" : "显示已完成事项";
   const sidebarToggleAction = sidebarCollapsed ? "展开侧边栏" : "收起侧边栏";
   const updateRequired = appBootstrap ? compareVersions(updater.currentVersion, appBootstrap.desktop.minimumVersion) < 0 : false;
@@ -522,7 +533,7 @@ export function App() {
   );
 
   return (
-    <div className={sidebarCollapsed ? "app-shell is-sidebar-collapsed" : "app-shell"}>
+    <div className={appShellClassName}>
       <div
         aria-hidden="true"
         className="window-drag-strip"
@@ -538,7 +549,7 @@ export function App() {
               {sidebarToggleButton}
             </Tooltip>
           )}
-          <img className="brand-logo sidebar-brand-logo" src={todoDeskLogo} alt="todoDesk" />
+          <img className="brand-logo sidebar-brand-logo" src={todoDeskLogo} alt="小柴记" />
         </div>
 
         <nav className="nav-list" aria-label="主要导航">

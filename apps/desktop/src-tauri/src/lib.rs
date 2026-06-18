@@ -9,6 +9,7 @@ use tauri::{
 };
 
 const KEYCHAIN_SERVICE: &str = "todoDesk";
+const APP_NAME: &str = "小柴记";
 const KEYCHAIN_REFRESH_ACCOUNT: &str = "refresh_token";
 const KEYCHAIN_REMEMBERED_PASSWORD_PREFIX: &str = "remembered_password:";
 
@@ -110,7 +111,7 @@ fn open_floating_card(app: AppHandle, url: String) -> Result<(), String> {
     }
 
     WebviewWindowBuilder::new(&app, "floating-card", WebviewUrl::App(url.into()))
-        .title("todoDesk 卡片")
+        .title(format!("{APP_NAME} 卡片"))
         .inner_size(360.0, 520.0)
         .min_inner_size(300.0, 360.0)
         .always_on_top(false)
@@ -153,7 +154,7 @@ fn show_main_window_inner(app: &AppHandle) -> Result<(), String> {
     }
 
     let builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::App("/".into()))
-        .title("todoDesk")
+        .title(APP_NAME)
         .inner_size(1180.0, 760.0)
         .min_inner_size(960.0, 640.0)
         .decorations(true);
@@ -176,12 +177,12 @@ fn show_main_window_inner(app: &AppHandle) -> Result<(), String> {
 }
 
 fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
-    let show = MenuItem::with_id(app, "show", "打开 todoDesk", true, None::<&str>)?;
+    let show = MenuItem::with_id(app, "show", format!("打开 {APP_NAME}"), true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
     let menu = Menu::with_items(app, &[&show, &quit])?;
 
     TrayIconBuilder::new()
-        .tooltip("todoDesk")
+        .tooltip(APP_NAME)
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match event.id().as_ref() {
@@ -254,7 +255,7 @@ pub fn run() {
             Ok(())
         })
         .build(tauri::generate_context!())
-        .expect("error while building todoDesk");
+        .expect("error while building 小柴记");
 
     app.run(|app_handle, event| {
         #[cfg(target_os = "macos")]

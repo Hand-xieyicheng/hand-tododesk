@@ -88,7 +88,7 @@ export async function authRoutes(app: FastifyInstance) {
       await connection.execute("UPDATE `EmailVerificationToken` SET `usedAt` = NOW(3) WHERE `id` = ?", [record.id]);
     });
 
-    return reply.type("text/html").send("<h1>todoDesk 邮箱验证成功</h1><p>现在可以回到应用登录。</p>");
+    return reply.type("text/html").send("<h1>小柴记邮箱验证成功</h1><p>现在可以回到应用登录。</p>");
   });
 
   app.post("/auth/login", async (request, reply) => {
