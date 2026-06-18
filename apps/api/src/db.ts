@@ -192,9 +192,48 @@ async function ensureMemoSchema() {
   );
 }
 
+async function ensureAnniversarySchema() {
+  await execute(
+    `CREATE TABLE IF NOT EXISTS \`AnniversaryEvent\` (
+      \`id\` VARCHAR(191) NOT NULL,
+      \`userId\` VARCHAR(191) NOT NULL,
+      \`title\` VARCHAR(191) NOT NULL,
+      \`notes\` TEXT NULL,
+      \`category\` VARCHAR(191) NOT NULL,
+      \`date\` VARCHAR(10) NOT NULL,
+      \`repeat\` VARCHAR(191) NOT NULL DEFAULT 'NONE',
+      \`direction\` VARCHAR(191) NOT NULL DEFAULT 'AUTO',
+      \`cardStyle\` VARCHAR(191) NOT NULL DEFAULT 'lavender',
+      \`calendarType\` VARCHAR(191) NOT NULL DEFAULT 'SOLAR',
+      \`lunarMonth\` INTEGER NULL,
+      \`lunarDay\` INTEGER NULL,
+      \`solarTerm\` VARCHAR(191) NULL,
+      \`sortOrder\` INTEGER NOT NULL DEFAULT 0,
+      \`createdAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+      \`updatedAt\` DATETIME(3) NOT NULL,
+      PRIMARY KEY (\`id\`),
+      INDEX \`AnniversaryEvent_userId_sortOrder_idx\` (\`userId\`, \`sortOrder\`),
+      INDEX \`AnniversaryEvent_userId_category_date_idx\` (\`userId\`, \`category\`, \`date\`),
+      INDEX \`AnniversaryEvent_userId_date_idx\` (\`userId\`, \`date\`),
+      CONSTRAINT \`AnniversaryEvent_userId_fkey\` FOREIGN KEY (\`userId\`) REFERENCES \`User\`(\`id\`) ON DELETE CASCADE ON UPDATE CASCADE
+    ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`
+  );
+  await ensureColumn("AnniversaryEvent", "sortOrder", "ALTER TABLE `AnniversaryEvent` ADD COLUMN `sortOrder` INTEGER NOT NULL DEFAULT 0");
+}
+
+async function ensureVisibleSidebarModulesSchema() {
+  await execute("ALTER TABLE `UserThemePreference` ALTER COLUMN `visibleSidebarModules` SET DEFAULT 'tasks,memos,anniversaries,calendar,pomodoro'");
+  await execute(
+    `UPDATE \`UserThemePreference\`
+     SET \`visibleSidebarModules\` = 'tasks,memos,anniversaries,calendar,pomodoro'
+     WHERE \`visibleSidebarModules\` = 'tasks,memos,calendar,pomodoro'`
+  );
+}
+
 async function ensureIncrementalSchema() {
   await ensureTaskPrioritySchema();
   await ensureMemoSchema();
+  await ensureAnniversarySchema();
   await ensureColumn("User", "gender", "ALTER TABLE `User` ADD COLUMN `gender` ENUM('PRIVATE', 'MALE', 'FEMALE', 'OTHER') NOT NULL DEFAULT 'PRIVATE'");
   await ensureColumn("User", "avatarPath", "ALTER TABLE `User` ADD COLUMN `avatarPath` VARCHAR(191) NULL");
   await ensureColumn("UserThemePreference", "titleColor", "ALTER TABLE `UserThemePreference` ADD COLUMN `titleColor` VARCHAR(191) NOT NULL DEFAULT 'app-teal'");
@@ -205,9 +244,10 @@ async function ensureIncrementalSchema() {
   await ensureColumn("UserThemePreference", "taskCardDisplayMode", "ALTER TABLE `UserThemePreference` ADD COLUMN `taskCardDisplayMode` VARCHAR(191) NOT NULL DEFAULT 'full'");
   await ensureColumn("UserThemePreference", "appCloseBehavior", "ALTER TABLE `UserThemePreference` ADD COLUMN `appCloseBehavior` VARCHAR(191) NOT NULL DEFAULT 'hide'");
   await ensureColumn("UserThemePreference", "displaySize", "ALTER TABLE `UserThemePreference` ADD COLUMN `displaySize` VARCHAR(191) NOT NULL DEFAULT 'default'");
-  await ensureColumn("UserThemePreference", "visibleSidebarModules", "ALTER TABLE `UserThemePreference` ADD COLUMN `visibleSidebarModules` VARCHAR(191) NOT NULL DEFAULT 'tasks,memos,calendar,pomodoro'");
+  await ensureColumn("UserThemePreference", "visibleSidebarModules", "ALTER TABLE `UserThemePreference` ADD COLUMN `visibleSidebarModules` VARCHAR(191) NOT NULL DEFAULT 'tasks,memos,anniversaries,calendar,pomodoro'");
   await ensureColumn("UserThemePreference", "sidebarCollapsed", "ALTER TABLE `UserThemePreference` ADD COLUMN `sidebarCollapsed` BOOLEAN NOT NULL DEFAULT FALSE");
   await ensureColumn("UserThemePreference", "fontFamily", "ALTER TABLE `UserThemePreference` ADD COLUMN `fontFamily` VARCHAR(191) NOT NULL DEFAULT 'system'");
+  await ensureVisibleSidebarModulesSchema();
 }
 
 async function runAllMigrations() {

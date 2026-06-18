@@ -3,10 +3,11 @@ import type { CSSProperties, PointerEvent } from "react";
 import { defaultAppFeatureFlags, defaultVisibleSidebarModules, type ApiTask, type ApiThemePreference, type ApiUser, type AppBootstrapResponse, type AppCloseBehavior, type AppFeatureFlags, type DisplaySize, type FontFamily, type FooterType as AppFooterType, type SidebarModule, type TaskCardDisplayMode, type TaskViewMode, type ThemeId, type TitleColor } from "@todo/shared";
 import { Button, Footer, Loading, Title, Tooltip } from "animal-island-ui";
 import type { TitleSize } from "animal-island-ui";
-import { Bell, CalendarDays, CheckSquare2, Clock3, Eye, EyeOff, LayoutGrid, ListTodo, LogOut, NotebookPen, PanelLeftOpen, Pin, Plus, UserRound } from "lucide-react";
+import { Bell, CalendarDays, CheckSquare2, Clock3, Eye, EyeOff, Hourglass, LayoutGrid, ListTodo, LogOut, NotebookPen, PanelLeftOpen, Pin, Plus, UserRound } from "lucide-react";
 import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { api, ApiError, authSessionExpiredEvent } from "./api/client";
 import { AuthView } from "./components/AuthView";
+import { AnniversaryPanel } from "./components/AnniversaryPanel";
 import { CalendarView } from "./components/CalendarView";
 import { MemoPanel } from "./components/MemoPanel";
 import { PomodoroView } from "./components/PomodoroView";
@@ -25,6 +26,7 @@ type View = SidebarModule | "profile";
 const viewRoutes: Record<View, string> = {
   tasks: "/tasks",
   memos: "/memos",
+  anniversaries: "/anniversaries",
   calendar: "/calendar",
   pomodoro: "/pomodoro",
   profile: "/profile"
@@ -33,6 +35,7 @@ const viewRoutes: Record<View, string> = {
 const navItems: Array<{ id: SidebarModule; label: string; icon: typeof CheckSquare2 }> = [
   { id: "tasks", label: "待办事项", icon: CheckSquare2 },
   { id: "memos", label: "备忘录", icon: NotebookPen },
+  { id: "anniversaries", label: "倒数纪念日", icon: Hourglass },
   { id: "calendar", label: "日历", icon: CalendarDays },
   { id: "pomodoro", label: "番茄时钟", icon: Clock3 }
 ];
@@ -99,6 +102,9 @@ function viewFromPathname(pathname: string): View {
   if (normalizedPathname === viewRoutes.memos) {
     return "memos";
   }
+  if (normalizedPathname === viewRoutes.anniversaries) {
+    return "anniversaries";
+  }
   if (normalizedPathname === viewRoutes.pomodoro) {
     return "pomodoro";
   }
@@ -130,6 +136,7 @@ export function App() {
   const [appBootstrap, setAppBootstrap] = useState<AppBootstrapResponse | null>(null);
   const [taskViewMode, setTaskViewMode] = useState<TaskViewMode>("list");
   const [taskCreateOpen, setTaskCreateOpen] = useState(false);
+  const [anniversaryCreateOpen, setAnniversaryCreateOpen] = useState(false);
   const [themeId, setThemeId] = useState<ThemeId>("default");
   const [titleColor, setTitleColor] = useState<TitleColor>("app-teal");
   const [footerVisible, setFooterVisible] = useState(true);
@@ -151,8 +158,9 @@ export function App() {
   const featureFlags: AppFeatureFlags = appBootstrap?.featureFlags ?? defaultAppFeatureFlags;
   const availableNavItems = useMemo(() => navItems.filter((item) => (
     (item.id !== "calendar" || featureFlags.calendar) &&
+    (item.id !== "anniversaries" || featureFlags.anniversaries) &&
     (item.id !== "pomodoro" || featureFlags.pomodoro)
-  )), [featureFlags.calendar, featureFlags.pomodoro]);
+  )), [featureFlags.anniversaries, featureFlags.calendar, featureFlags.pomodoro]);
   const visibleNavItems = useMemo(() => {
     const availableItemMap = new Map(availableNavItems.map((item) => [item.id, item]));
     return visibleSidebarModules
@@ -166,12 +174,14 @@ export function App() {
   const userDisplayName = user?.name || user?.email || "";
   const userInitial = userDisplayName.trim().slice(0, 1).toUpperCase();
   const viewTitle = activeView === "tasks"
-    ? "待办事项"
-    : activeView === "memos"
-      ? "备忘录"
-      : activeView === "calendar"
-        ? "日历模式"
-        : activeView === "pomodoro" ? "番茄时钟" : "个人中心";
+      ? "待办事项"
+      : activeView === "memos"
+        ? "备忘录"
+        : activeView === "anniversaries"
+          ? "倒数纪念日"
+          : activeView === "calendar"
+            ? "日历模式"
+            : activeView === "pomodoro" ? "番茄时钟" : "个人中心";
   const viewTitleSize = viewTitleSizes[displaySize];
   const workspaceStyle = {
     "--workspace-footer-height": footerVisible ? (footerType === "sea" ? "var(--app-footer-height-sea)" : "var(--app-footer-height-tree)") : "0px",
@@ -310,10 +320,14 @@ export function App() {
   }, [user?.id]);
 
   useEffect(() => {
-    if ((activeView === "calendar" && !featureFlags.calendar) || (activeView === "pomodoro" && !featureFlags.pomodoro)) {
+    if (
+      (activeView === "anniversaries" && !featureFlags.anniversaries) ||
+      (activeView === "calendar" && !featureFlags.calendar) ||
+      (activeView === "pomodoro" && !featureFlags.pomodoro)
+    ) {
       navigateToView("tasks", true);
     }
-  }, [activeView, featureFlags.calendar, featureFlags.pomodoro, navigateToView]);
+  }, [activeView, featureFlags.anniversaries, featureFlags.calendar, featureFlags.pomodoro, navigateToView]);
 
   useEffect(() => {
     if (!featureFlags.taskQuadrant && taskViewMode === "quadrant") {
@@ -666,7 +680,11 @@ export function App() {
                 </Button>
               </>
             ) : (
-              null
+              activeView === "anniversaries" ? (
+                <Button className="primary-button" icon={<Plus size={14} />} size="small" type="default" onClick={() => setAnniversaryCreateOpen(true)}>
+                  新增
+                </Button>
+              ) : null
             )}
           </div>
         </header>
@@ -692,6 +710,10 @@ export function App() {
             )}
           />
           <Route path={viewRoutes.memos} element={<MemoPanel />} />
+          <Route
+            path={viewRoutes.anniversaries}
+            element={featureFlags.anniversaries ? <AnniversaryPanel createOpen={anniversaryCreateOpen} onCreateOpenChange={setAnniversaryCreateOpen} /> : <Navigate to={viewRoutes.tasks} replace />}
+          />
           <Route
             path={viewRoutes.calendar}
             element={featureFlags.calendar ? <CalendarView onChanged={loadAppData} /> : <Navigate to={viewRoutes.tasks} replace />}

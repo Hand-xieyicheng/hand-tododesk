@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       releaseTag:
-        description: "Release tag to publish, for example v0.2.5"
+        description: "Release tag to publish, for example v0.2.6"
         required: true
-        default: "v0.2.5"
+        default: "v0.2.6"
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true

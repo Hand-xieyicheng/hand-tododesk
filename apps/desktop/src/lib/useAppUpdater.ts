@@ -25,7 +25,7 @@ export interface AppUpdaterController extends UpdaterState {
   restartApp(): Promise<void>;
 }
 
-const fallbackVersion = "0.2.5";
+const fallbackVersion = "0.2.6";
 
 function isTauriRuntime() {
   return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;

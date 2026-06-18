@@ -4,9 +4,9 @@ import { buildApp } from "../app.js";
 import { buildAppBootstrap, parseFeatureFlags } from "./app-bootstrap.js";
 
 const baseConfig = {
-  API_VERSION: "0.2.5",
+  API_VERSION: "0.2.6",
   DESKTOP_MIN_VERSION: "0.1.0",
-  DESKTOP_LATEST_VERSION: "0.2.5",
+  DESKTOP_LATEST_VERSION: "0.2.6",
   DESKTOP_UPDATE_ENDPOINT: "https://github.com/Hand-xieyicheng/hand-tododesk/releases/latest/download/latest.json",
   FEATURE_FLAGS_JSON: ""
 };

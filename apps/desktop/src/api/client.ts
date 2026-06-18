@@ -1,5 +1,6 @@
 import type {
   AppBootstrapResponse,
+  ApiAnniversaryEvent,
   ApiMemo,
   ApiMemoAsset,
   ApiMemoListItem,
@@ -12,6 +13,7 @@ import type {
   ChangeEmailRequest,
   ChangePasswordRequest,
   CreateMemoRequest,
+  CreateAnniversaryRequest,
   CreateTaskRequest,
   PomodoroSession,
   PomodoroStats,
@@ -19,6 +21,8 @@ import type {
   RegisterRequest,
   TaskPriority,
   UpdateMemoRequest,
+  UpdateAnniversaryOrderRequest,
+  UpdateAnniversaryRequest,
   UpdateProfileRequest,
   UpdateThemePreferenceRequest,
   UpdateTaskRequest
@@ -27,12 +31,15 @@ import {
   appBootstrapResponseSchema,
   changeEmailRequestSchema,
   changePasswordRequestSchema,
+  createAnniversaryRequestSchema,
   createMemoRequestSchema,
   forgotPasswordRequestSchema,
   loginRequestSchema,
   registerRequestSchema,
   resetPasswordRequestSchema,
   updateMemoRequestSchema,
+  updateAnniversaryOrderRequestSchema,
+  updateAnniversaryRequestSchema,
   updateThemePreferenceRequestSchema,
   updateProfileRequestSchema
 } from "@todo/shared";
@@ -251,6 +258,30 @@ export const api = {
       method: "POST",
       body: formData
     });
+  },
+  async anniversaries() {
+    return request<{ anniversaries: ApiAnniversaryEvent[] }>("/anniversaries");
+  },
+  async createAnniversary(input: CreateAnniversaryRequest) {
+    return request<{ anniversary: ApiAnniversaryEvent }>("/anniversaries", {
+      method: "POST",
+      body: JSON.stringify(createAnniversaryRequestSchema.parse(input))
+    });
+  },
+  async updateAnniversary(id: string, input: UpdateAnniversaryRequest) {
+    return request<{ anniversary: ApiAnniversaryEvent }>(`/anniversaries/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(updateAnniversaryRequestSchema.parse(input))
+    });
+  },
+  async updateAnniversaryOrder(input: UpdateAnniversaryOrderRequest) {
+    return request<{ ok: true }>("/anniversaries/order", {
+      method: "PUT",
+      body: JSON.stringify(updateAnniversaryOrderRequestSchema.parse(input))
+    });
+  },
+  async deleteAnniversary(id: string) {
+    return request<void>(`/anniversaries/${id}`, { method: "DELETE" });
   },
   async tasks() {
     return request<{ tasks: ApiTask[] }>("/tasks");

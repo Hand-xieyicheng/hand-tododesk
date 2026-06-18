@@ -5,6 +5,7 @@ import Fastify from "fastify";
 import { ZodError } from "zod";
 import { appOrigins, config } from "./config.js";
 import { authPlugin } from "./plugins/auth.js";
+import { anniversaryRoutes } from "./routes/anniversaries.js";
 import { appBootstrapRoutes } from "./routes/app-bootstrap.js";
 import { authRoutes } from "./routes/auth.js";
 import { pomodoroRoutes } from "./routes/pomodoro.js";
@@ -14,6 +15,16 @@ import { userRoutes } from "./routes/users.js";
 import { AVATAR_MAX_BYTES, avatarDirectory, ensureAvatarDirectory } from "./services/avatar.js";
 import { memoRoutes } from "./routes/memos.js";
 import { MEMO_ASSET_MAX_BYTES, ensureMemoAssetDirectory, memoAssetDirectory } from "./services/memo-assets.js";
+
+function isZodValidationError(error: unknown): error is ZodError {
+  return error instanceof ZodError ||
+    (
+      typeof error === "object" &&
+      error !== null &&
+      (error as { name?: unknown }).name === "ZodError" &&
+      Array.isArray((error as { issues?: unknown }).issues)
+    );
+}
 
 export async function buildApp() {
   const app = Fastify({
@@ -58,19 +69,8 @@ export async function buildApp() {
     }
   });
 
-  await authPlugin(app);
-  await app.register(appBootstrapRoutes);
-  await app.register(authRoutes);
-  await app.register(memoRoutes);
-  await app.register(taskRoutes);
-  await app.register(pomodoroRoutes);
-  await app.register(preferenceRoutes);
-  await app.register(userRoutes);
-
-  app.get("/health", async () => ({ ok: true }));
-
   app.setErrorHandler((error, _request, reply) => {
-    if (error instanceof ZodError) {
+    if (isZodValidationError(error)) {
       return reply.code(400).send({
         error: "Validation failed",
         issues: error.issues
@@ -80,6 +80,18 @@ export async function buildApp() {
     app.log.error(error);
     return reply.code(500).send({ error: "Internal server error" });
   });
+
+  await authPlugin(app);
+  await app.register(appBootstrapRoutes);
+  await app.register(authRoutes);
+  await app.register(anniversaryRoutes);
+  await app.register(memoRoutes);
+  await app.register(taskRoutes);
+  await app.register(pomodoroRoutes);
+  await app.register(preferenceRoutes);
+  await app.register(userRoutes);
+
+  app.get("/health", async () => ({ ok: true }));
 
   return app;
 }

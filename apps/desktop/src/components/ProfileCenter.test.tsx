@@ -59,24 +59,26 @@ const user: ApiUser = {
 };
 
 const appBootstrap: AppBootstrapResponse = {
-  apiVersion: "0.2.5",
+  apiVersion: "0.2.6",
   releaseChannel: "stable",
   desktop: {
     minimumVersion: "0.1.0",
-    latestVersion: "0.2.5",
+    latestVersion: "0.2.6",
     updateEndpoint: "https://example.com/latest.json"
   },
   featureFlags: {
     calendar: true,
     pomodoro: true,
     taskQuadrant: true,
-    floatingCard: true
+    floatingCard: true,
+    anniversaries: true
   }
 };
 
 const sidebarModuleOptions: Array<{ id: SidebarModule; label: string }> = [
   { id: "tasks", label: "待办事项" },
   { id: "memos", label: "备忘录" },
+  { id: "anniversaries", label: "倒数纪念日" },
   { id: "calendar", label: "日历" },
   { id: "pomodoro", label: "番茄时钟" }
 ];
@@ -84,7 +86,7 @@ const sidebarModuleOptions: Array<{ id: SidebarModule; label: string }> = [
 function createUpdater(status: AppUpdaterController["status"]): AppUpdaterController {
   return {
     status,
-    currentVersion: "0.2.5",
+    currentVersion: "0.2.6",
     targetVersion: null,
     releaseDate: null,
     releaseNotes: null,

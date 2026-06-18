@@ -1441,6 +1441,7 @@ textarea:focus-visible {
 
 .tool-panel,
 .task-item,
+.anniversary-card,
 .calendar-cell,
 .pomodoro-clock,
 .floating-task,
@@ -1472,6 +1473,7 @@ textarea:focus-visible {
 }
 
 .task-create-modal [class*="animal-modalClipped"],
+.anniversary-modal [class*="animal-modalClipped"],
 .task-detail-modal [class*="animal-modalClipped"],
 .confirm-dialog [class*="animal-modalClipped"] {
   position: relative;
@@ -1482,6 +1484,7 @@ textarea:focus-visible {
 }
 
 .task-create-modal [class*="animal-modalClipped"]::before,
+.anniversary-modal [class*="animal-modalClipped"]::before,
 .task-detail-modal [class*="animal-modalClipped"]::before,
 .confirm-dialog [class*="animal-modalClipped"]::before {
   position: absolute;
@@ -1494,6 +1497,7 @@ textarea:focus-visible {
 }
 
 .task-create-modal [class*="animal-body"],
+.anniversary-modal [class*="animal-body"],
 .task-detail-modal [class*="animal-body"],
 .confirm-dialog [class*="animal-body"] {
   overflow: visible;
@@ -1570,7 +1574,7 @@ label > [class*="animal-wrapper"] * {
   padding: 0 calc(13px * var(--app-ui-scale));
 }
 
-.task-form [class*="animal-dropdown-0l6jF"] {
+.task-form [class*="animal-dropdown-"] {
   top: calc(100% + 8px) !important;
   right: auto !important;
   bottom: auto !important;
@@ -1579,6 +1583,26 @@ label > [class*="animal-wrapper"] * {
   min-width: 100%;
   margin: 0 !important;
   transform: none !important;
+}
+
+.anniversary-template-field [class*="animal-dropdown-"] {
+  max-height: min(calc(320px * var(--app-ui-scale)), 42vh);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--color-primary) 48%, var(--color-border)) transparent;
+}
+
+.anniversary-template-field [class*="animal-dropdown-"]::-webkit-scrollbar {
+  width: 8px;
+}
+
+.anniversary-template-field [class*="animal-dropdown-"]::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-primary) 48%, var(--color-border));
+  background-clip: content-box;
 }
 
 textarea {
@@ -2048,6 +2072,292 @@ textarea::placeholder {
   overscroll-behavior: contain;
   padding-right: 4px;
   padding-top: 2px;
+}
+
+.anniversary-panel {
+  display: grid;
+  gap: calc(18px * var(--app-ui-scale));
+  align-content: start;
+}
+
+.anniversary-tabs {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: calc(9px * var(--app-ui-scale));
+}
+
+.anniversary-tabs button {
+  min-height: calc(34px * var(--app-ui-scale)) !important;
+  padding: 0 calc(15px * var(--app-ui-scale)) !important;
+  border-radius: 999px !important;
+  font-size: calc(14px * var(--app-ui-scale)) !important;
+  font-weight: 900 !important;
+}
+
+.anniversary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, calc(286px * var(--app-ui-scale))), 1fr));
+  gap: calc(18px * var(--app-ui-scale));
+  align-items: stretch;
+}
+
+.anniversary-grid .empty-state {
+  grid-column: 1 / -1;
+}
+
+.anniversary-sortable {
+  min-width: 0;
+  touch-action: none;
+}
+
+.anniversary-card {
+  --anniversary-card-bg: color-mix(in srgb, var(--color-surface) 86%, #ffffff);
+  --anniversary-card-accent: var(--color-primary);
+  --anniversary-card-ink: var(--color-text);
+  position: relative;
+  display: grid;
+  min-height: calc(232px * var(--app-ui-scale));
+  align-content: start;
+  gap: calc(14px * var(--app-ui-scale));
+  overflow: hidden;
+  padding: calc(20px * var(--app-ui-scale)) !important;
+  border: 2px solid color-mix(in srgb, var(--anniversary-card-accent) 32%, var(--color-border)) !important;
+  background:
+    linear-gradient(140deg, color-mix(in srgb, var(--anniversary-card-accent) 16%, transparent), transparent 42%),
+    var(--anniversary-card-bg) !important;
+  box-shadow: 0 7px 0 rgba(114, 93, 66, 0.12), 0 18px 34px var(--island-soft-shadow);
+  color: var(--anniversary-card-ink);
+  cursor: grab !important;
+  user-select: none;
+}
+
+.anniversary-card:active {
+  cursor: grabbing !important;
+}
+
+.anniversary-card.is-dragging {
+  box-shadow: 0 11px 0 rgba(114, 93, 66, 0.1), 0 26px 42px rgba(114, 93, 66, 0.2);
+}
+
+.anniversary-card.style-lavender {
+  --anniversary-card-bg: #f7f1ff;
+  --anniversary-card-accent: #8a71d6;
+}
+
+.anniversary-card.style-sunrise {
+  --anniversary-card-bg: #fff5dc;
+  --anniversary-card-accent: #e59266;
+}
+
+.anniversary-card.style-mint {
+  --anniversary-card-bg: #eefbf1;
+  --anniversary-card-accent: #39aa72;
+}
+
+.anniversary-card.style-ocean {
+  --anniversary-card-bg: #edf7ff;
+  --anniversary-card-accent: #3a8fc2;
+}
+
+.anniversary-card.style-rose {
+  --anniversary-card-bg: #fff0f5;
+  --anniversary-card-accent: #d76487;
+}
+
+.anniversary-card.style-classic {
+  --anniversary-card-bg: #fffdf1;
+  --anniversary-card-accent: #725d42;
+}
+
+.anniversary-card header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: calc(11px * var(--app-ui-scale));
+  padding-right: calc(74px * var(--app-ui-scale));
+}
+
+.anniversary-icon {
+  display: grid;
+  width: calc(38px * var(--app-ui-scale));
+  height: calc(38px * var(--app-ui-scale));
+  place-items: center;
+  border: 2px solid color-mix(in srgb, var(--anniversary-card-accent) 34%, #ffffff);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--anniversary-card-accent) 18%, #ffffff);
+  color: var(--anniversary-card-accent);
+}
+
+.anniversary-card h3 {
+  margin: 0;
+  color: var(--anniversary-card-ink);
+  font-size: calc(19px * var(--app-ui-scale));
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.anniversary-card header span:not(.anniversary-icon) {
+  color: var(--color-muted);
+  font-size: calc(13px * var(--app-ui-scale));
+  font-weight: 900;
+}
+
+.anniversary-value {
+  display: flex;
+  align-items: baseline;
+  gap: calc(10px * var(--app-ui-scale));
+  min-width: 0;
+}
+
+.anniversary-value strong {
+  color: var(--anniversary-card-accent);
+  font-size: calc(54px * var(--app-ui-scale));
+  font-weight: 900;
+  line-height: 0.95;
+  overflow-wrap: anywhere;
+}
+
+.anniversary-value span {
+  color: color-mix(in srgb, var(--anniversary-card-accent) 72%, var(--color-text));
+  font-size: calc(15px * var(--app-ui-scale));
+  font-weight: 900;
+}
+
+.anniversary-card p {
+  margin: 0;
+  color: color-mix(in srgb, var(--color-muted) 88%, var(--color-text));
+  font-size: calc(14px * var(--app-ui-scale));
+  font-weight: 850;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.anniversary-notes {
+  padding-top: calc(2px * var(--app-ui-scale));
+  color: var(--color-text) !important;
+  font-weight: 700 !important;
+}
+
+.anniversary-card-footer {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: calc(8px * var(--app-ui-scale));
+}
+
+.anniversary-card-footer span {
+  display: inline-flex;
+  align-items: center;
+  min-height: calc(24px * var(--app-ui-scale));
+  padding: 0 calc(9px * var(--app-ui-scale));
+  border: 1px solid color-mix(in srgb, var(--anniversary-card-accent) 28%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, #ffffff 72%, var(--anniversary-card-accent));
+  color: color-mix(in srgb, var(--anniversary-card-accent) 62%, var(--color-text));
+  font-size: calc(12px * var(--app-ui-scale));
+  font-weight: 900;
+}
+
+.anniversary-actions {
+  position: absolute;
+  top: calc(16px * var(--app-ui-scale));
+  right: calc(16px * var(--app-ui-scale));
+  display: inline-flex;
+  gap: calc(7px * var(--app-ui-scale));
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(calc(-4px * var(--app-ui-scale)));
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.anniversary-card:hover .anniversary-actions,
+.anniversary-card:focus-within .anniversary-actions {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.anniversary-actions button {
+  width: calc(30px * var(--app-ui-scale)) !important;
+  min-width: calc(30px * var(--app-ui-scale)) !important;
+  height: calc(30px * var(--app-ui-scale)) !important;
+  min-height: calc(30px * var(--app-ui-scale)) !important;
+  padding: 0 !important;
+  border-radius: 999px !important;
+  cursor: pointer !important;
+}
+
+@media (hover: none) {
+  .anniversary-actions {
+    opacity: 1;
+    pointer-events: auto;
+    transform: none;
+  }
+}
+
+.anniversary-form {
+  width: 100%;
+  gap: calc(16px * var(--app-ui-scale));
+  padding: 2px 0 4px;
+}
+
+.anniversary-style-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(9px * var(--app-ui-scale));
+}
+
+.anniversary-style-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(7px * var(--app-ui-scale));
+  min-height: calc(34px * var(--app-ui-scale));
+  padding: 0 calc(12px * var(--app-ui-scale));
+  border: 2px solid color-mix(in srgb, var(--color-border) 70%, transparent);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: calc(13px * var(--app-ui-scale));
+  font-weight: 900;
+}
+
+.anniversary-style-chip span {
+  width: calc(16px * var(--app-ui-scale));
+  height: calc(16px * var(--app-ui-scale));
+  border-radius: 999px;
+  background: var(--style-chip-color, var(--color-primary));
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.65);
+}
+
+.anniversary-style-chip.style-lavender {
+  --style-chip-color: #8a71d6;
+}
+
+.anniversary-style-chip.style-sunrise {
+  --style-chip-color: #e59266;
+}
+
+.anniversary-style-chip.style-mint {
+  --style-chip-color: #39aa72;
+}
+
+.anniversary-style-chip.style-ocean {
+  --style-chip-color: #3a8fc2;
+}
+
+.anniversary-style-chip.style-rose {
+  --style-chip-color: #d76487;
+}
+
+.anniversary-style-chip.style-classic {
+  --style-chip-color: #725d42;
+}
+
+.anniversary-style-chip.is-active {
+  border-color: color-mix(in srgb, var(--style-chip-color) 58%, var(--color-border));
+  background: color-mix(in srgb, var(--style-chip-color) 14%, var(--color-surface));
+  box-shadow: 0 3px 0 rgba(114, 93, 66, 0.14);
 }
 
 .calendar-panel {
@@ -3911,6 +4221,7 @@ textarea::placeholder {
   }
 
   .topbar-actions,
+  .anniversary-tabs,
   .calendar-heading {
     justify-content: flex-start;
   }
@@ -3930,6 +4241,7 @@ textarea::placeholder {
   .form-grid,
   .calendar-month,
   .calendar-week,
+  .anniversary-grid,
   .stat-grid,
   .auth-switcher,
   .quadrant-grid,
@@ -3939,6 +4251,14 @@ textarea::placeholder {
 
   .task-item {
     grid-template-columns: 1fr;
+  }
+
+  .anniversary-card header {
+    padding-right: calc(68px * var(--app-ui-scale));
+  }
+
+  .anniversary-value strong {
+    font-size: calc(42px * var(--app-ui-scale));
   }
 
   .auth-screen {

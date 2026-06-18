@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { Lunar, Solar } from "lunar-typescript";
 
 export const authEmailSchema = z.string().trim().email().max(255).toLowerCase();
 
@@ -44,12 +45,19 @@ export const recurrenceFrequencyValues = ["DAILY", "WEEKLY", "MONTHLY", "YEARLY"
 export const taskExceptionStatusValues = ["SKIPPED", "COMPLETED", "RESCHEDULED"] as const;
 export const pomodoroStatusValues = ["RUNNING", "COMPLETED", "CANCELLED"] as const;
 export const calendarViewValues = ["month", "week", "day"] as const;
+export const anniversaryCategoryValues = ["ANNIVERSARY", "COUNTDOWN", "BIRTHDAY", "HOLIDAY"] as const;
+export const anniversaryRepeatValues = ["NONE", "WEEKLY", "MONTHLY", "YEARLY"] as const;
+export const anniversaryDirectionValues = ["AUTO", "ELAPSED", "COUNTDOWN"] as const;
+export const anniversaryDisplayDirectionValues = ["ELAPSED", "COUNTDOWN"] as const;
+export const anniversaryCalendarTypeValues = ["SOLAR", "LUNAR", "SOLAR_TERM"] as const;
+export const anniversarySolarTermValues = ["QINGMING"] as const;
+export const anniversaryCardStyleValues = ["lavender", "sunrise", "mint", "ocean", "rose", "classic"] as const;
 export const themeIdValues = ["default", "shinchan", "labubu", "doraemon"] as const;
 export const taskViewModeValues = ["list", "quadrant"] as const;
 export const taskCardDisplayModeValues = ["full", "title"] as const;
 export const appCloseBehaviorValues = ["hide", "quit"] as const;
 export const displaySizeValues = ["small", "default", "large"] as const;
-export const sidebarModuleValues = ["tasks", "memos", "calendar", "pomodoro"] as const;
+export const sidebarModuleValues = ["tasks", "memos", "anniversaries", "calendar", "pomodoro"] as const;
 export const defaultVisibleSidebarModules = [...sidebarModuleValues] as Array<(typeof sidebarModuleValues)[number]>;
 export const fontFamilyValues = [
   "system",
@@ -112,6 +120,75 @@ export const recurrenceRuleSchema = z.object({
   until: z.string().datetime().optional().nullable(),
   count: z.number().int().min(1).max(1000).optional().nullable(),
   byWeekday: z.array(z.enum(["MO", "TU", "WE", "TH", "FR", "SA", "SU"])).optional().nullable()
+});
+
+export const dateKeyRegex = /^\d{4}-\d{2}-\d{2}$/;
+
+function isValidDateKey(value: string) {
+  if (!dateKeyRegex.test(value)) {
+    return false;
+  }
+
+  const parts = parseDateKey(value);
+  return parts.month >= 1 &&
+    parts.month <= 12 &&
+    parts.day >= 1 &&
+    parts.day <= daysInMonth(parts.year, parts.month) &&
+    formatDateKey(parts) === value;
+}
+
+export const anniversaryEventBaseSchema = z.object({
+  title: z.string().trim().min(1).max(160),
+  notes: z.string().trim().max(4000).optional().nullable(),
+  category: z.enum(anniversaryCategoryValues),
+  date: z.string().refine(isValidDateKey, "Date must be a valid YYYY-MM-DD value"),
+  repeat: z.enum(anniversaryRepeatValues).default("NONE"),
+  direction: z.enum(anniversaryDirectionValues).default("AUTO"),
+  cardStyle: z.enum(anniversaryCardStyleValues).default("lavender"),
+  calendarType: z.enum(anniversaryCalendarTypeValues).default("SOLAR"),
+  lunarMonth: z.number().int().min(1).max(12).optional().nullable(),
+  lunarDay: z.number().int().min(1).max(30).optional().nullable(),
+  solarTerm: z.enum(anniversarySolarTermValues).optional().nullable()
+});
+
+export const createAnniversaryRequestSchema = anniversaryEventBaseSchema.superRefine((value, ctx) => {
+  if (value.calendarType === "LUNAR" && (!value.lunarMonth || !value.lunarDay)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Lunar month and day are required",
+      path: ["lunarMonth"]
+    });
+  }
+  if (value.calendarType === "SOLAR_TERM" && !value.solarTerm) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Solar term is required",
+      path: ["solarTerm"]
+    });
+  }
+});
+
+export const updateAnniversaryRequestSchema = anniversaryEventBaseSchema.partial().refine((value) => (
+  value.title !== undefined ||
+  value.notes !== undefined ||
+  value.category !== undefined ||
+  value.date !== undefined ||
+  value.repeat !== undefined ||
+  value.direction !== undefined ||
+  value.cardStyle !== undefined ||
+  value.calendarType !== undefined ||
+  value.lunarMonth !== undefined ||
+  value.lunarDay !== undefined ||
+  value.solarTerm !== undefined
+), {
+  message: "Anniversary update is required"
+});
+
+export const updateAnniversaryOrderRequestSchema = z.object({
+  orderedIds: z.array(z.string().min(1)).min(1).max(500)
+}).refine((value) => new Set(value.orderedIds).size === value.orderedIds.length, {
+  message: "Anniversary ids must be unique",
+  path: ["orderedIds"]
 });
 
 export const createTaskRequestSchema = z.object({
@@ -194,7 +271,8 @@ export const appFeatureFlagsSchema = z.object({
   calendar: z.boolean(),
   pomodoro: z.boolean(),
   taskQuadrant: z.boolean(),
-  floatingCard: z.boolean()
+  floatingCard: z.boolean(),
+  anniversaries: z.boolean()
 });
 
 export const appBootstrapResponseSchema = z.object({
@@ -212,7 +290,8 @@ export const defaultAppFeatureFlags = {
   calendar: true,
   pomodoro: true,
   taskQuadrant: true,
-  floatingCard: true
+  floatingCard: true,
+  anniversaries: true
 } satisfies AppFeatureFlags;
 
 export type RegisterRequest = z.infer<typeof registerRequestSchema>;
@@ -225,11 +304,21 @@ export type UpdateThemePreferenceRequest = z.infer<typeof updateThemePreferenceR
 export type MemoListQuery = z.infer<typeof memoListQuerySchema>;
 export type CreateMemoRequest = z.infer<typeof createMemoRequestSchema>;
 export type UpdateMemoRequest = z.infer<typeof updateMemoRequestSchema>;
+export type CreateAnniversaryRequest = z.infer<typeof createAnniversaryRequestSchema>;
+export type UpdateAnniversaryRequest = z.infer<typeof updateAnniversaryRequestSchema>;
+export type UpdateAnniversaryOrderRequest = z.infer<typeof updateAnniversaryOrderRequestSchema>;
 export type CreateTaskRequest = z.infer<typeof createTaskRequestSchema>;
 export type UpdateTaskRequest = z.infer<typeof updateTaskRequestSchema>;
 export type RecurrenceRuleInput = z.infer<typeof recurrenceRuleSchema>;
 export type CalendarQuery = z.infer<typeof calendarQuerySchema>;
 export type CalendarView = (typeof calendarViewValues)[number];
+export type AnniversaryCategory = (typeof anniversaryCategoryValues)[number];
+export type AnniversaryRepeat = (typeof anniversaryRepeatValues)[number];
+export type AnniversaryDirection = (typeof anniversaryDirectionValues)[number];
+export type AnniversaryDisplayDirection = (typeof anniversaryDisplayDirectionValues)[number];
+export type AnniversaryCalendarType = (typeof anniversaryCalendarTypeValues)[number];
+export type AnniversarySolarTerm = (typeof anniversarySolarTermValues)[number];
+export type AnniversaryCardStyle = (typeof anniversaryCardStyleValues)[number];
 export type TaskStatus = (typeof taskStatusValues)[number];
 export type TaskPriority = (typeof taskPriorityValues)[number];
 export type TaskViewMode = (typeof taskViewModeValues)[number];
@@ -309,6 +398,29 @@ export interface ApiMemo extends ApiMemoListItem {
   assets: ApiMemoAsset[];
 }
 
+export interface ApiAnniversaryEvent {
+  id: string;
+  title: string;
+  notes: string | null;
+  category: AnniversaryCategory;
+  date: string;
+  repeat: AnniversaryRepeat;
+  direction: AnniversaryDirection;
+  cardStyle: AnniversaryCardStyle;
+  calendarType: AnniversaryCalendarType;
+  lunarMonth: number | null;
+  lunarDay: number | null;
+  solarTerm: AnniversarySolarTerm | null;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+  displayDirection: AnniversaryDisplayDirection;
+  displayDate: string;
+  displayValue: string;
+  displaySubtext: string;
+  daysDelta: number;
+}
+
 export interface ApiTask {
   id: string;
   title: string;
@@ -383,4 +495,481 @@ export interface PomodoroStats {
     completedMinutes: number;
     completedSessions: number;
   }>;
+}
+
+export interface AnniversaryDateParts {
+  year: number;
+  month: number;
+  day: number;
+}
+
+export interface AnniversaryDisplayResult {
+  displayDirection: AnniversaryDisplayDirection;
+  displayDate: string;
+  displayValue: string;
+  displaySubtext: string;
+  daysDelta: number;
+}
+
+export interface AnniversaryTimingInput {
+  category: AnniversaryCategory;
+  date: string;
+  repeat: AnniversaryRepeat;
+  direction: AnniversaryDirection;
+  calendarType: AnniversaryCalendarType;
+  lunarMonth?: number | null;
+  lunarDay?: number | null;
+  solarTerm?: AnniversarySolarTerm | null;
+}
+
+export interface BuiltInAnniversaryHolidayTemplate {
+  id: string;
+  title: string;
+  category: "HOLIDAY";
+  calendarType: AnniversaryCalendarType;
+  month?: number;
+  day?: number;
+  lunarMonth?: number;
+  lunarDay?: number;
+  solarTerm?: AnniversarySolarTerm;
+  repeat: "YEARLY";
+  direction: "COUNTDOWN";
+  cardStyle: AnniversaryCardStyle;
+  notes: string | null;
+}
+
+const msPerDay = 24 * 60 * 60 * 1000;
+
+export const anniversaryCategoryLabels: Record<AnniversaryCategory, string> = {
+  ANNIVERSARY: "纪念日",
+  COUNTDOWN: "倒数日",
+  BIRTHDAY: "生日",
+  HOLIDAY: "节日"
+};
+
+export const anniversaryRepeatLabels: Record<AnniversaryRepeat, string> = {
+  NONE: "不重复",
+  WEEKLY: "每周",
+  MONTHLY: "每月",
+  YEARLY: "每年"
+};
+
+export const anniversarySolarTermLabels: Record<AnniversarySolarTerm, string> = {
+  QINGMING: "清明"
+};
+
+export const builtInAnniversaryHolidayTemplates: BuiltInAnniversaryHolidayTemplate[] = [
+  {
+    id: "new-year",
+    title: "元旦",
+    category: "HOLIDAY",
+    calendarType: "SOLAR",
+    month: 1,
+    day: 1,
+    repeat: "YEARLY",
+    direction: "COUNTDOWN",
+    cardStyle: "sunrise",
+    notes: null
+  },
+  {
+    id: "spring-festival",
+    title: "春节",
+    category: "HOLIDAY",
+    calendarType: "LUNAR",
+    lunarMonth: 1,
+    lunarDay: 1,
+    repeat: "YEARLY",
+    direction: "COUNTDOWN",
+    cardStyle: "rose",
+    notes: null
+  },
+  {
+    id: "lantern-festival",
+    title: "元宵节",
+    category: "HOLIDAY",
+    calendarType: "LUNAR",
+    lunarMonth: 1,
+    lunarDay: 15,
+    repeat: "YEARLY",
+    direction: "COUNTDOWN",
+    cardStyle: "lavender",
+    notes: null
+  },
+  {
+    id: "qingming",
+    title: "清明节",
+    category: "HOLIDAY",
+    calendarType: "SOLAR_TERM",
+    solarTerm: "QINGMING",
+    repeat: "YEARLY",
+    direction: "COUNTDOWN",
+    cardStyle: "mint",
+    notes: null
+  },
+  {
+    id: "labor-day",
+    title: "劳动节",
+    category: "HOLIDAY",
+    calendarType: "SOLAR",
+    month: 5,
+    day: 1,
+    repeat: "YEARLY",
+    direction: "COUNTDOWN",
+    cardStyle: "ocean",
+    notes: null
+  },
+  {
+    id: "dragon-boat",
+    title: "端午节",
+    category: "HOLIDAY",
+    calendarType: "LUNAR",
+    lunarMonth: 5,
+    lunarDay: 5,
+    repeat: "YEARLY",
+    direction: "COUNTDOWN",
+    cardStyle: "mint",
+    notes: null
+  },
+  {
+    id: "qixi",
+    title: "七夕",
+    category: "HOLIDAY",
+    calendarType: "LUNAR",
+    lunarMonth: 7,
+    lunarDay: 7,
+    repeat: "YEARLY",
+    direction: "COUNTDOWN",
+    cardStyle: "rose",
+    notes: null
+  },
+  {
+    id: "mid-autumn",
+    title: "中秋节",
+    category: "HOLIDAY",
+    calendarType: "LUNAR",
+    lunarMonth: 8,
+    lunarDay: 15,
+    repeat: "YEARLY",
+    direction: "COUNTDOWN",
+    cardStyle: "sunrise",
+    notes: null
+  },
+  {
+    id: "double-ninth",
+    title: "重阳节",
+    category: "HOLIDAY",
+    calendarType: "LUNAR",
+    lunarMonth: 9,
+    lunarDay: 9,
+    repeat: "YEARLY",
+    direction: "COUNTDOWN",
+    cardStyle: "classic",
+    notes: null
+  },
+  {
+    id: "national-day",
+    title: "国庆节",
+    category: "HOLIDAY",
+    calendarType: "SOLAR",
+    month: 10,
+    day: 1,
+    repeat: "YEARLY",
+    direction: "COUNTDOWN",
+    cardStyle: "ocean",
+    notes: null
+  }
+];
+
+export function parseDateKey(value: string): AnniversaryDateParts {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  return {
+    year: Number(match?.[1] ?? 0),
+    month: Number(match?.[2] ?? 0),
+    day: Number(match?.[3] ?? 0)
+  };
+}
+
+export function formatDateKey(parts: AnniversaryDateParts) {
+  return [
+    String(parts.year).padStart(4, "0"),
+    String(parts.month).padStart(2, "0"),
+    String(parts.day).padStart(2, "0")
+  ].join("-");
+}
+
+export function toLocalDateKey(date = new Date()) {
+  return formatDateKey({
+    year: date.getFullYear(),
+    month: date.getMonth() + 1,
+    day: date.getDate()
+  });
+}
+
+export function compareDateKeys(left: string, right: string) {
+  return toDayNumber(parseDateKey(left)) - toDayNumber(parseDateKey(right));
+}
+
+export function calculateAnniversaryDisplay(event: AnniversaryTimingInput, todayKey = toLocalDateKey()): AnniversaryDisplayResult {
+  const intendedDirection = resolveAnniversaryDirection(event.category, event.direction);
+  const displayDate = intendedDirection === "COUNTDOWN"
+    ? nextOccurrenceOnOrAfter(event, todayKey)
+    : previousOccurrenceOnOrBefore(event, todayKey);
+  const daysDelta = diffDays(todayKey, displayDate);
+  const displayDirection = daysDelta === 0
+    ? intendedDirection
+    : daysDelta > 0 ? "COUNTDOWN" : "ELAPSED";
+  const displayValue = daysDelta === 0
+    ? "今天"
+    : formatAnniversaryDuration(diffCalendarParts(
+      daysDelta > 0 ? todayKey : displayDate,
+      daysDelta > 0 ? displayDate : todayKey
+    ));
+  const displaySubtext = daysDelta === 0
+    ? `${formatHumanDate(displayDate)} 就是今天`
+    : `距离 ${formatHumanDate(displayDate)} ${displayDirection === "COUNTDOWN" ? "还有" : "已经"}`;
+
+  return {
+    displayDirection,
+    displayDate,
+    displayValue,
+    displaySubtext,
+    daysDelta
+  };
+}
+
+export function resolveBuiltInAnniversaryTemplate(templateId: string, todayKey = toLocalDateKey()): CreateAnniversaryRequest | null {
+  const template = builtInAnniversaryHolidayTemplates.find((item) => item.id === templateId);
+  if (!template) {
+    return null;
+  }
+
+  const today = parseDateKey(todayKey);
+  const seedDate = resolveTemplateSeedDate(template, today.year);
+  const event: AnniversaryTimingInput = {
+    category: template.category,
+    date: seedDate,
+    repeat: template.repeat,
+    direction: template.direction,
+    calendarType: template.calendarType,
+    lunarMonth: template.lunarMonth ?? null,
+    lunarDay: template.lunarDay ?? null,
+    solarTerm: template.solarTerm ?? null
+  };
+
+  return {
+    title: template.title,
+    notes: template.notes,
+    category: template.category,
+    date: nextOccurrenceOnOrAfter(event, todayKey),
+    repeat: template.repeat,
+    direction: template.direction,
+    cardStyle: template.cardStyle,
+    calendarType: template.calendarType,
+    lunarMonth: template.lunarMonth ?? null,
+    lunarDay: template.lunarDay ?? null,
+    solarTerm: template.solarTerm ?? null
+  };
+}
+
+function resolveAnniversaryDirection(category: AnniversaryCategory, direction: AnniversaryDirection): AnniversaryDisplayDirection {
+  if (direction === "ELAPSED" || direction === "COUNTDOWN") {
+    return direction;
+  }
+  return category === "ANNIVERSARY" || category === "BIRTHDAY" ? "ELAPSED" : "COUNTDOWN";
+}
+
+function resolveTemplateSeedDate(template: BuiltInAnniversaryHolidayTemplate, year: number) {
+  if (template.calendarType === "LUNAR" && template.lunarMonth && template.lunarDay) {
+    return lunarDateToSolarKey(year, template.lunarMonth, template.lunarDay);
+  }
+  if (template.calendarType === "SOLAR_TERM" && template.solarTerm) {
+    return solarTermDateKey(year, template.solarTerm);
+  }
+  return formatDateKey({
+    year,
+    month: template.month ?? 1,
+    day: Math.min(template.day ?? 1, daysInMonth(year, template.month ?? 1))
+  });
+}
+
+function nextOccurrenceOnOrAfter(event: AnniversaryTimingInput, todayKey: string): string {
+  const base = parseDateKey(event.date);
+  const today = parseDateKey(todayKey);
+  if (compareDateKeys(todayKey, event.date) <= 0 || event.repeat === "NONE") {
+    return event.date;
+  }
+
+  if (event.repeat === "WEEKLY") {
+    const baseDay = dayOfWeek(base);
+    const todayDay = dayOfWeek(today);
+    const offset = (baseDay - todayDay + 7) % 7;
+    return formatDateKey(addDays(today, offset));
+  }
+
+  if (event.repeat === "MONTHLY") {
+    let candidate = monthlyOccurrence(today.year, today.month, base.day);
+    if (compareDateKeys(formatDateKey(candidate), todayKey) < 0) {
+      candidate = addMonthsClamped(candidate, 1, base.day);
+    }
+    return formatDateKey(candidate);
+  }
+
+  for (let year = today.year; year <= today.year + 3; year += 1) {
+    const candidate = yearlyOccurrence(event, year);
+    if (compareDateKeys(candidate, todayKey) >= 0 && compareDateKeys(candidate, event.date) >= 0) {
+      return candidate;
+    }
+  }
+
+  return event.date;
+}
+
+function previousOccurrenceOnOrBefore(event: AnniversaryTimingInput, todayKey: string): string {
+  const base = parseDateKey(event.date);
+  const today = parseDateKey(todayKey);
+  if (compareDateKeys(todayKey, event.date) <= 0 || event.repeat === "NONE") {
+    return event.date;
+  }
+
+  if (event.repeat === "WEEKLY") {
+    const baseDay = dayOfWeek(base);
+    const todayDay = dayOfWeek(today);
+    const offset = (todayDay - baseDay + 7) % 7;
+    return formatDateKey(addDays(today, -offset));
+  }
+
+  if (event.repeat === "MONTHLY") {
+    let candidate = monthlyOccurrence(today.year, today.month, base.day);
+    if (compareDateKeys(formatDateKey(candidate), todayKey) > 0) {
+      candidate = addMonthsClamped(candidate, -1, base.day);
+    }
+    return compareDateKeys(formatDateKey(candidate), event.date) >= 0 ? formatDateKey(candidate) : event.date;
+  }
+
+  for (let year = today.year; year >= base.year - 1; year -= 1) {
+    const candidate = yearlyOccurrence(event, year);
+    if (compareDateKeys(candidate, todayKey) <= 0 && compareDateKeys(candidate, event.date) >= 0) {
+      return candidate;
+    }
+  }
+
+  return event.date;
+}
+
+function yearlyOccurrence(event: AnniversaryTimingInput, year: number) {
+  if (event.calendarType === "LUNAR" && event.lunarMonth && event.lunarDay) {
+    return lunarDateToSolarKey(year, event.lunarMonth, event.lunarDay);
+  }
+  if (event.calendarType === "SOLAR_TERM" && event.solarTerm) {
+    return solarTermDateKey(year, event.solarTerm);
+  }
+
+  const base = parseDateKey(event.date);
+  return formatDateKey({
+    year,
+    month: base.month,
+    day: Math.min(base.day, daysInMonth(year, base.month))
+  });
+}
+
+function lunarDateToSolarKey(year: number, month: number, day: number) {
+  return Lunar.fromYmd(year, month, day).getSolar().toString();
+}
+
+function solarTermDateKey(year: number, term: AnniversarySolarTerm) {
+  const solar = Lunar.fromYmd(year, 1, 1).getJieQiTable()[anniversarySolarTermLabels[term]];
+  return solar?.toString() ?? formatDateKey({ year, month: 4, day: 4 });
+}
+
+function monthlyOccurrence(year: number, month: number, day: number) {
+  return {
+    year,
+    month,
+    day: Math.min(day, daysInMonth(year, month))
+  };
+}
+
+function addMonthsClamped(parts: AnniversaryDateParts, offset: number, preferredDay = parts.day): AnniversaryDateParts {
+  const monthIndex = parts.year * 12 + (parts.month - 1) + offset;
+  const year = Math.floor(monthIndex / 12);
+  const month = (monthIndex % 12 + 12) % 12 + 1;
+  return {
+    year,
+    month,
+    day: Math.min(preferredDay, daysInMonth(year, month))
+  };
+}
+
+function addYearsClamped(parts: AnniversaryDateParts, years: number) {
+  return {
+    year: parts.year + years,
+    month: parts.month,
+    day: Math.min(parts.day, daysInMonth(parts.year + years, parts.month))
+  };
+}
+
+function addDays(parts: AnniversaryDateParts, days: number) {
+  const date = new Date(Date.UTC(parts.year, parts.month - 1, parts.day + days));
+  return {
+    year: date.getUTCFullYear(),
+    month: date.getUTCMonth() + 1,
+    day: date.getUTCDate()
+  };
+}
+
+function daysInMonth(year: number, month: number) {
+  return new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+
+function dayOfWeek(parts: AnniversaryDateParts) {
+  return new Date(Date.UTC(parts.year, parts.month - 1, parts.day)).getUTCDay();
+}
+
+function toDayNumber(parts: AnniversaryDateParts) {
+  return Math.floor(Date.UTC(parts.year, parts.month - 1, parts.day) / msPerDay);
+}
+
+function diffDays(fromKey: string, toKey: string) {
+  return toDayNumber(parseDateKey(toKey)) - toDayNumber(parseDateKey(fromKey));
+}
+
+function diffCalendarParts(fromKey: string, toKey: string) {
+  const from = parseDateKey(fromKey);
+  const to = parseDateKey(toKey);
+  let years = to.year - from.year;
+  let anchor = addYearsClamped(from, years);
+  if (compareDateKeys(formatDateKey(anchor), toKey) > 0) {
+    years -= 1;
+    anchor = addYearsClamped(from, years);
+  }
+
+  let months = 0;
+  while (compareDateKeys(formatDateKey(addMonthsClamped(anchor, months + 1)), toKey) <= 0) {
+    months += 1;
+  }
+  anchor = addMonthsClamped(anchor, months);
+
+  return {
+    years,
+    months,
+    days: diffDays(formatDateKey(anchor), toKey),
+    totalDays: diffDays(fromKey, toKey)
+  };
+}
+
+function formatAnniversaryDuration(duration: { years: number; months: number; days: number; totalDays: number }) {
+  if (duration.years <= 0 && duration.months <= 0) {
+    return `${duration.totalDays}天`;
+  }
+
+  return [
+    duration.years > 0 ? `${duration.years}年` : "",
+    duration.months > 0 ? `${duration.months}月` : "",
+    duration.days > 0 ? `${duration.days}天` : ""
+  ].filter(Boolean).join("");
+}
+
+function formatHumanDate(dateKey: string) {
+  const { year, month, day } = parseDateKey(dateKey);
+  return `${year}/${month}/${day}`;
 }

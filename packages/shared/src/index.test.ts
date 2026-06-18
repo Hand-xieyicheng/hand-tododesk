@@ -1,9 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
+  anniversaryCardStyleValues,
+  anniversaryCategoryValues,
+  anniversaryDirectionValues,
+  anniversaryRepeatValues,
   appBootstrapResponseSchema,
   appCloseBehaviorValues,
+  calculateAnniversaryDisplay,
   changeEmailRequestSchema,
   changePasswordRequestSchema,
+  createAnniversaryRequestSchema,
   createMemoRequestSchema,
   defaultAppFeatureFlags,
   displaySizeValues,
@@ -14,6 +20,9 @@ import {
   taskCardDisplayModeValues,
   taskViewModeValues,
   titleColorValues,
+  resolveBuiltInAnniversaryTemplate,
+  updateAnniversaryOrderRequestSchema,
+  updateAnniversaryRequestSchema,
   updateMemoRequestSchema,
   updateThemePreferenceRequestSchema,
   updateProfileRequestSchema,
@@ -103,33 +112,35 @@ describe("app bootstrap schema", () => {
       calendar: true,
       pomodoro: true,
       taskQuadrant: true,
-      floatingCard: true
+      floatingCard: true,
+      anniversaries: true
     });
 
     expect(appBootstrapResponseSchema.parse({
-      apiVersion: "0.2.5",
+      apiVersion: "0.2.6",
       releaseChannel: "stable",
       desktop: {
         minimumVersion: "0.1.0",
-        latestVersion: "0.2.5",
+        latestVersion: "0.2.6",
         updateEndpoint: "https://github.com/Hand-xieyicheng/hand-tododesk/releases/latest/download/latest.json"
       },
       featureFlags: {
         calendar: true,
         pomodoro: false,
         taskQuadrant: true,
-        floatingCard: true
+        floatingCard: true,
+        anniversaries: true
       }
     }).featureFlags.pomodoro).toBe(false);
   });
 
   it("rejects unsupported release channels", () => {
     expect(appBootstrapResponseSchema.safeParse({
-      apiVersion: "0.2.5",
+      apiVersion: "0.2.6",
       releaseChannel: "beta",
       desktop: {
         minimumVersion: "0.1.0",
-        latestVersion: "0.2.5",
+        latestVersion: "0.2.6",
         updateEndpoint: "https://github.com/Hand-xieyicheng/hand-tododesk/releases/latest/download/latest.json"
       },
       featureFlags: defaultAppFeatureFlags
@@ -150,6 +161,85 @@ describe("memo schemas", () => {
     });
     expect(updateMemoRequestSchema.parse({ archived: true })).toEqual({ archived: true });
     expect(updateMemoRequestSchema.safeParse({}).success).toBe(false);
+  });
+});
+
+describe("anniversary schemas and display", () => {
+  it("accepts planned anniversary values and rejects invalid ones", () => {
+    expect(anniversaryCategoryValues).toEqual(["ANNIVERSARY", "COUNTDOWN", "BIRTHDAY", "HOLIDAY"]);
+    expect(anniversaryRepeatValues).toEqual(["NONE", "WEEKLY", "MONTHLY", "YEARLY"]);
+    expect(anniversaryDirectionValues).toEqual(["AUTO", "ELAPSED", "COUNTDOWN"]);
+    expect(anniversaryCardStyleValues).toEqual(["lavender", "sunrise", "mint", "ocean", "rose", "classic"]);
+
+    expect(createAnniversaryRequestSchema.parse({
+      title: " 周末 ",
+      category: "COUNTDOWN",
+      date: "2026-06-20",
+      repeat: "NONE",
+      direction: "AUTO",
+      cardStyle: "lavender",
+      calendarType: "SOLAR"
+    })).toEqual({
+      title: "周末",
+      category: "COUNTDOWN",
+      date: "2026-06-20",
+      repeat: "NONE",
+      direction: "AUTO",
+      cardStyle: "lavender",
+      calendarType: "SOLAR"
+    });
+    expect(updateAnniversaryRequestSchema.parse({ cardStyle: "mint" })).toEqual({ cardStyle: "mint" });
+    expect(updateAnniversaryOrderRequestSchema.parse({ orderedIds: ["a", "b"] })).toEqual({ orderedIds: ["a", "b"] });
+    expect(updateAnniversaryOrderRequestSchema.safeParse({ orderedIds: [] }).success).toBe(false);
+    expect(createAnniversaryRequestSchema.safeParse({
+      title: "错误日期",
+      category: "COUNTDOWN",
+      date: "2026-02-30"
+    }).success).toBe(false);
+    expect(updateAnniversaryRequestSchema.safeParse({}).success).toBe(false);
+  });
+
+  it("formats countdown days and elapsed year-month-day values", () => {
+    expect(calculateAnniversaryDisplay({
+      category: "COUNTDOWN",
+      date: "2026-06-20",
+      repeat: "NONE",
+      direction: "AUTO",
+      calendarType: "SOLAR"
+    }, "2026-06-18")).toMatchObject({
+      displayDirection: "COUNTDOWN",
+      displayDate: "2026-06-20",
+      displayValue: "2天",
+      displaySubtext: "距离 2026/6/20 还有",
+      daysDelta: 2
+    });
+
+    expect(calculateAnniversaryDisplay({
+      category: "ANNIVERSARY",
+      date: "2019-12-09",
+      repeat: "NONE",
+      direction: "AUTO",
+      calendarType: "SOLAR"
+    }, "2026-06-18")).toMatchObject({
+      displayDirection: "ELAPSED",
+      displayDate: "2019-12-09",
+      displayValue: "6年6月9天",
+      displaySubtext: "距离 2019/12/9 已经",
+      daysDelta: -2383
+    });
+  });
+
+  it("resolves the next Spring Festival template date", () => {
+    expect(resolveBuiltInAnniversaryTemplate("spring-festival", "2026-06-18")).toMatchObject({
+      title: "春节",
+      category: "HOLIDAY",
+      date: "2027-02-06",
+      repeat: "YEARLY",
+      direction: "COUNTDOWN",
+      calendarType: "LUNAR",
+      lunarMonth: 1,
+      lunarDay: 1
+    });
   });
 });
 

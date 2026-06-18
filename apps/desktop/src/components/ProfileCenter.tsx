@@ -2,7 +2,7 @@ import { ChangeEvent, FormEvent, PointerEvent, useEffect, useMemo, useRef, useSt
 import { closestCenter, DndContext, KeyboardSensor, PointerSensor, type DragEndEvent, type DragStartEvent, useSensor, useSensors } from "@dnd-kit/core";
 import { arrayMove, rectSortingStrategy, SortableContext, sortableKeyboardCoordinates, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { appCloseBehaviorValues, displaySizeValues, fontFamilyValues, taskCardDisplayModeValues, titleColorValues, type ApiUser, type AppBootstrapResponse, type AppCloseBehavior, type DisplaySize, type FontFamily, type FooterType as AppFooterType, type SidebarModule, type TaskCardDisplayMode, type ThemeId, type TitleColor, type UserGender } from "@todo/shared";
+import { appCloseBehaviorValues, displaySizeValues, fontFamilyValues, sidebarModuleValues, taskCardDisplayModeValues, titleColorValues, type ApiUser, type AppBootstrapResponse, type AppCloseBehavior, type DisplaySize, type FontFamily, type FooterType as AppFooterType, type SidebarModule, type TaskCardDisplayMode, type ThemeId, type TitleColor, type UserGender } from "@todo/shared";
 import { Button, Card, Divider, Input, Modal, Radio, Select, Tabs, Title } from "animal-island-ui";
 import { Camera, Check, Download, GripVertical, KeyRound, Mail, RefreshCw, RotateCw, Save } from "lucide-react";
 import { api } from "../api/client";
@@ -190,7 +190,7 @@ function mergeSidebarModuleOrder(
 }
 
 function isSidebarModule(value: unknown): value is SidebarModule {
-  return typeof value === "string" && ["tasks", "memos", "calendar", "pomodoro"].includes(value);
+  return typeof value === "string" && sidebarModuleValues.includes(value as SidebarModule);
 }
 
 interface SortableSidebarModuleOptionProps {

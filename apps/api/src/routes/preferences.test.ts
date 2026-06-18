@@ -5,12 +5,14 @@ import { signAccessToken } from "../services/tokens.js";
 
 const db = vi.hoisted(() => ({
   execute: vi.fn(),
-  queryOne: vi.fn()
+  queryOne: vi.fn(),
+  queryRows: vi.fn()
 }));
 
 vi.mock("../db.js", () => ({
   execute: db.execute,
-  queryOne: db.queryOne
+  queryOne: db.queryOne,
+  queryRows: db.queryRows
 }));
 
 const token = signAccessToken({ sub: "user-1", email: "todo@example.com" });
@@ -59,7 +61,7 @@ describe("preference routes", () => {
     expect(response.json()).toMatchObject({
       taskCardDisplayMode: "full",
       appCloseBehavior: "hide",
-      visibleSidebarModules: ["tasks", "memos", "calendar", "pomodoro"],
+      visibleSidebarModules: ["tasks", "memos", "anniversaries", "calendar", "pomodoro"],
       sidebarCollapsed: false
     });
   });
