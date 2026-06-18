@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       releaseTag:
-        description: "Release tag to publish, for example v0.2.6"
+        description: "Release tag to publish, for example v0.2.7"
         required: true
-        default: "v0.2.6"
+        default: "v0.2.7"
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -32,7 +32,7 @@ jobs:
           - label: Windows x64
             os: windows-latest
             target: x86_64-pc-windows-msvc
-            args: --target x86_64-pc-windows-msvc
+            args: --target x86_64-pc-windows-msvc --bundles nsis
 
     steps:
       - name: Checkout
