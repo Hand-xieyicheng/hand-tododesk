@@ -656,16 +656,15 @@ export function MemoPanel() {
         </label>
 
         {message ? <div className="inline-alert">{message}</div> : null}
-        {loading ? <div className="inline-muted">加载中...</div> : null}
 
-        <div className="memo-list-scroll">
+        <div className="memo-list-scroll" aria-busy={loading}>
           {memos.length === 0 && !loading ? <Card className="empty-state" type="dashed">暂无备忘录</Card> : null}
           {renderMemoGroup("置顶", pinnedMemos)}
           {renderMemoGroup(showArchived ? "已归档" : "最近更新", regularMemos)}
         </div>
       </aside>
 
-      <section className="memo-editor-panel">
+      <section className="memo-editor-panel" aria-busy={detailLoading}>
         {selectedMemo ? (
           <>
             <header className="memo-editor-header">
@@ -766,8 +765,6 @@ export function MemoPanel() {
               </IconButtonTooltip>
               <input ref={fileInputRef} className="file-input-hidden" type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={handleImageInputChange} />
             </div>
-
-            {detailLoading ? <div className="inline-muted">加载中...</div> : null}
 
             <div
               ref={editorRef}

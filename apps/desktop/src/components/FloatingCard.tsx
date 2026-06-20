@@ -441,9 +441,8 @@ export function FloatingCard() {
         ) : null}
 
         {message ? <div className="inline-alert">{message}</div> : null}
-        {loading ? <div className="inline-muted">刷新中...</div> : null}
 
-        <section className="floating-task-list">
+        <section className="floating-task-list" aria-busy={loading}>
           {visibleTasks.length === 0 && !loading ? <Card className="empty-state" type="dashed">暂无待办</Card> : null}
           {visibleTasks.map((task) => {
             const isCompleted = task.status === "COMPLETED";

@@ -97,6 +97,16 @@ function taskWith(patch: Partial<ApiTask>): ApiTask {
   };
 }
 
+function createDeferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((promiseResolve, promiseReject) => {
+    resolve = promiseResolve;
+    reject = promiseReject;
+  });
+  return { promise, reject, resolve };
+}
+
 describe("FloatingCard", () => {
   let alwaysOnTop = false;
 
@@ -151,6 +161,27 @@ describe("FloatingCard", () => {
     fireEvent.click(await screen.findByRole("button", { name: "打开桌面" }));
 
     await waitFor(() => expect(tauriCoreMock.invoke).toHaveBeenCalledWith("show_main_window"));
+  });
+
+  it("keeps floating task content in place while manual refresh is pending", async () => {
+    const { container } = render(<FloatingCard />);
+
+    await waitFor(() => expect(screen.getAllByText("整理票据").length).toBeGreaterThan(0));
+
+    const refresh = createDeferred<{ tasks: ApiTask[] }>();
+    apiMock.tasks.mockReturnValueOnce(refresh.promise);
+
+    fireEvent.click(screen.getByRole("button", { name: "刷新待办" }));
+
+    await waitFor(() => expect(apiMock.tasks).toHaveBeenCalledTimes(2));
+
+    expect(screen.getAllByText("整理票据").length).toBeGreaterThan(0);
+    expect(container.querySelector(".floating-card main > .inline-muted")).not.toBeInTheDocument();
+    expect(container.querySelector(".floating-task-list .query-loading-indicator")).not.toBeInTheDocument();
+    expect(screen.queryByText("刷新中...")).not.toBeInTheDocument();
+
+    refresh.resolve({ tasks: [task] });
+    await waitFor(() => expect(apiMock.tasks).toHaveBeenCalledTimes(2));
   });
 
   it("defaults the new task deadline to today at 23:59", async () => {

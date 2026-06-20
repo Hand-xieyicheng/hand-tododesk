@@ -221,12 +221,63 @@ async function ensureAnniversarySchema() {
   await ensureColumn("AnniversaryEvent", "sortOrder", "ALTER TABLE `AnniversaryEvent` ADD COLUMN `sortOrder` INTEGER NOT NULL DEFAULT 0");
 }
 
+async function ensureHabitSchema() {
+  await execute(
+    `CREATE TABLE IF NOT EXISTS \`Habit\` (
+      \`id\` VARCHAR(191) NOT NULL,
+      \`userId\` VARCHAR(191) NOT NULL,
+      \`title\` VARCHAR(191) NOT NULL,
+      \`notes\` TEXT NULL,
+      \`icon\` VARCHAR(191) NOT NULL DEFAULT 'Smile',
+      \`color\` VARCHAR(191) NOT NULL DEFAULT 'mint',
+      \`frequency\` VARCHAR(191) NOT NULL,
+      \`interval\` INTEGER NOT NULL DEFAULT 1,
+      \`weekDays\` JSON NULL,
+      \`monthDays\` JSON NULL,
+      \`startDate\` VARCHAR(10) NOT NULL,
+      \`endDate\` VARCHAR(10) NULL,
+      \`sortOrder\` INTEGER NOT NULL DEFAULT 0,
+      \`archivedAt\` DATETIME(3) NULL,
+      \`createdAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+      \`updatedAt\` DATETIME(3) NOT NULL,
+      PRIMARY KEY (\`id\`),
+      INDEX \`Habit_userId_archivedAt_sortOrder_idx\` (\`userId\`, \`archivedAt\`, \`sortOrder\`),
+      INDEX \`Habit_userId_sortOrder_idx\` (\`userId\`, \`sortOrder\`),
+      CONSTRAINT \`Habit_userId_fkey\` FOREIGN KEY (\`userId\`) REFERENCES \`User\`(\`id\`) ON DELETE CASCADE ON UPDATE CASCADE
+    ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`
+  );
+
+  await execute(
+    `CREATE TABLE IF NOT EXISTS \`HabitCheckIn\` (
+      \`id\` VARCHAR(191) NOT NULL,
+      \`habitId\` VARCHAR(191) NOT NULL,
+      \`userId\` VARCHAR(191) NOT NULL,
+      \`date\` VARCHAR(10) NOT NULL,
+      \`note\` TEXT NULL,
+      \`createdAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+      \`updatedAt\` DATETIME(3) NOT NULL,
+      PRIMARY KEY (\`id\`),
+      UNIQUE INDEX \`HabitCheckIn_habitId_date_key\` (\`habitId\`, \`date\`),
+      INDEX \`HabitCheckIn_userId_date_idx\` (\`userId\`, \`date\`),
+      INDEX \`HabitCheckIn_habitId_date_idx\` (\`habitId\`, \`date\`),
+      CONSTRAINT \`HabitCheckIn_habitId_fkey\` FOREIGN KEY (\`habitId\`) REFERENCES \`Habit\`(\`id\`) ON DELETE CASCADE ON UPDATE CASCADE,
+      CONSTRAINT \`HabitCheckIn_userId_fkey\` FOREIGN KEY (\`userId\`) REFERENCES \`User\`(\`id\`) ON DELETE CASCADE ON UPDATE CASCADE
+    ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`
+  );
+}
+
 async function ensureVisibleSidebarModulesSchema() {
-  await execute("ALTER TABLE `UserThemePreference` ALTER COLUMN `visibleSidebarModules` SET DEFAULT 'tasks,memos,anniversaries,calendar,pomodoro'");
+  await execute("ALTER TABLE `UserThemePreference` ALTER COLUMN `visibleSidebarModules` SET DEFAULT 'tasks,memos,anniversaries,habits,calendar,pomodoro'");
   await execute(
     `UPDATE \`UserThemePreference\`
-     SET \`visibleSidebarModules\` = 'tasks,memos,anniversaries,calendar,pomodoro'
+     SET \`visibleSidebarModules\` = 'tasks,memos,anniversaries,habits,calendar,pomodoro'
      WHERE \`visibleSidebarModules\` = 'tasks,memos,calendar,pomodoro'`
+  );
+  await execute(
+    `UPDATE \`UserThemePreference\`
+     SET \`visibleSidebarModules\` = REPLACE(\`visibleSidebarModules\`, 'anniversaries,calendar', 'anniversaries,habits,calendar')
+     WHERE \`visibleSidebarModules\` LIKE '%anniversaries,calendar%'
+       AND \`visibleSidebarModules\` NOT LIKE '%habits%'`
   );
 }
 
@@ -234,6 +285,7 @@ async function ensureIncrementalSchema() {
   await ensureTaskPrioritySchema();
   await ensureMemoSchema();
   await ensureAnniversarySchema();
+  await ensureHabitSchema();
   await ensureColumn("User", "gender", "ALTER TABLE `User` ADD COLUMN `gender` ENUM('PRIVATE', 'MALE', 'FEMALE', 'OTHER') NOT NULL DEFAULT 'PRIVATE'");
   await ensureColumn("User", "avatarPath", "ALTER TABLE `User` ADD COLUMN `avatarPath` VARCHAR(191) NULL");
   await ensureColumn("UserThemePreference", "titleColor", "ALTER TABLE `UserThemePreference` ADD COLUMN `titleColor` VARCHAR(191) NOT NULL DEFAULT 'app-teal'");
@@ -244,7 +296,7 @@ async function ensureIncrementalSchema() {
   await ensureColumn("UserThemePreference", "taskCardDisplayMode", "ALTER TABLE `UserThemePreference` ADD COLUMN `taskCardDisplayMode` VARCHAR(191) NOT NULL DEFAULT 'full'");
   await ensureColumn("UserThemePreference", "appCloseBehavior", "ALTER TABLE `UserThemePreference` ADD COLUMN `appCloseBehavior` VARCHAR(191) NOT NULL DEFAULT 'hide'");
   await ensureColumn("UserThemePreference", "displaySize", "ALTER TABLE `UserThemePreference` ADD COLUMN `displaySize` VARCHAR(191) NOT NULL DEFAULT 'default'");
-  await ensureColumn("UserThemePreference", "visibleSidebarModules", "ALTER TABLE `UserThemePreference` ADD COLUMN `visibleSidebarModules` VARCHAR(191) NOT NULL DEFAULT 'tasks,memos,anniversaries,calendar,pomodoro'");
+  await ensureColumn("UserThemePreference", "visibleSidebarModules", "ALTER TABLE `UserThemePreference` ADD COLUMN `visibleSidebarModules` VARCHAR(191) NOT NULL DEFAULT 'tasks,memos,anniversaries,habits,calendar,pomodoro'");
   await ensureColumn("UserThemePreference", "sidebarCollapsed", "ALTER TABLE `UserThemePreference` ADD COLUMN `sidebarCollapsed` BOOLEAN NOT NULL DEFAULT FALSE");
   await ensureColumn("UserThemePreference", "fontFamily", "ALTER TABLE `UserThemePreference` ADD COLUMN `fontFamily` VARCHAR(191) NOT NULL DEFAULT 'system'");
   await ensureVisibleSidebarModulesSchema();

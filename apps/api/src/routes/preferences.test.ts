@@ -27,7 +27,7 @@ const currentPreference = {
   taskCardDisplayMode: "full",
   appCloseBehavior: "hide",
   displaySize: "default",
-  visibleSidebarModules: "tasks,memos,calendar,pomodoro",
+  visibleSidebarModules: "tasks,memos,anniversaries,habits,calendar,pomodoro",
   sidebarCollapsed: 0,
   fontFamily: "system"
 };
@@ -61,7 +61,7 @@ describe("preference routes", () => {
     expect(response.json()).toMatchObject({
       taskCardDisplayMode: "full",
       appCloseBehavior: "hide",
-      visibleSidebarModules: ["tasks", "memos", "anniversaries", "calendar", "pomodoro"],
+      visibleSidebarModules: ["tasks", "memos", "anniversaries", "habits", "calendar", "pomodoro"],
       sidebarCollapsed: false
     });
   });
@@ -86,7 +86,7 @@ describe("preference routes", () => {
       "title",
       "hide",
       "default",
-      "tasks,memos,calendar,pomodoro",
+      "tasks,memos,anniversaries,habits,calendar,pomodoro",
       false,
       "system"
     ]);
@@ -123,7 +123,7 @@ describe("preference routes", () => {
       "full",
       "hide",
       "default",
-      "tasks,memos,calendar,pomodoro",
+      "tasks,memos,anniversaries,habits,calendar,pomodoro",
       false,
       "lemi-chunxu-wanxing"
     ]);
@@ -160,7 +160,7 @@ describe("preference routes", () => {
       "full",
       "quit",
       "default",
-      "tasks,memos,calendar,pomodoro",
+      "tasks,memos,anniversaries,habits,calendar,pomodoro",
       false,
       "system"
     ]);
@@ -197,7 +197,7 @@ describe("preference routes", () => {
       "full",
       "hide",
       "default",
-      "tasks,memos,calendar,pomodoro",
+      "tasks,memos,anniversaries,habits,calendar,pomodoro",
       true,
       "system"
     ]);

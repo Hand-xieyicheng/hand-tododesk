@@ -16,6 +16,7 @@ const authModeActions: Array<{ mode: AuthMode; label: string }> = [
 ];
 
 interface AuthViewProps {
+  initialMode?: AuthMode;
   onAuthed(user: ApiUser): void;
 }
 
@@ -23,8 +24,8 @@ function getInitialLoginEmail() {
   return getLastLoginEmail() || getRememberedPasswordEmail();
 }
 
-export function AuthView({ onAuthed }: AuthViewProps) {
-  const [mode, setMode] = useState<AuthMode>("login");
+export function AuthView({ initialMode = "login", onAuthed }: AuthViewProps) {
+  const [mode, setMode] = useState<AuthMode>(initialMode);
   const [email, setEmail] = useState(() => getInitialLoginEmail());
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
@@ -38,6 +39,10 @@ export function AuthView({ onAuthed }: AuthViewProps) {
   useEffect(() => {
     applyTheme("default");
   }, []);
+
+  useEffect(() => {
+    setMode(initialMode);
+  }, [initialMode]);
 
   useEffect(() => {
     let cancelled = false;

@@ -52,12 +52,32 @@ export const anniversaryDisplayDirectionValues = ["ELAPSED", "COUNTDOWN"] as con
 export const anniversaryCalendarTypeValues = ["SOLAR", "LUNAR", "SOLAR_TERM"] as const;
 export const anniversarySolarTermValues = ["QINGMING"] as const;
 export const anniversaryCardStyleValues = ["lavender", "sunrise", "mint", "ocean", "rose", "classic"] as const;
+export const habitFrequencyValues = ["DAILY", "WEEKLY", "MONTHLY"] as const;
+export const habitWeekdayValues = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"] as const;
+export const habitRecommendedIconValues = [
+  "BookOpen",
+  "Footprints",
+  "Droplets",
+  "Dumbbell",
+  "Moon",
+  "Book",
+  "Coffee",
+  "Music",
+  "PenLine",
+  "Smile",
+  "Heart",
+  "Apple",
+  "Bike",
+  "Sparkles",
+  "Code"
+] as const;
+export const habitColorValues = ["mint", "blue", "yellow", "orange", "rose", "purple", "teal", "slate"] as const;
 export const themeIdValues = ["default", "shinchan", "labubu", "doraemon"] as const;
 export const taskViewModeValues = ["list", "quadrant"] as const;
 export const taskCardDisplayModeValues = ["full", "title"] as const;
 export const appCloseBehaviorValues = ["hide", "quit"] as const;
 export const displaySizeValues = ["small", "default", "large"] as const;
-export const sidebarModuleValues = ["tasks", "memos", "anniversaries", "calendar", "pomodoro"] as const;
+export const sidebarModuleValues = ["tasks", "memos", "anniversaries", "habits", "calendar", "pomodoro"] as const;
 export const defaultVisibleSidebarModules = [...sidebarModuleValues] as Array<(typeof sidebarModuleValues)[number]>;
 export const fontFamilyValues = [
   "system",
@@ -86,6 +106,8 @@ export const titleColorValues = [
   "warm-peach-pink"
 ] as const;
 export const userGenderValues = ["PRIVATE", "MALE", "FEMALE", "OTHER"] as const;
+
+export const habitIconSchema = z.string().trim().min(1).max(80).regex(/^[A-Za-z][A-Za-z0-9-]*$/, "Icon must be a valid icon key");
 
 export const memoListQuerySchema = z.object({
   query: z.string().trim().max(100).optional().default(""),
@@ -191,6 +213,110 @@ export const updateAnniversaryOrderRequestSchema = z.object({
   path: ["orderedIds"]
 });
 
+const habitScheduleFields = {
+  frequency: z.enum(habitFrequencyValues),
+  interval: z.number().int().min(1).max(365).default(1),
+  weekDays: z.array(z.enum(habitWeekdayValues)).max(7).default([]),
+  monthDays: z.array(z.number().int().min(1).max(31)).max(31).default([])
+};
+
+function validateHabitSchedule(value: {
+  frequency?: HabitFrequency;
+  weekDays?: HabitWeekday[];
+  monthDays?: number[];
+  startDate?: string;
+  endDate?: string | null;
+}, ctx: z.RefinementCtx) {
+  if (value.frequency === "WEEKLY" && (!value.weekDays || value.weekDays.length === 0)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Weekly habits require at least one weekday",
+      path: ["weekDays"]
+    });
+  }
+  if (value.frequency === "MONTHLY" && (!value.monthDays || value.monthDays.length === 0)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Monthly habits require at least one day",
+      path: ["monthDays"]
+    });
+  }
+  if (value.weekDays && new Set(value.weekDays).size !== value.weekDays.length) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Weekdays must be unique",
+      path: ["weekDays"]
+    });
+  }
+  if (value.monthDays && new Set(value.monthDays).size !== value.monthDays.length) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Month days must be unique",
+      path: ["monthDays"]
+    });
+  }
+  if (value.startDate && value.endDate && compareDateKeys(value.startDate, value.endDate) > 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "End date must be on or after start date",
+      path: ["endDate"]
+    });
+  }
+}
+
+const habitBaseSchema = z.object({
+  title: z.string().trim().min(1).max(160),
+  notes: z.string().trim().max(4000).optional().nullable(),
+  icon: habitIconSchema.default("Smile"),
+  color: z.enum(habitColorValues).default("mint"),
+  startDate: z.string().refine(isValidDateKey, "Date must be a valid YYYY-MM-DD value"),
+  endDate: z.string().refine(isValidDateKey, "Date must be a valid YYYY-MM-DD value").optional().nullable(),
+  ...habitScheduleFields
+});
+
+export const createHabitRequestSchema = habitBaseSchema.superRefine(validateHabitSchedule);
+
+export const updateHabitRequestSchema = habitBaseSchema.partial().extend({
+  archived: z.boolean().optional()
+}).superRefine(validateHabitSchedule).refine((value) => (
+  value.title !== undefined ||
+  value.notes !== undefined ||
+  value.icon !== undefined ||
+  value.color !== undefined ||
+  value.startDate !== undefined ||
+  value.endDate !== undefined ||
+  value.frequency !== undefined ||
+  value.interval !== undefined ||
+  value.weekDays !== undefined ||
+  value.monthDays !== undefined ||
+  value.archived !== undefined
+), {
+  message: "Habit update is required"
+});
+
+export const updateHabitOrderRequestSchema = z.object({
+  orderedIds: z.array(z.string().min(1)).min(1).max(500)
+}).refine((value) => new Set(value.orderedIds).size === value.orderedIds.length, {
+  message: "Habit ids must be unique",
+  path: ["orderedIds"]
+});
+
+export const habitCheckInRequestSchema = z.object({
+  date: z.string().refine(isValidDateKey, "Date must be a valid YYYY-MM-DD value"),
+  note: z.string().trim().max(1000).optional().nullable()
+});
+
+export const habitListQuerySchema = z.object({
+  includeArchived: z.enum(["true", "false"]).optional().default("false")
+});
+
+export const habitDetailQuerySchema = z.object({
+  month: z.string().regex(/^\d{4}-\d{2}$/).refine((value) => {
+    const [year, month] = value.split("-").map(Number);
+    return Boolean(year && month && month >= 1 && month <= 12);
+  }, "Month must be a valid YYYY-MM value").optional()
+});
+
 export const createTaskRequestSchema = z.object({
   title: z.string().trim().min(1).max(160),
   notes: z.string().trim().max(4000).optional().nullable(),
@@ -272,7 +398,8 @@ export const appFeatureFlagsSchema = z.object({
   pomodoro: z.boolean(),
   taskQuadrant: z.boolean(),
   floatingCard: z.boolean(),
-  anniversaries: z.boolean()
+  anniversaries: z.boolean(),
+  habits: z.boolean()
 });
 
 export const appBootstrapResponseSchema = z.object({
@@ -291,7 +418,8 @@ export const defaultAppFeatureFlags = {
   pomodoro: true,
   taskQuadrant: true,
   floatingCard: true,
-  anniversaries: true
+  anniversaries: true,
+  habits: true
 } satisfies AppFeatureFlags;
 
 export type RegisterRequest = z.infer<typeof registerRequestSchema>;
@@ -307,6 +435,12 @@ export type UpdateMemoRequest = z.infer<typeof updateMemoRequestSchema>;
 export type CreateAnniversaryRequest = z.infer<typeof createAnniversaryRequestSchema>;
 export type UpdateAnniversaryRequest = z.infer<typeof updateAnniversaryRequestSchema>;
 export type UpdateAnniversaryOrderRequest = z.infer<typeof updateAnniversaryOrderRequestSchema>;
+export type CreateHabitRequest = z.infer<typeof createHabitRequestSchema>;
+export type UpdateHabitRequest = z.infer<typeof updateHabitRequestSchema>;
+export type UpdateHabitOrderRequest = z.infer<typeof updateHabitOrderRequestSchema>;
+export type HabitCheckInRequest = z.infer<typeof habitCheckInRequestSchema>;
+export type HabitListQuery = z.infer<typeof habitListQuerySchema>;
+export type HabitDetailQuery = z.infer<typeof habitDetailQuerySchema>;
 export type CreateTaskRequest = z.infer<typeof createTaskRequestSchema>;
 export type UpdateTaskRequest = z.infer<typeof updateTaskRequestSchema>;
 export type RecurrenceRuleInput = z.infer<typeof recurrenceRuleSchema>;
@@ -319,6 +453,10 @@ export type AnniversaryDisplayDirection = (typeof anniversaryDisplayDirectionVal
 export type AnniversaryCalendarType = (typeof anniversaryCalendarTypeValues)[number];
 export type AnniversarySolarTerm = (typeof anniversarySolarTermValues)[number];
 export type AnniversaryCardStyle = (typeof anniversaryCardStyleValues)[number];
+export type HabitFrequency = (typeof habitFrequencyValues)[number];
+export type HabitWeekday = (typeof habitWeekdayValues)[number];
+export type HabitIcon = string;
+export type HabitColor = (typeof habitColorValues)[number];
 export type TaskStatus = (typeof taskStatusValues)[number];
 export type TaskPriority = (typeof taskPriorityValues)[number];
 export type TaskViewMode = (typeof taskViewModeValues)[number];
@@ -419,6 +557,62 @@ export interface ApiAnniversaryEvent {
   displayValue: string;
   displaySubtext: string;
   daysDelta: number;
+}
+
+export interface ApiHabitStats {
+  monthCheckIns: number;
+  monthPlanned: number;
+  monthCompletionRate: number;
+  totalCheckIns: number;
+  currentStreak: number;
+  currentStreakUnit: "天" | "次";
+}
+
+export interface ApiHabit {
+  id: string;
+  title: string;
+  notes: string | null;
+  icon: HabitIcon;
+  color: HabitColor;
+  frequency: HabitFrequency;
+  interval: number;
+  weekDays: HabitWeekday[];
+  monthDays: number[];
+  startDate: string;
+  endDate: string | null;
+  sortOrder: number;
+  archivedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  todayPlanned: boolean;
+  todayChecked: boolean;
+  stats: ApiHabitStats;
+}
+
+export interface ApiHabitCalendarDay {
+  date: string;
+  day: number;
+  planned: boolean;
+  checked: boolean;
+  future: boolean;
+  note: string | null;
+  checkInId: string | null;
+}
+
+export interface ApiHabitLog {
+  id: string;
+  date: string;
+  note: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ApiHabitDetail {
+  habit: ApiHabit;
+  month: string;
+  stats: ApiHabitStats;
+  calendarDays: ApiHabitCalendarDay[];
+  logs: ApiHabitLog[];
 }
 
 export interface ApiTask {

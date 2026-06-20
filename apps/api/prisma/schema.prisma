@@ -66,6 +66,8 @@ model User {
   memos              Memo[]
   memoAssets         MemoAsset[]
   anniversaryEvents  AnniversaryEvent[]
+  habits             Habit[]
+  habitCheckIns      HabitCheckIn[]
 }
 
 model EmailVerificationToken {
@@ -250,6 +252,46 @@ model AnniversaryEvent {
   @@index([userId, date])
 }
 
+model Habit {
+  id          String         @id @default(cuid())
+  userId      String
+  title       String
+  notes       String?        @db.Text
+  icon        String         @default("Smile")
+  color       String         @default("mint")
+  frequency   String
+  interval    Int            @default(1)
+  weekDays    Json?
+  monthDays   Json?
+  startDate   String         @db.VarChar(10)
+  endDate     String?        @db.VarChar(10)
+  sortOrder   Int            @default(0)
+  archivedAt  DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  checkIns    HabitCheckIn[]
+
+  @@index([userId, archivedAt, sortOrder])
+  @@index([userId, sortOrder])
+}
+
+model HabitCheckIn {
+  id        String   @id @default(cuid())
+  habitId   String
+  userId    String
+  date      String   @db.VarChar(10)
+  note      String?  @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  habit     Habit    @relation(fields: [habitId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([habitId, date])
+  @@index([userId, date])
+  @@index([habitId, date])
+}
+
 model UserThemePreference {
   userId             String   @id
   themeId            String   @default("default")
@@ -261,7 +303,7 @@ model UserThemePreference {
   taskCardDisplayMode String   @default("full")
   appCloseBehavior   String   @default("hide")
   displaySize        String   @default("default")
-  visibleSidebarModules String @default("tasks,memos,calendar,pomodoro")
+  visibleSidebarModules String @default("tasks,memos,anniversaries,habits,calendar,pomodoro")
   sidebarCollapsed   Boolean  @default(false)
   fontFamily         String   @default("system")
   updatedAt          DateTime @updatedAt

@@ -10,11 +10,15 @@ import {
   changeEmailRequestSchema,
   changePasswordRequestSchema,
   createAnniversaryRequestSchema,
+  createHabitRequestSchema,
   createMemoRequestSchema,
   defaultAppFeatureFlags,
   displaySizeValues,
   fontFamilyValues,
   footerTypeValues,
+  habitColorValues,
+  habitFrequencyValues,
+  habitRecommendedIconValues,
   releaseChannelValues,
   sortTasksForDisplay,
   taskCardDisplayModeValues,
@@ -23,6 +27,7 @@ import {
   resolveBuiltInAnniversaryTemplate,
   updateAnniversaryOrderRequestSchema,
   updateAnniversaryRequestSchema,
+  updateHabitRequestSchema,
   updateMemoRequestSchema,
   updateThemePreferenceRequestSchema,
   updateProfileRequestSchema,
@@ -113,15 +118,16 @@ describe("app bootstrap schema", () => {
       pomodoro: true,
       taskQuadrant: true,
       floatingCard: true,
-      anniversaries: true
+      anniversaries: true,
+      habits: true
     });
 
     expect(appBootstrapResponseSchema.parse({
-      apiVersion: "0.2.7",
+      apiVersion: "0.2.8",
       releaseChannel: "stable",
       desktop: {
         minimumVersion: "0.1.0",
-        latestVersion: "0.2.7",
+        latestVersion: "0.2.8",
         updateEndpoint: "https://github.com/Hand-xieyicheng/hand-tododesk/releases/latest/download/latest.json"
       },
       featureFlags: {
@@ -129,18 +135,19 @@ describe("app bootstrap schema", () => {
         pomodoro: false,
         taskQuadrant: true,
         floatingCard: true,
-        anniversaries: true
+        anniversaries: true,
+        habits: true
       }
     }).featureFlags.pomodoro).toBe(false);
   });
 
   it("rejects unsupported release channels", () => {
     expect(appBootstrapResponseSchema.safeParse({
-      apiVersion: "0.2.7",
+      apiVersion: "0.2.8",
       releaseChannel: "beta",
       desktop: {
         minimumVersion: "0.1.0",
-        latestVersion: "0.2.7",
+        latestVersion: "0.2.8",
         updateEndpoint: "https://github.com/Hand-xieyicheng/hand-tododesk/releases/latest/download/latest.json"
       },
       featureFlags: defaultAppFeatureFlags
@@ -240,6 +247,76 @@ describe("anniversary schemas and display", () => {
       lunarMonth: 1,
       lunarDay: 1
     });
+  });
+});
+
+describe("habit schemas", () => {
+  it("accepts planned habit values and icon/color options", () => {
+    expect(habitFrequencyValues).toEqual(["DAILY", "WEEKLY", "MONTHLY"]);
+    expect(habitRecommendedIconValues).toContain("BookOpen");
+    expect(habitColorValues).toContain("mint");
+
+    expect(createHabitRequestSchema.parse({
+      title: " 学习日语 ",
+      icon: "BookOpen",
+      color: "mint",
+      frequency: "DAILY",
+      interval: 1,
+      startDate: "2026-06-01"
+    })).toEqual({
+      title: "学习日语",
+      icon: "BookOpen",
+      color: "mint",
+      frequency: "DAILY",
+      interval: 1,
+      weekDays: [],
+      monthDays: [],
+      startDate: "2026-06-01"
+    });
+    expect(createHabitRequestSchema.parse({
+      title: "自定义图标",
+      icon: "AlarmClockCheck",
+      color: "blue",
+      frequency: "DAILY",
+      startDate: "2026-06-01"
+    }).icon).toBe("AlarmClockCheck");
+  });
+
+  it("requires weekly weekdays and monthly days", () => {
+    expect(createHabitRequestSchema.safeParse({
+      title: "跑步",
+      frequency: "WEEKLY",
+      interval: 1,
+      weekDays: [],
+      startDate: "2026-06-01"
+    }).success).toBe(false);
+
+    expect(createHabitRequestSchema.safeParse({
+      title: "复盘",
+      frequency: "MONTHLY",
+      interval: 1,
+      monthDays: [],
+      startDate: "2026-06-01"
+    }).success).toBe(false);
+
+    expect(createHabitRequestSchema.parse({
+      title: "复盘",
+      frequency: "MONTHLY",
+      interval: 1,
+      monthDays: [31],
+      startDate: "2026-06-01"
+    }).monthDays).toEqual([31]);
+  });
+
+  it("rejects invalid date ranges and empty updates", () => {
+    expect(createHabitRequestSchema.safeParse({
+      title: "错误日期",
+      frequency: "DAILY",
+      startDate: "2026-06-10",
+      endDate: "2026-06-01"
+    }).success).toBe(false);
+    expect(updateHabitRequestSchema.parse({ archived: true })).toEqual({ archived: true });
+    expect(updateHabitRequestSchema.safeParse({}).success).toBe(false);
   });
 });
 

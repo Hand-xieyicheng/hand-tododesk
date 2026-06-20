@@ -1,6 +1,8 @@
 import type {
   AppBootstrapResponse,
   ApiAnniversaryEvent,
+  ApiHabit,
+  ApiHabitDetail,
   ApiMemo,
   ApiMemoAsset,
   ApiMemoListItem,
@@ -12,6 +14,7 @@ import type {
   CalendarView,
   ChangeEmailRequest,
   ChangePasswordRequest,
+  CreateHabitRequest,
   CreateMemoRequest,
   CreateAnniversaryRequest,
   CreateTaskRequest,
@@ -23,6 +26,8 @@ import type {
   UpdateMemoRequest,
   UpdateAnniversaryOrderRequest,
   UpdateAnniversaryRequest,
+  UpdateHabitOrderRequest,
+  UpdateHabitRequest,
   UpdateProfileRequest,
   UpdateThemePreferenceRequest,
   UpdateTaskRequest
@@ -32,14 +37,18 @@ import {
   changeEmailRequestSchema,
   changePasswordRequestSchema,
   createAnniversaryRequestSchema,
+  createHabitRequestSchema,
   createMemoRequestSchema,
   forgotPasswordRequestSchema,
+  habitCheckInRequestSchema,
   loginRequestSchema,
   registerRequestSchema,
   resetPasswordRequestSchema,
   updateMemoRequestSchema,
   updateAnniversaryOrderRequestSchema,
   updateAnniversaryRequestSchema,
+  updateHabitOrderRequestSchema,
+  updateHabitRequestSchema,
   updateThemePreferenceRequestSchema,
   updateProfileRequestSchema
 } from "@todo/shared";
@@ -282,6 +291,48 @@ export const api = {
   },
   async deleteAnniversary(id: string) {
     return request<void>(`/anniversaries/${id}`, { method: "DELETE" });
+  },
+  async habits(includeArchived = false) {
+    const params = new URLSearchParams({ includeArchived: String(includeArchived) });
+    return request<{ habits: ApiHabit[] }>(`/habits?${params}`);
+  },
+  async habitDetail(id: string, month?: string) {
+    const params = new URLSearchParams();
+    if (month) {
+      params.set("month", month);
+    }
+    const query = params.toString();
+    return request<ApiHabitDetail>(`/habits/${id}/detail${query ? `?${query}` : ""}`);
+  },
+  async createHabit(input: CreateHabitRequest) {
+    return request<{ habit: ApiHabit }>("/habits", {
+      method: "POST",
+      body: JSON.stringify(createHabitRequestSchema.parse(input))
+    });
+  },
+  async updateHabit(id: string, input: UpdateHabitRequest) {
+    return request<{ habit: ApiHabit }>(`/habits/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(updateHabitRequestSchema.parse(input))
+    });
+  },
+  async updateHabitOrder(input: UpdateHabitOrderRequest) {
+    return request<{ ok: true }>("/habits/order", {
+      method: "PUT",
+      body: JSON.stringify(updateHabitOrderRequestSchema.parse(input))
+    });
+  },
+  async deleteHabit(id: string) {
+    return request<void>(`/habits/${id}`, { method: "DELETE" });
+  },
+  async checkInHabit(id: string, date: string, note?: string | null) {
+    return request<{ checkIn: ApiHabitDetail["logs"][number] | null }>(`/habits/${id}/check-ins`, {
+      method: "POST",
+      body: JSON.stringify(habitCheckInRequestSchema.parse({ date, note }))
+    });
+  },
+  async cancelHabitCheckIn(id: string, date: string) {
+    return request<void>(`/habits/${id}/check-ins/${encodeURIComponent(date)}`, { method: "DELETE" });
   },
   async tasks() {
     return request<{ tasks: ApiTask[] }>("/tasks");

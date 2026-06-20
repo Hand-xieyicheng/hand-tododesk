@@ -18,9 +18,9 @@ const envSchema = z.object({
     .optional()
     .default("http://127.0.0.1:5173,http://tauri.localhost,https://tauri.localhost,tauri://localhost"),
   API_PUBLIC_URL: z.string().url().default("http://localhost:4020"),
-  API_VERSION: z.string().min(1).default(process.env.npm_package_version ?? "0.2.7"),
+  API_VERSION: z.string().min(1).default(process.env.npm_package_version ?? "0.2.8"),
   DESKTOP_MIN_VERSION: z.string().min(1).default("0.1.0"),
-  DESKTOP_LATEST_VERSION: z.string().min(1).default("0.2.7"),
+  DESKTOP_LATEST_VERSION: z.string().min(1).default("0.2.8"),
   DESKTOP_UPDATE_ENDPOINT: z
     .string()
     .url()

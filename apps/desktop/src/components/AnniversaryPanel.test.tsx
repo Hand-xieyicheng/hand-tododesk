@@ -80,6 +80,16 @@ function anniversaryWith(patch: Partial<ApiAnniversaryEvent>): ApiAnniversaryEve
   };
 }
 
+function createDeferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((promiseResolve, promiseReject) => {
+    resolve = promiseResolve;
+    reject = promiseReject;
+  });
+  return { promise, reject, resolve };
+}
+
 describe("AnniversaryPanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -107,6 +117,30 @@ describe("AnniversaryPanel", () => {
 
     expect(screen.queryByRole("heading", { name: "使用滴答清单" })).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "小林生日" })).toBeInTheDocument();
+  });
+
+  it("keeps anniversary cards in place while refresh is pending", async () => {
+    apiMock.anniversaries.mockResolvedValue({
+      anniversaries: [anniversaryWith({ id: "a-1", title: "使用滴答清单", category: "ANNIVERSARY" })]
+    });
+    const { container } = render(<AnniversaryPanel createOpen={false} onCreateOpenChange={vi.fn()} />);
+
+    expect(await screen.findByRole("heading", { name: "使用滴答清单" })).toBeInTheDocument();
+
+    const refresh = createDeferred<{ anniversaries: ApiAnniversaryEvent[] }>();
+    apiMock.anniversaries.mockReturnValueOnce(refresh.promise);
+
+    fireEvent.click(screen.getByRole("button", { name: "删除使用滴答清单" }));
+
+    await waitFor(() => expect(apiMock.anniversaries).toHaveBeenCalledTimes(2));
+
+    expect(screen.getByRole("heading", { name: "使用滴答清单" })).toBeInTheDocument();
+    expect(container.querySelector(".anniversary-panel > .inline-muted")).not.toBeInTheDocument();
+    expect(container.querySelector(".anniversary-grid .query-loading-indicator")).not.toBeInTheDocument();
+    expect(screen.queryByText("加载中...")).not.toBeInTheDocument();
+
+    refresh.resolve({ anniversaries: [] });
+    await waitFor(() => expect(screen.queryByRole("heading", { name: "使用滴答清单" })).not.toBeInTheDocument());
   });
 
   it("fills the Spring Festival template before creating", async () => {

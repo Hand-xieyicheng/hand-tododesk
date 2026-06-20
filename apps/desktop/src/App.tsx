@@ -3,12 +3,14 @@ import type { CSSProperties, PointerEvent } from "react";
 import { defaultAppFeatureFlags, defaultVisibleSidebarModules, type ApiTask, type ApiThemePreference, type ApiUser, type AppBootstrapResponse, type AppCloseBehavior, type AppFeatureFlags, type DisplaySize, type FontFamily, type FooterType as AppFooterType, type SidebarModule, type TaskCardDisplayMode, type TaskViewMode, type ThemeId, type TitleColor } from "@todo/shared";
 import { Button, Footer, Loading, Title, Tooltip } from "animal-island-ui";
 import type { TitleSize } from "animal-island-ui";
-import { Bell, CalendarDays, CheckSquare2, Clock3, Eye, EyeOff, Hourglass, LayoutGrid, ListTodo, LogOut, NotebookPen, PanelLeftOpen, Pin, Plus, UserRound } from "lucide-react";
+import { Bell, CalendarDays, CheckSquare2, Clock3, Eye, EyeOff, Flame, Hourglass, LayoutGrid, ListTodo, LogOut, NotebookPen, PanelLeftOpen, Pin, Plus, UserRound } from "lucide-react";
 import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { api, ApiError, authSessionExpiredEvent } from "./api/client";
 import { AuthView } from "./components/AuthView";
 import { AnniversaryPanel } from "./components/AnniversaryPanel";
 import { CalendarView } from "./components/CalendarView";
+import { HabitPanel } from "./components/HabitPanel";
+import { LandingPage } from "./components/LandingPage";
 import { MemoPanel } from "./components/MemoPanel";
 import { PomodoroView } from "./components/PomodoroView";
 import { ProfileCenter } from "./components/ProfileCenter";
@@ -27,6 +29,7 @@ const viewRoutes: Record<View, string> = {
   tasks: "/tasks",
   memos: "/memos",
   anniversaries: "/anniversaries",
+  habits: "/habits",
   calendar: "/calendar",
   pomodoro: "/pomodoro",
   profile: "/profile"
@@ -36,6 +39,7 @@ const navItems: Array<{ id: SidebarModule; label: string; icon: typeof CheckSqua
   { id: "tasks", label: "待办事项", icon: CheckSquare2 },
   { id: "memos", label: "备忘录", icon: NotebookPen },
   { id: "anniversaries", label: "倒数纪念日", icon: Hourglass },
+  { id: "habits", label: "习惯打卡", icon: Flame },
   { id: "calendar", label: "日历", icon: CalendarDays },
   { id: "pomodoro", label: "番茄时钟", icon: Clock3 }
 ];
@@ -105,6 +109,9 @@ function viewFromPathname(pathname: string): View {
   if (normalizedPathname === viewRoutes.anniversaries) {
     return "anniversaries";
   }
+  if (normalizedPathname === viewRoutes.habits) {
+    return "habits";
+  }
   if (normalizedPathname === viewRoutes.pomodoro) {
     return "pomodoro";
   }
@@ -137,6 +144,8 @@ export function App() {
   const [taskViewMode, setTaskViewMode] = useState<TaskViewMode>("list");
   const [taskCreateOpen, setTaskCreateOpen] = useState(false);
   const [anniversaryCreateOpen, setAnniversaryCreateOpen] = useState(false);
+  const [habitCreateOpen, setHabitCreateOpen] = useState(false);
+  const [habitShowArchived, setHabitShowArchived] = useState(false);
   const [themeId, setThemeId] = useState<ThemeId>("default");
   const [titleColor, setTitleColor] = useState<TitleColor>("app-teal");
   const [footerVisible, setFooterVisible] = useState(true);
@@ -159,8 +168,9 @@ export function App() {
   const availableNavItems = useMemo(() => navItems.filter((item) => (
     (item.id !== "calendar" || featureFlags.calendar) &&
     (item.id !== "anniversaries" || featureFlags.anniversaries) &&
+    (item.id !== "habits" || featureFlags.habits) &&
     (item.id !== "pomodoro" || featureFlags.pomodoro)
-  )), [featureFlags.anniversaries, featureFlags.calendar, featureFlags.pomodoro]);
+  )), [featureFlags.anniversaries, featureFlags.calendar, featureFlags.habits, featureFlags.pomodoro]);
   const visibleNavItems = useMemo(() => {
     const availableItemMap = new Map(availableNavItems.map((item) => [item.id, item]));
     return visibleSidebarModules
@@ -179,9 +189,11 @@ export function App() {
         ? "备忘录"
         : activeView === "anniversaries"
           ? "倒数纪念日"
-          : activeView === "calendar"
-            ? "日历模式"
-            : activeView === "pomodoro" ? "番茄时钟" : "个人中心";
+          : activeView === "habits"
+            ? "习惯打卡"
+            : activeView === "calendar"
+              ? "日历模式"
+              : activeView === "pomodoro" ? "番茄时钟" : "个人中心";
   const viewTitleSize = viewTitleSizes[displaySize];
   const workspaceStyle = {
     "--workspace-footer-height": footerVisible ? (footerType === "sea" ? "var(--app-footer-height-sea)" : "var(--app-footer-height-tree)") : "0px",
@@ -189,6 +201,7 @@ export function App() {
   } as CSSProperties;
   const appShellClassName = `app-shell${sidebarCollapsed ? " is-sidebar-collapsed" : ""}${isMacosDesktopRuntime() ? " is-macos-desktop" : ""}`;
   const showCompletedTasksAction = showCompletedTasks ? "隐藏已完成事项" : "显示已完成事项";
+  const showArchivedHabitsAction = habitShowArchived ? "隐藏归档" : "显示归档";
   const sidebarToggleAction = sidebarCollapsed ? "展开侧边栏" : "收起侧边栏";
   const updateRequired = appBootstrap ? compareVersions(updater.currentVersion, appBootstrap.desktop.minimumVersion) < 0 : false;
   const forcedUpdateMessage = updateRequired
@@ -322,12 +335,13 @@ export function App() {
   useEffect(() => {
     if (
       (activeView === "anniversaries" && !featureFlags.anniversaries) ||
+      (activeView === "habits" && !featureFlags.habits) ||
       (activeView === "calendar" && !featureFlags.calendar) ||
       (activeView === "pomodoro" && !featureFlags.pomodoro)
     ) {
       navigateToView("tasks", true);
     }
-  }, [activeView, featureFlags.anniversaries, featureFlags.calendar, featureFlags.pomodoro, navigateToView]);
+  }, [activeView, featureFlags.anniversaries, featureFlags.calendar, featureFlags.habits, featureFlags.pomodoro, navigateToView]);
 
   useEffect(() => {
     if (!featureFlags.taskQuadrant && taskViewMode === "quadrant") {
@@ -523,7 +537,14 @@ export function App() {
   }
 
   if (!user) {
-    return <AuthView onAuthed={handleAuthed} />;
+    return (
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/auth" element={<AuthView onAuthed={handleAuthed} />} />
+        <Route path="/register" element={<AuthView initialMode="register" onAuthed={handleAuthed} />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    );
   }
 
   const sidebarToggleButton = (
@@ -631,7 +652,7 @@ export function App() {
           </div>
         ) : null}
 
-        <header className="topbar app-drag-region" onPointerDown={startWindowDrag}>
+        <header className="topbar app-drag-region" aria-busy={loading && !entryLoading} onPointerDown={startWindowDrag}>
           <div>
             <Title className="view-title" color={titleColor} size={viewTitleSize}>
               {viewTitle}
@@ -684,6 +705,22 @@ export function App() {
                 <Button className="primary-button" icon={<Plus size={14} />} size="small" type="default" onClick={() => setAnniversaryCreateOpen(true)}>
                   新增
                 </Button>
+              ) : activeView === "habits" ? (
+                <>
+                  <Button
+                    aria-label={showArchivedHabitsAction}
+                    className={`habit-archive-toggle${habitShowArchived ? " is-active" : ""}`}
+                    icon={habitShowArchived ? <EyeOff size={14} /> : <Eye size={14} />}
+                    size="small"
+                    type={habitShowArchived ? "primary" : "text"}
+                    onClick={() => setHabitShowArchived((showArchived) => !showArchived)}
+                  >
+                    {showArchivedHabitsAction}
+                  </Button>
+                  <Button className="primary-button" icon={<Plus size={14} />} size="small" type="default" onClick={() => setHabitCreateOpen(true)}>
+                    新增
+                  </Button>
+                </>
               ) : null
             )}
           </div>
@@ -691,7 +728,6 @@ export function App() {
 
         {forcedUpdateMessage ? <div className="inline-alert">{forcedUpdateMessage}</div> : null}
         {message ? <div className="inline-alert">{message}</div> : null}
-        {loading && !entryLoading ? <div className="inline-muted">加载中...</div> : null}
 
         <Routes>
           <Route path="/" element={<Navigate to={viewRoutes.tasks} replace />} />
@@ -713,6 +749,10 @@ export function App() {
           <Route
             path={viewRoutes.anniversaries}
             element={featureFlags.anniversaries ? <AnniversaryPanel createOpen={anniversaryCreateOpen} onCreateOpenChange={setAnniversaryCreateOpen} /> : <Navigate to={viewRoutes.tasks} replace />}
+          />
+          <Route
+            path={viewRoutes.habits}
+            element={featureFlags.habits ? <HabitPanel createOpen={habitCreateOpen} showArchived={habitShowArchived} onCreateOpenChange={setHabitCreateOpen} /> : <Navigate to={viewRoutes.tasks} replace />}
           />
           <Route
             path={viewRoutes.calendar}

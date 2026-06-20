@@ -81,6 +81,16 @@ const secondMemoDetail = {
   assets: []
 };
 
+function createDeferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((promiseResolve, promiseReject) => {
+    resolve = promiseResolve;
+    reject = promiseReject;
+  });
+  return { promise, reject, resolve };
+}
+
 describe("MemoPanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -131,6 +141,27 @@ describe("MemoPanel", () => {
       "插入表格",
       "插入图片"
     ]));
+  });
+
+  it("keeps memo list content in place while search refresh is pending", async () => {
+    const { container } = render(<MemoPanel />);
+
+    await waitFor(() => expect(apiMock.memo).toHaveBeenCalledWith("memo-1"));
+
+    const refresh = createDeferred<{ memos: Array<typeof memoListItem> }>();
+    apiMock.memos.mockReturnValueOnce(refresh.promise);
+
+    fireEvent.change(screen.getByPlaceholderText("搜索标题或正文"), { target: { value: "正文" } });
+
+    await waitFor(() => expect(apiMock.memos).toHaveBeenLastCalledWith("正文", false), { timeout: 1000 });
+
+    expect(screen.getByText("测试备忘录")).toBeInTheDocument();
+    expect(container.querySelector(".memo-sidebar-panel > .inline-muted")).not.toBeInTheDocument();
+    expect(container.querySelector(".memo-list-scroll .query-loading-indicator")).not.toBeInTheDocument();
+    expect(screen.queryByText("加载中...")).not.toBeInTheDocument();
+
+    refresh.resolve({ memos: [memoListItem] });
+    await waitFor(() => expect(apiMock.memos).toHaveBeenCalledTimes(2));
   });
 
   it("confirms before deleting the selected memo", async () => {

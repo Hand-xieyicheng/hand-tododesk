@@ -1,6 +1,6 @@
 {
   "name": "@todo/desktop",
-  "version": "0.2.7",
+  "version": "0.2.8",
   "type": "module",
   "private": true,
   "scripts": {
@@ -24,6 +24,7 @@
     "@tauri-apps/plugin-updater": "^2.10.1",
     "@todo/shared": "file:../../packages/shared",
     "animal-island-ui": "^1.0.1",
+    "gsap": "^3.15.0",
     "lucide-react": "^0.468.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",

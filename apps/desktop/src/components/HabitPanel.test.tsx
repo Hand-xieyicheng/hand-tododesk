@@ -1,0 +1,228 @@
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { toLocalDateKey, type ApiHabit, type ApiHabitDetail } from "@todo/shared";
+import { HabitPanel } from "./HabitPanel";
+
+const apiMock = vi.hoisted(() => ({
+  cancelHabitCheckIn: vi.fn(),
+  checkInHabit: vi.fn(),
+  createHabit: vi.fn(),
+  deleteHabit: vi.fn(),
+  habitDetail: vi.fn(),
+  habits: vi.fn(),
+  updateHabit: vi.fn(),
+  updateHabitOrder: vi.fn()
+}));
+
+vi.mock("../api/client", () => ({
+  api: apiMock
+}));
+
+vi.mock("animal-island-ui", () => ({
+  Button: ({ children, danger, disabled, htmlType, icon, loading, onClick, title, type, ...props }: any) => (
+    <button
+      aria-label={props["aria-label"]}
+      data-danger={danger ? "true" : undefined}
+      data-kind={type}
+      disabled={disabled || loading}
+      title={title}
+      type={htmlType ?? "button"}
+      onClick={onClick}
+    >
+      {icon}
+      {children}
+    </button>
+  ),
+  Card: ({ children, className }: any) => <section className={className}>{children}</section>,
+  Input: ({ maxLength, min, onChange, required, type = "text", value }: any) => (
+    <input maxLength={maxLength} min={min} required={required} type={type} value={value} onChange={onChange} />
+  ),
+  Modal: ({ children, onClose, open, title }: any) => (
+    open ? (
+      <div aria-label={typeof title === "string" ? title : undefined} role="dialog">
+        <button aria-label="关闭" type="button" onClick={onClose}>关闭</button>
+        {children}
+      </div>
+    ) : null
+  ),
+  Select: ({ onChange, options, value }: any) => (
+    <select value={value} onChange={(event) => onChange(event.target.value)}>
+      {options.map((option: any) => {
+        const optionValue = option.value ?? option.key;
+        return <option key={optionValue} value={optionValue}>{option.label}</option>;
+      })}
+    </select>
+  )
+}));
+
+const today = toLocalDateKey();
+
+const habit: ApiHabit = {
+  id: "habit-1",
+  title: "学习日语",
+  notes: null,
+  icon: "BookOpen",
+  color: "mint",
+  frequency: "DAILY",
+  interval: 1,
+  weekDays: [],
+  monthDays: [],
+  startDate: "2020-01-01",
+  endDate: null,
+  sortOrder: 1000,
+  archivedAt: null,
+  createdAt: "2026-06-01T00:00:00.000Z",
+  updatedAt: "2026-06-01T00:00:00.000Z",
+  todayPlanned: true,
+  todayChecked: false,
+  stats: {
+    monthCheckIns: 2,
+    monthPlanned: 4,
+    monthCompletionRate: 50,
+    totalCheckIns: 13,
+    currentStreak: 3,
+    currentStreakUnit: "天"
+  }
+};
+
+const detail: ApiHabitDetail = {
+  habit,
+  month: today.slice(0, 7),
+  stats: habit.stats,
+  calendarDays: [
+    {
+      date: today,
+      day: Number(today.slice(-2)),
+      planned: true,
+      checked: true,
+      future: false,
+      note: null,
+      checkInId: null
+    }
+  ],
+  logs: [
+    {
+      id: "log-1",
+      date: today,
+      note: "完成一课",
+      createdAt: "2026-06-01T00:00:00.000Z",
+      updatedAt: "2026-06-01T00:00:00.000Z"
+    }
+  ]
+};
+
+function createDeferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((promiseResolve, promiseReject) => {
+    resolve = promiseResolve;
+    reject = promiseReject;
+  });
+  return { promise, reject, resolve };
+}
+
+describe("HabitPanel", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    apiMock.habits.mockResolvedValue({ habits: [habit] });
+    apiMock.habitDetail.mockResolvedValue(detail);
+    apiMock.checkInHabit.mockResolvedValue({ checkIn: null });
+    apiMock.cancelHabitCheckIn.mockResolvedValue(undefined);
+    apiMock.deleteHabit.mockResolvedValue(undefined);
+  });
+
+  it("renders create modal with icon picker and frequency controls", () => {
+    render(<HabitPanel createOpen showArchived={false} onCreateOpenChange={vi.fn()} />);
+
+    expect(screen.getByRole("dialog", { name: "新建习惯" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "习惯图标 BookOpen" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "更多图标", expanded: false }));
+    expect(screen.getByLabelText("搜索习惯图标")).toBeInTheDocument();
+    expect(screen.getByText("频率")).toBeInTheDocument();
+    expect(screen.getByText("主题颜色")).toBeInTheDocument();
+  });
+
+  it("renders detail stats, calendar, logs, and checks in today", async () => {
+    render(<HabitPanel createOpen={false} showArchived={false} onCreateOpenChange={vi.fn()} />);
+
+    await waitFor(() => expect(apiMock.habits).toHaveBeenCalledWith(false));
+    await waitFor(() => expect(screen.getAllByText("学习日语").length).toBeGreaterThan(0));
+
+    await waitFor(() => expect(screen.getByText("月完成率")).toBeInTheDocument());
+    expect(screen.getByText("记录日志")).toBeInTheDocument();
+    expect(screen.getByText("完成一课")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: `${today}已打卡` }).querySelector(".lucide-book-open")).not.toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "今日学习日语打卡" }));
+
+    await waitFor(() => expect(apiMock.checkInHabit).toHaveBeenCalledWith("habit-1", today));
+  });
+
+  it("keeps habit list content in place while a list refresh is pending", async () => {
+    const { container } = render(<HabitPanel createOpen={false} showArchived={false} onCreateOpenChange={vi.fn()} />);
+
+    await waitFor(() => expect(screen.getAllByText("学习日语").length).toBeGreaterThan(0));
+
+    const refresh = createDeferred<{ habits: ApiHabit[] }>();
+    apiMock.habits.mockReturnValueOnce(refresh.promise);
+
+    fireEvent.click(screen.getByRole("button", { name: "今日学习日语打卡" }));
+
+    await waitFor(() => expect(apiMock.habits).toHaveBeenCalledTimes(2));
+
+    expect(screen.getAllByText("学习日语").length).toBeGreaterThan(0);
+    expect(container.querySelector(".habit-list-panel > .inline-muted")).not.toBeInTheDocument();
+    expect(container.querySelector(".habit-list .query-loading-indicator")).not.toBeInTheDocument();
+    expect(screen.queryByText("加载中...")).not.toBeInTheDocument();
+
+    refresh.resolve({ habits: [{ ...habit, todayChecked: true }] });
+    await waitFor(() => expect(apiMock.habitDetail).toHaveBeenCalledTimes(2));
+  });
+
+  it("keeps habit detail content in place while detail refresh is pending", async () => {
+    const { container } = render(<HabitPanel createOpen={false} showArchived={false} onCreateOpenChange={vi.fn()} />);
+
+    await waitFor(() => expect(screen.getByText("月完成率")).toBeInTheDocument());
+
+    const refresh = createDeferred<ApiHabitDetail>();
+    apiMock.habitDetail.mockReturnValueOnce(refresh.promise);
+
+    fireEvent.click(screen.getByRole("button", { name: "下月" }));
+
+    await waitFor(() => expect(apiMock.habitDetail).toHaveBeenCalledTimes(2));
+
+    expect(screen.getByText("月完成率")).toBeInTheDocument();
+    expect(container.querySelector(".habit-detail-panel > .inline-muted")).not.toBeInTheDocument();
+    expect(container.querySelector(".habit-detail-panel .query-loading-indicator")).not.toBeInTheDocument();
+    expect(screen.queryByText("详情加载中...")).not.toBeInTheDocument();
+
+    refresh.resolve(detail);
+    await waitFor(() => expect(apiMock.habitDetail).toHaveBeenCalledTimes(2));
+  });
+
+  it("confirms before permanently deleting a habit without browser confirm", async () => {
+    const coffeeHabit: ApiHabit = { ...habit, title: "Coffee Time", icon: "Coffee" };
+    apiMock.habits.mockResolvedValue({ habits: [coffeeHabit] });
+    apiMock.habitDetail.mockResolvedValue({ ...detail, habit: coffeeHabit, stats: coffeeHabit.stats });
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+
+    try {
+      render(<HabitPanel createOpen={false} showArchived={false} onCreateOpenChange={vi.fn()} />);
+
+      await waitFor(() => expect(screen.getAllByText("Coffee Time").length).toBeGreaterThan(0));
+
+      fireEvent.click(screen.getByRole("button", { name: "删除" }));
+
+      expect(confirmSpy).not.toHaveBeenCalled();
+      const dialog = await screen.findByRole("dialog", { name: "删除习惯" });
+      expect(dialog).toHaveTextContent("永久删除「Coffee Time」及所有打卡记录？");
+      expect(apiMock.deleteHabit).not.toHaveBeenCalled();
+
+      fireEvent.click(within(dialog).getByRole("button", { name: "删除" }));
+
+      await waitFor(() => expect(apiMock.deleteHabit).toHaveBeenCalledWith("habit-1"));
+    } finally {
+      confirmSpy.mockRestore();
+    }
+  });
+});

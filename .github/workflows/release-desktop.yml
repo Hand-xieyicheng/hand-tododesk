@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       releaseTag:
-        description: "Release tag to publish, for example v0.2.7"
+        description: "Release tag to publish, for example v0.2.8"
         required: true
-        default: "v0.2.7"
+        default: "v0.2.8"
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -71,3 +71,86 @@ jobs:
           includeUpdaterJson: true
           updaterJsonPreferNsis: true
           args: ${{ matrix.args }}
+
+  publish-updater-json:
+    name: Publish updater JSON
+    runs-on: ubuntu-latest
+    needs: release
+    steps:
+      - name: Publish latest.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.releaseTag || github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}"
+          auth_header="Authorization: Bearer ${GITHUB_TOKEN}"
+          api_version_header="X-GitHub-Api-Version: 2022-11-28"
+
+          release_json="$(curl -fsSL -H "${auth_header}" -H "Accept: application/vnd.github+json" -H "${api_version_header}" "${api}/releases/tags/${RELEASE_TAG}")"
+          release_id="$(jq -r '.id' <<<"${release_json}")"
+          upload_url="$(jq -r '.upload_url' <<<"${release_json}" | sed 's/{?name,label}//')"
+          published_at="$(jq -r '.published_at' <<<"${release_json}")"
+          assets_json="$(curl -fsSL -H "${auth_header}" -H "Accept: application/vnd.github+json" -H "${api_version_header}" "${api}/releases/${release_id}/assets?per_page=100")"
+
+          mac_url="$(jq -r '[.[] | select(.name | endswith(".app.tar.gz")) | .browser_download_url][0] // empty' <<<"${assets_json}")"
+          mac_sig_url="$(jq -r '[.[] | select(.name | endswith(".app.tar.gz.sig")) | .browser_download_url][0] // empty' <<<"${assets_json}")"
+          win_url="$(jq -r '[.[] | select(.name | test("x64-setup\\.exe$")) | .browser_download_url][0] // empty' <<<"${assets_json}")"
+          win_sig_url="$(jq -r '[.[] | select(.name | test("x64-setup\\.exe\\.sig$")) | .browser_download_url][0] // empty' <<<"${assets_json}")"
+          msi_url="$(jq -r '[.[] | select(.name | test("x64_en-US\\.msi$")) | .browser_download_url][0] // empty' <<<"${assets_json}")"
+          msi_sig_url="$(jq -r '[.[] | select(.name | test("x64_en-US\\.msi\\.sig$")) | .browser_download_url][0] // empty' <<<"${assets_json}")"
+
+          if [[ -z "${mac_url}" || -z "${mac_sig_url}" || -z "${win_url}" || -z "${win_sig_url}" ]]; then
+            echo "Required updater assets are missing."
+            echo "${assets_json}" | jq -r '.[].name'
+            exit 1
+          fi
+
+          mac_sig="$(curl -fsSL -L "${mac_sig_url}")"
+          win_sig="$(curl -fsSL -L "${win_sig_url}")"
+          msi_sig=""
+          if [[ -n "${msi_url}" && -n "${msi_sig_url}" ]]; then
+            msi_sig="$(curl -fsSL -L "${msi_sig_url}")"
+          fi
+
+          jq -n \
+            --arg version "${RELEASE_TAG#v}" \
+            --arg notes "Stable desktop release for todoDesk." \
+            --arg pub_date "${published_at}" \
+            --arg mac_sig "${mac_sig}" \
+            --arg mac_url "${mac_url}" \
+            --arg win_sig "${win_sig}" \
+            --arg win_url "${win_url}" \
+            --arg msi_sig "${msi_sig}" \
+            --arg msi_url "${msi_url}" \
+            '{
+              version: $version,
+              notes: $notes,
+              pub_date: $pub_date,
+              platforms: {
+                "darwin-aarch64": { signature: $mac_sig, url: $mac_url },
+                "darwin-aarch64-app": { signature: $mac_sig, url: $mac_url },
+                "windows-x86_64": { signature: $win_sig, url: $win_url },
+                "windows-x86_64-nsis": { signature: $win_sig, url: $win_url }
+              }
+            }
+            | if $msi_url != "" and $msi_sig != "" then
+                .platforms["windows-x86_64-msi"] = { signature: $msi_sig, url: $msi_url }
+              else
+                .
+              end' > latest.json
+
+          existing_latest_id="$(jq -r '.[] | select(.name == "latest.json") | .id' <<<"${assets_json}" | head -n 1)"
+          if [[ -n "${existing_latest_id}" ]]; then
+            curl -fsSL -X DELETE -H "${auth_header}" -H "Accept: application/vnd.github+json" -H "${api_version_header}" "${api}/releases/assets/${existing_latest_id}"
+          fi
+
+          curl -fsSL -X POST \
+            -H "${auth_header}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "Content-Type: application/json" \
+            -H "${api_version_header}" \
+            --data-binary @latest.json \
+            "${upload_url}?name=latest.json" \
+            | jq -r '[.name, (.size | tostring), .browser_download_url] | @tsv'

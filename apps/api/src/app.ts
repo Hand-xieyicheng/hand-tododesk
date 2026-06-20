@@ -8,6 +8,7 @@ import { authPlugin } from "./plugins/auth.js";
 import { anniversaryRoutes } from "./routes/anniversaries.js";
 import { appBootstrapRoutes } from "./routes/app-bootstrap.js";
 import { authRoutes } from "./routes/auth.js";
+import { habitRoutes } from "./routes/habits.js";
 import { pomodoroRoutes } from "./routes/pomodoro.js";
 import { preferenceRoutes } from "./routes/preferences.js";
 import { taskRoutes } from "./routes/tasks.js";
@@ -85,6 +86,7 @@ export async function buildApp() {
   await app.register(appBootstrapRoutes);
   await app.register(authRoutes);
   await app.register(anniversaryRoutes);
+  await app.register(habitRoutes);
   await app.register(memoRoutes);
   await app.register(taskRoutes);
   await app.register(pomodoroRoutes);

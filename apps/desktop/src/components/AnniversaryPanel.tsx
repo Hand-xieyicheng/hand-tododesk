@@ -462,10 +462,9 @@ export function AnniversaryPanel({ createOpen, onCreateOpenChange }: Anniversary
           ))}
         </div>
         {message ? <div className="inline-alert">{message}</div> : null}
-        {loading ? <div className="inline-muted">加载中...</div> : null}
         <DndContext collisionDetection={closestCenter} sensors={sensors} onDragEnd={handleDragEnd}>
           <SortableContext items={visibleAnniversaries.map((event) => event.id)} strategy={rectSortingStrategy}>
-            <div className="anniversary-grid">
+            <div className="anniversary-grid" aria-busy={loading}>
               {visibleAnniversaries.length === 0 && !loading ? <Card className="empty-state" type="dashed">暂无倒数纪念日</Card> : null}
               {visibleAnniversaries.map((event) => (
                 <SortableAnniversaryCard
