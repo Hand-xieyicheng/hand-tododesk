@@ -1,6 +1,6 @@
 [package]
 name = "tododesk"
-version = "0.2.8"
+version = "0.2.9"
 description = "小柴记 desktop app"
 authors = ["小柴记"]
 edition = "2021"
@@ -20,3 +20,8 @@ tauri = { version = "2", features = ["tray-icon"] }
 tauri-plugin-notification = "2"
 tauri-plugin-process = "2"
 tauri-plugin-updater = "2"
+
+# Work around a macOS startup crash in wry::webview_version() before WebKit
+# initialization. Remove this patch after upstream avoids that probe on macOS.
+[patch.crates-io]
+tauri-runtime-wry = { path = "patches/tauri-runtime-wry-2.11.2" }

@@ -114,8 +114,12 @@ describe("TaskPanel", () => {
     expect(screen.getByRole("heading", { name: "准备周报" })).toBeInTheDocument();
     expect(container.querySelector(".task-notes")).not.toBeInTheDocument();
     expect(container.querySelector(".task-meta")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "完成" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "删除" })).toBeInTheDocument();
+    const completeButton = screen.getByRole("button", { name: "完成" });
+    const deleteButton = screen.getByRole("button", { name: "删除" });
+    expect(completeButton).toHaveClass("task-status-button");
+    expect(deleteButton).toHaveClass("task-action-button");
+    expect(completeButton).toHaveTextContent("");
+    expect(deleteButton).toHaveTextContent("");
     expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "查看准备周报详情" }));

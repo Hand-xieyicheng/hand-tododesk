@@ -191,17 +191,26 @@ function TaskCard({ task, compact, displayMode, onDelete, onOpenDetails, onSetSt
       className={`task-item priority-${priorityClass(task.priority)}${compact ? " is-compact" : ""}${isCompleted ? " is-completed" : ""}${titleOnly ? " is-title-only" : ""}`}
       pattern="default"
     >
+      <button
+        aria-label={statusAction}
+        className="task-status-button task-icon-action"
+        title={statusAction}
+        type="button"
+        onClick={() => onSetStatus(task, nextStatus)}
+      >
+        {isCompleted ? <RotateCcw size={16} /> : <Check size={16} />}
+      </button>
       {copy}
       <div className="task-actions">
-        <Button
-          aria-label={statusAction}
-          icon={isCompleted ? <RotateCcw size={16} /> : <Check size={16} />}
-          size="small"
-          title={statusAction}
-          type="default"
-          onClick={() => onSetStatus(task, nextStatus)}
-        />
-        <Button aria-label="删除" danger icon={<Trash2 size={16} />} size="small" title="删除" type="default" onClick={() => onDelete(task)} />
+        <button
+          aria-label="删除"
+          className="task-action-button task-icon-action is-danger"
+          title="删除"
+          type="button"
+          onClick={() => onDelete(task)}
+        >
+          <Trash2 size={16} />
+        </button>
       </div>
     </Card>
   );

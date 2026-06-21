@@ -3841,8 +3841,6 @@ dependencies = [
 [[package]]
 name = "tauri-runtime-wry"
 version = "2.11.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b83849ee63ecb27a8e8d0fe51915ca215076914aca43f96db1179f0f415f6cd9"
 dependencies = [
  "gtk",
  "http",
@@ -4045,7 +4043,7 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
 name = "tododesk"
-version = "0.2.8"
+version = "0.2.9"
 dependencies = [
  "keyring",
  "serde",
