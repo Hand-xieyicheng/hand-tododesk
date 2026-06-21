@@ -63,10 +63,10 @@
   --app-ui-scale: 0.84;
   --app-sidebar-width: calc(250px * var(--app-ui-scale));
   --app-sidebar-collapsed-width: calc(72px * var(--app-ui-scale));
-  --app-footer-height-sea: calc(68px * var(--app-ui-scale));
-  --app-footer-height-tree: calc(52px * var(--app-ui-scale));
+  --app-footer-height-sea: calc(64px * var(--app-ui-scale));
+  --app-footer-height-tree: calc(48px * var(--app-ui-scale));
   --app-footer-height: var(--app-footer-height-sea);
-  --app-footer-gap: calc(18px * var(--app-ui-scale));
+  --app-footer-gap: calc(6px * var(--app-ui-scale));
   --app-footer-space: calc(var(--app-footer-height) + var(--app-footer-gap) + env(safe-area-inset-bottom, 0px));
   --app-titlebar-drag-height: 44px;
   --app-traffic-light-safe-area: 92px;
@@ -858,10 +858,11 @@ textarea:focus-visible,
   min-width: 0;
   min-height: 0;
   flex-direction: column;
-  gap: calc(14px * var(--app-ui-scale));
+  gap: calc(12px * var(--app-ui-scale));
+  overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: calc(18px * var(--app-ui-scale)) calc(18px * var(--app-ui-scale)) calc(calc(18px * var(--app-ui-scale)) + var(--workspace-footer-space));
+  padding: calc(14px * var(--app-ui-scale)) calc(14px * var(--app-ui-scale)) calc(calc(6px * var(--app-ui-scale)) + var(--workspace-footer-space));
 }
 
 .workspace-footer-decoration {
@@ -1081,28 +1082,28 @@ textarea:focus-visible,
 
 .memo-layout {
   display: grid;
-  grid-template-columns: minmax(260px, 330px) minmax(0, 1fr);
+  grid-template-columns: minmax(calc(230px * var(--app-ui-scale)), calc(300px * var(--app-ui-scale))) minmax(0, 1fr);
   flex: 1 1 auto;
   min-height: 0;
-  gap: calc(18px * var(--app-ui-scale));
+  gap: calc(12px * var(--app-ui-scale));
 }
 
 .memo-sidebar-panel,
 .memo-editor-panel {
   min-width: 0;
   min-height: 0;
-  border: 2px solid color-mix(in srgb, var(--color-border) 72%, transparent);
-  border-radius: 24px;
+  border: 1px solid color-mix(in srgb, var(--color-border) 72%, transparent);
+  border-radius: 18px;
   background: color-mix(in srgb, var(--color-surface) 90%, #fff);
-  box-shadow: 0 7px 0 rgba(114, 93, 66, 0.1), 0 16px 30px var(--island-soft-shadow);
+  box-shadow: 0 3px 0 rgba(114, 93, 66, 0.08), 0 10px 18px var(--island-soft-shadow);
 }
 
 .memo-sidebar-panel {
   display: flex;
   flex-direction: column;
-  gap: calc(14px * var(--app-ui-scale));
+  gap: calc(10px * var(--app-ui-scale));
   overflow: hidden;
-  padding: calc(16px * var(--app-ui-scale));
+  padding: calc(11px * var(--app-ui-scale));
 }
 
 .memo-editor-actions,
@@ -1110,7 +1111,7 @@ textarea:focus-visible,
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: calc(8px * var(--app-ui-scale));
+  gap: calc(6px * var(--app-ui-scale));
 }
 
 .memo-filter-button.is-active {
@@ -1124,7 +1125,7 @@ textarea:focus-visible,
 
 .memo-search-icon {
   position: absolute;
-  left: calc(14px * var(--app-ui-scale));
+  left: calc(11px * var(--app-ui-scale));
   top: 50%;
   z-index: 1;
   color: var(--color-muted);
@@ -1133,13 +1134,13 @@ textarea:focus-visible,
 }
 
 .memo-search-field input {
-  padding-left: calc(40px * var(--app-ui-scale)) !important;
+  padding-left: calc(34px * var(--app-ui-scale)) !important;
 }
 
 .memo-list-scroll {
   display: grid;
   align-content: start;
-  gap: calc(12px * var(--app-ui-scale));
+  gap: calc(8px * var(--app-ui-scale));
   min-height: 0;
   overflow-y: auto;
   padding-right: calc(4px * var(--app-ui-scale));
@@ -1147,7 +1148,7 @@ textarea:focus-visible,
 
 .memo-list-group {
   display: grid;
-  gap: calc(8px * var(--app-ui-scale));
+  gap: calc(6px * var(--app-ui-scale));
 }
 
 .memo-list-heading {
@@ -1160,13 +1161,13 @@ textarea:focus-visible,
   display: grid;
   width: 100%;
   min-width: 0;
-  gap: calc(6px * var(--app-ui-scale));
-  padding: calc(12px * var(--app-ui-scale));
-  border: 2px solid color-mix(in srgb, var(--color-border) 62%, transparent);
-  border-radius: 18px;
+  gap: calc(4px * var(--app-ui-scale));
+  padding: calc(8px * var(--app-ui-scale));
+  border: 1px solid color-mix(in srgb, var(--color-border) 62%, transparent);
+  border-radius: 12px;
   background: color-mix(in srgb, var(--color-surface-strong) 76%, #fff);
   color: var(--color-text);
-  box-shadow: 0 3px 0 rgba(114, 93, 66, 0.09);
+  box-shadow: 0 2px 0 rgba(114, 93, 66, 0.07);
   text-align: left;
 }
 
@@ -1193,7 +1194,7 @@ textarea:focus-visible,
 }
 
 .memo-list-title strong {
-  font-size: calc(14px * var(--app-ui-scale));
+  font-size: calc(13px * var(--app-ui-scale));
   line-height: 1.3;
 }
 
@@ -1212,16 +1213,16 @@ textarea:focus-visible,
 .memo-editor-panel {
   display: flex;
   flex-direction: column;
-  gap: calc(14px * var(--app-ui-scale));
+  gap: calc(10px * var(--app-ui-scale));
   overflow: hidden;
-  padding: calc(18px * var(--app-ui-scale));
+  padding: calc(12px * var(--app-ui-scale));
 }
 
 .memo-editor-header {
   display: flex;
   align-items: start;
   justify-content: space-between;
-  gap: calc(14px * var(--app-ui-scale));
+  gap: calc(10px * var(--app-ui-scale));
 }
 
 .memo-title-stack {
@@ -1238,7 +1239,7 @@ textarea:focus-visible,
   border-bottom: 2px solid color-mix(in srgb, var(--color-border) 72%, transparent);
   background: transparent;
   color: var(--color-text);
-  font-size: calc(24px * var(--app-ui-scale));
+  font-size: calc(20px * var(--app-ui-scale));
   font-weight: 900;
   line-height: 1.25;
 }
@@ -1339,17 +1340,17 @@ textarea:focus-visible,
 
 .memo-editor-actions button,
 .memo-rich-toolbar button {
-  width: calc(36px * var(--app-ui-scale)) !important;
-  min-width: calc(36px * var(--app-ui-scale)) !important;
-  height: calc(32px * var(--app-ui-scale)) !important;
-  min-height: calc(32px * var(--app-ui-scale)) !important;
+  width: calc(30px * var(--app-ui-scale)) !important;
+  min-width: calc(30px * var(--app-ui-scale)) !important;
+  height: calc(28px * var(--app-ui-scale)) !important;
+  min-height: calc(28px * var(--app-ui-scale)) !important;
   padding: 0 !important;
 }
 
 .memo-rich-toolbar {
-  padding: calc(8px * var(--app-ui-scale));
+  padding: calc(6px * var(--app-ui-scale));
   border: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
-  border-radius: 18px;
+  border-radius: 13px;
   background: color-mix(in srgb, var(--color-surface-strong) 70%, #fff);
 }
 
@@ -1358,13 +1359,13 @@ textarea:focus-visible,
   min-width: 0;
   min-height: 0;
   overflow-y: auto;
-  padding: calc(16px * var(--app-ui-scale));
-  border: 2px solid var(--color-border);
-  border-radius: 18px;
+  padding: calc(11px * var(--app-ui-scale));
+  border: 1px solid var(--color-border);
+  border-radius: 13px;
   background: #fffdf4;
   color: var(--color-text);
-  font-size: calc(16px * var(--app-ui-scale));
-  line-height: 1.72;
+  font-size: calc(14px * var(--app-ui-scale));
+  line-height: 1.62;
   outline: none;
 }
 
@@ -1514,14 +1515,14 @@ textarea:focus-visible,
 .tool-panel,
 .task-form {
   display: grid;
-  gap: calc(15px * var(--app-ui-scale));
+  gap: calc(11px * var(--app-ui-scale));
 }
 
 .tool-card,
 .pomodoro-clock,
 .auth-panel {
-  border: 2px solid color-mix(in srgb, var(--color-border) 72%, transparent) !important;
-  box-shadow: 0 7px 0 rgba(114, 93, 66, 0.12), 0 16px 30px var(--island-soft-shadow);
+  border: 1px solid color-mix(in srgb, var(--color-border) 72%, transparent) !important;
+  box-shadow: 0 3px 0 rgba(114, 93, 66, 0.08), 0 10px 18px var(--island-soft-shadow);
 }
 
 .task-form {
@@ -2239,7 +2240,7 @@ textarea::placeholder {
 
 .anniversary-panel {
   display: grid;
-  gap: calc(18px * var(--app-ui-scale));
+  gap: calc(12px * var(--app-ui-scale));
   align-content: start;
 }
 
@@ -2247,21 +2248,21 @@ textarea::placeholder {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: calc(9px * var(--app-ui-scale));
+  gap: calc(7px * var(--app-ui-scale));
 }
 
 .anniversary-tabs button {
-  min-height: calc(34px * var(--app-ui-scale)) !important;
-  padding: 0 calc(15px * var(--app-ui-scale)) !important;
+  min-height: calc(28px * var(--app-ui-scale)) !important;
+  padding: 0 calc(11px * var(--app-ui-scale)) !important;
   border-radius: 999px !important;
-  font-size: calc(14px * var(--app-ui-scale)) !important;
+  font-size: calc(13px * var(--app-ui-scale)) !important;
   font-weight: 900 !important;
 }
 
 .anniversary-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, calc(286px * var(--app-ui-scale))), 1fr));
-  gap: calc(18px * var(--app-ui-scale));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, calc(244px * var(--app-ui-scale))), 1fr));
+  gap: calc(12px * var(--app-ui-scale));
   align-items: stretch;
 }
 
@@ -2280,16 +2281,16 @@ textarea::placeholder {
   --anniversary-card-ink: var(--color-text);
   position: relative;
   display: grid;
-  min-height: calc(232px * var(--app-ui-scale));
+  min-height: calc(178px * var(--app-ui-scale));
   align-content: start;
-  gap: calc(14px * var(--app-ui-scale));
+  gap: calc(9px * var(--app-ui-scale));
   overflow: hidden;
-  padding: calc(20px * var(--app-ui-scale)) !important;
-  border: 2px solid color-mix(in srgb, var(--anniversary-card-accent) 32%, var(--color-border)) !important;
+  padding: calc(13px * var(--app-ui-scale)) !important;
+  border: 1px solid color-mix(in srgb, var(--anniversary-card-accent) 32%, var(--color-border)) !important;
   background:
     linear-gradient(140deg, color-mix(in srgb, var(--anniversary-card-accent) 16%, transparent), transparent 42%),
     var(--anniversary-card-bg) !important;
-  box-shadow: 0 7px 0 rgba(114, 93, 66, 0.12), 0 18px 34px var(--island-soft-shadow);
+  box-shadow: 0 3px 0 rgba(114, 93, 66, 0.08), 0 10px 18px var(--island-soft-shadow);
   color: var(--anniversary-card-ink);
   cursor: grab !important;
   user-select: none;
@@ -2337,14 +2338,14 @@ textarea::placeholder {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
-  gap: calc(11px * var(--app-ui-scale));
-  padding-right: calc(74px * var(--app-ui-scale));
+  gap: calc(8px * var(--app-ui-scale));
+  padding-right: calc(58px * var(--app-ui-scale));
 }
 
 .anniversary-icon {
   display: grid;
-  width: calc(38px * var(--app-ui-scale));
-  height: calc(38px * var(--app-ui-scale));
+  width: calc(30px * var(--app-ui-scale));
+  height: calc(30px * var(--app-ui-scale));
   place-items: center;
   border: 2px solid color-mix(in srgb, var(--anniversary-card-accent) 34%, #ffffff);
   border-radius: 999px;
@@ -2355,27 +2356,27 @@ textarea::placeholder {
 .anniversary-card h3 {
   margin: 0;
   color: var(--anniversary-card-ink);
-  font-size: calc(19px * var(--app-ui-scale));
+  font-size: calc(16px * var(--app-ui-scale));
   line-height: 1.25;
   overflow-wrap: anywhere;
 }
 
 .anniversary-card header span:not(.anniversary-icon) {
   color: var(--color-muted);
-  font-size: calc(13px * var(--app-ui-scale));
+  font-size: calc(12px * var(--app-ui-scale));
   font-weight: 900;
 }
 
 .anniversary-value {
   display: flex;
   align-items: baseline;
-  gap: calc(10px * var(--app-ui-scale));
+  gap: calc(7px * var(--app-ui-scale));
   min-width: 0;
 }
 
 .anniversary-value strong {
   color: var(--anniversary-card-accent);
-  font-size: calc(42px * var(--app-ui-scale));
+  font-size: calc(32px * var(--app-ui-scale));
   font-weight: 900;
   line-height: 0.95;
   overflow-wrap: anywhere;
@@ -2383,14 +2384,14 @@ textarea::placeholder {
 
 .anniversary-value span {
   color: color-mix(in srgb, var(--anniversary-card-accent) 72%, var(--color-text));
-  font-size: calc(15px * var(--app-ui-scale));
+  font-size: calc(13px * var(--app-ui-scale));
   font-weight: 900;
 }
 
 .anniversary-card p {
   margin: 0;
   color: color-mix(in srgb, var(--color-muted) 88%, var(--color-text));
-  font-size: calc(14px * var(--app-ui-scale));
+  font-size: calc(12px * var(--app-ui-scale));
   font-weight: 850;
   line-height: 1.45;
   overflow-wrap: anywhere;
@@ -2406,28 +2407,28 @@ textarea::placeholder {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: calc(8px * var(--app-ui-scale));
+  gap: calc(5px * var(--app-ui-scale));
 }
 
 .anniversary-card-footer span {
   display: inline-flex;
   align-items: center;
-  min-height: calc(24px * var(--app-ui-scale));
-  padding: 0 calc(9px * var(--app-ui-scale));
+  min-height: calc(20px * var(--app-ui-scale));
+  padding: 0 calc(7px * var(--app-ui-scale));
   border: 1px solid color-mix(in srgb, var(--anniversary-card-accent) 28%, transparent);
   border-radius: 999px;
   background: color-mix(in srgb, #ffffff 72%, var(--anniversary-card-accent));
   color: color-mix(in srgb, var(--anniversary-card-accent) 62%, var(--color-text));
-  font-size: calc(12px * var(--app-ui-scale));
+  font-size: calc(11px * var(--app-ui-scale));
   font-weight: 900;
 }
 
 .anniversary-actions {
   position: absolute;
-  top: calc(16px * var(--app-ui-scale));
-  right: calc(16px * var(--app-ui-scale));
+  top: calc(10px * var(--app-ui-scale));
+  right: calc(10px * var(--app-ui-scale));
   display: inline-flex;
-  gap: calc(7px * var(--app-ui-scale));
+  gap: calc(5px * var(--app-ui-scale));
   opacity: 0;
   pointer-events: none;
   transform: translateY(calc(-4px * var(--app-ui-scale)));
@@ -2442,10 +2443,10 @@ textarea::placeholder {
 }
 
 .anniversary-actions button {
-  width: calc(30px * var(--app-ui-scale)) !important;
-  min-width: calc(30px * var(--app-ui-scale)) !important;
-  height: calc(30px * var(--app-ui-scale)) !important;
-  min-height: calc(30px * var(--app-ui-scale)) !important;
+  width: calc(26px * var(--app-ui-scale)) !important;
+  min-width: calc(26px * var(--app-ui-scale)) !important;
+  height: calc(26px * var(--app-ui-scale)) !important;
+  min-height: calc(26px * var(--app-ui-scale)) !important;
   padding: 0 !important;
   border-radius: 999px !important;
   cursor: pointer !important;
@@ -2525,8 +2526,8 @@ textarea::placeholder {
 
 .habit-panel {
   display: grid;
-  grid-template-columns: minmax(260px, calc(340px * var(--app-ui-scale))) minmax(0, 1fr);
-  gap: calc(18px * var(--app-ui-scale));
+  grid-template-columns: minmax(calc(230px * var(--app-ui-scale)), calc(300px * var(--app-ui-scale))) minmax(0, 1fr);
+  gap: calc(12px * var(--app-ui-scale));
   min-height: 0;
 }
 
@@ -2544,7 +2545,7 @@ textarea::placeholder {
   display: grid;
   grid-row: 3;
   align-content: start;
-  gap: calc(12px * var(--app-ui-scale));
+  gap: calc(8px * var(--app-ui-scale));
   min-height: 0;
   overflow-y: auto;
   padding-right: 4px;
@@ -2553,10 +2554,11 @@ textarea::placeholder {
 .habit-list-card {
   --habit-accent: var(--color-primary);
   display: grid;
-  gap: calc(10px * var(--app-ui-scale));
-  padding: calc(14px * var(--app-ui-scale)) !important;
-  border: 2px solid color-mix(in srgb, var(--habit-accent) 24%, var(--color-border)) !important;
+  gap: calc(7px * var(--app-ui-scale));
+  padding: calc(10px * var(--app-ui-scale)) !important;
+  border: 1px solid color-mix(in srgb, var(--habit-accent) 24%, var(--color-border)) !important;
   background: color-mix(in srgb, var(--habit-accent) 8%, var(--color-surface)) !important;
+  cursor: pointer;
 }
 
 .habit-list-card:hover {
@@ -2575,7 +2577,7 @@ textarea::placeholder {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
-  gap: calc(10px * var(--app-ui-scale));
+  gap: calc(8px * var(--app-ui-scale));
   width: 100%;
   padding: 0;
   border: 0;
@@ -2593,7 +2595,7 @@ textarea::placeholder {
 
 .habit-list-main strong {
   display: block;
-  font-size: calc(16px * var(--app-ui-scale));
+  font-size: calc(14px * var(--app-ui-scale));
   font-weight: 950;
   line-height: 1.25;
 }
@@ -2607,14 +2609,14 @@ textarea::placeholder {
 
 .habit-icon-badge {
   display: grid;
-  width: calc(42px * var(--app-ui-scale));
-  height: calc(42px * var(--app-ui-scale));
+  width: calc(34px * var(--app-ui-scale));
+  height: calc(34px * var(--app-ui-scale));
   place-items: center;
   border: 2px solid color-mix(in srgb, var(--habit-accent) 28%, #ffffff);
   border-radius: 999px;
   background: color-mix(in srgb, var(--habit-accent) 18%, #ffffff);
   color: var(--habit-accent);
-  box-shadow: inset 0 0 0 3px rgba(255, 255, 255, 0.56);
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.56);
 }
 
 .habit-card-stats,
@@ -2622,7 +2624,7 @@ textarea::placeholder {
 .habit-detail-actions {
   display: flex;
   align-items: center;
-  gap: calc(8px * var(--app-ui-scale));
+  gap: calc(6px * var(--app-ui-scale));
   flex-wrap: wrap;
 }
 
@@ -2630,6 +2632,10 @@ textarea::placeholder {
   color: var(--color-muted);
   font-size: calc(12px * var(--app-ui-scale));
   font-weight: 900;
+}
+
+.habit-card-actions {
+  cursor: default;
 }
 
 .habit-card-stats span {
@@ -2642,6 +2648,40 @@ textarea::placeholder {
   justify-content: flex-end;
 }
 
+.habit-card-actions button,
+.habit-card-actions button[class*="animal-btn-"],
+.habit-detail-actions button,
+.habit-detail-actions button[class*="animal-btn-"],
+.habit-calendar-header button,
+.habit-calendar-header button[class*="animal-btn-"],
+.habit-log-item button,
+.habit-log-item button[class*="animal-btn-"] {
+  width: auto !important;
+  min-width: 0 !important;
+  height: calc(28px * var(--app-ui-scale)) !important;
+  min-height: calc(28px * var(--app-ui-scale)) !important;
+  padding: 0 calc(11px * var(--app-ui-scale)) !important;
+  border-radius: 999px !important;
+  font-size: calc(13px * var(--app-ui-scale)) !important;
+  line-height: 1 !important;
+}
+
+.habit-card-actions button,
+.habit-card-actions button[class*="animal-btn-"],
+.habit-detail-actions button,
+.habit-detail-actions button[class*="animal-btn-"] {
+  min-width: calc(38px * var(--app-ui-scale)) !important;
+  padding: 0 calc(10px * var(--app-ui-scale)) !important;
+}
+
+.habit-card-actions button svg,
+.habit-detail-actions button svg,
+.habit-calendar-header button svg,
+.habit-log-item button svg {
+  width: calc(15px * var(--app-ui-scale));
+  height: calc(15px * var(--app-ui-scale));
+}
+
 .habit-check-button.is-checked {
   background: var(--habit-accent) !important;
 }
@@ -2649,7 +2689,7 @@ textarea::placeholder {
 .habit-detail-panel {
   display: grid;
   align-content: start;
-  gap: calc(16px * var(--app-ui-scale));
+  gap: calc(10px * var(--app-ui-scale));
   overflow-y: auto;
   padding-right: 4px;
 }
@@ -2659,9 +2699,9 @@ textarea::placeholder {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: calc(14px * var(--app-ui-scale));
-  padding: calc(18px * var(--app-ui-scale)) !important;
-  border: 2px solid color-mix(in srgb, var(--habit-accent) 28%, var(--color-border)) !important;
+  gap: calc(10px * var(--app-ui-scale));
+  padding: calc(12px * var(--app-ui-scale)) !important;
+  border: 1px solid color-mix(in srgb, var(--habit-accent) 28%, var(--color-border)) !important;
 }
 
 .habit-detail-header:hover{
@@ -2672,20 +2712,20 @@ textarea::placeholder {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
-  gap: calc(12px * var(--app-ui-scale));
+  gap: calc(9px * var(--app-ui-scale));
   min-width: 0;
 }
 
 .habit-detail-title h2 {
   margin: 0 0 3px;
-  font-size: calc(24px * var(--app-ui-scale));
+  font-size: calc(20px * var(--app-ui-scale));
   line-height: 1.15;
 }
 
 .habit-stat-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: calc(12px * var(--app-ui-scale));
+  gap: calc(8px * var(--app-ui-scale));
 }
 
 .habit-stat-card {
@@ -2693,34 +2733,34 @@ textarea::placeholder {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: end;
   gap: calc(5px * var(--app-ui-scale));
-  padding: calc(16px * var(--app-ui-scale)) !important;
+  padding: calc(10px * var(--app-ui-scale)) !important;
 }
 
 .habit-stat-card span {
   grid-column: 1 / -1;
   color: var(--color-muted);
-  font-size: calc(13px * var(--app-ui-scale));
+  font-size: calc(12px * var(--app-ui-scale));
   font-weight: 900;
 }
 
 .habit-stat-card strong {
   color: var(--color-text);
-  font-size: calc(34px * var(--app-ui-scale));
+  font-size: calc(26px * var(--app-ui-scale));
   font-weight: 950;
   line-height: 0.95;
 }
 
 .habit-stat-card small {
   color: var(--color-muted);
-  font-size: calc(15px * var(--app-ui-scale));
+  font-size: calc(12px * var(--app-ui-scale));
   font-weight: 900;
 }
 
 .habit-calendar-card,
 .habit-log-card {
   display: grid;
-  gap: calc(14px * var(--app-ui-scale));
-  padding: calc(18px * var(--app-ui-scale)) !important;
+  gap: calc(10px * var(--app-ui-scale));
+  padding: calc(12px * var(--app-ui-scale)) !important;
 }
 
 .habit-calendar-card {
@@ -2732,14 +2772,14 @@ textarea::placeholder {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: calc(12px * var(--app-ui-scale));
+  gap: calc(8px * var(--app-ui-scale));
 }
 
 .habit-calendar-header strong,
 .habit-log-card h3 {
   margin: 0;
   color: var(--color-text);
-  font-size: calc(18px * var(--app-ui-scale));
+  font-size: calc(15px * var(--app-ui-scale));
   font-weight: 950;
 }
 
@@ -2747,7 +2787,7 @@ textarea::placeholder {
 .habit-calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: calc(8px * var(--app-ui-scale));
+  gap: calc(5px * var(--app-ui-scale));
   justify-items: center;
 }
 
@@ -2761,16 +2801,16 @@ textarea::placeholder {
 .habit-calendar-day {
   display: grid;
   width: 100%;
-  max-width: 50px;
+  max-width: 38px;
   aspect-ratio: 1;
   min-width: 0;
   justify-self: center;
   place-items: center;
-  border: 2px solid color-mix(in srgb, var(--color-border) 70%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
   border-radius: 999px;
   background: color-mix(in srgb, var(--color-surface-strong) 78%, #ffffff);
   color: var(--color-muted);
-  font-size: calc(13px * var(--app-ui-scale));
+  font-size: calc(12px * var(--app-ui-scale));
   font-weight: 950;
   cursor: default;
 }
@@ -2785,7 +2825,7 @@ textarea::placeholder {
   border-color: color-mix(in srgb, var(--habit-accent) 48%, var(--color-border));
   background: color-mix(in srgb, var(--habit-accent) 16%, #ffffff);
   color: var(--habit-accent);
-  box-shadow: 0 4px 0 color-mix(in srgb, var(--habit-accent) 34%, var(--color-border));
+  box-shadow: 0 2px 0 color-mix(in srgb, var(--habit-accent) 34%, var(--color-border));
 }
 
 .habit-calendar-day-icon {
@@ -2805,17 +2845,17 @@ textarea::placeholder {
 
 .habit-log-list {
   display: grid;
-  gap: calc(10px * var(--app-ui-scale));
+  gap: calc(7px * var(--app-ui-scale));
 }
 
 .habit-log-item {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: calc(12px * var(--app-ui-scale));
-  padding: calc(12px * var(--app-ui-scale));
-  border: 2px dashed color-mix(in srgb, var(--color-border) 78%, transparent);
-  border-radius: calc(14px * var(--app-ui-scale));
+  gap: calc(8px * var(--app-ui-scale));
+  padding: calc(8px * var(--app-ui-scale));
+  border: 1px dashed color-mix(in srgb, var(--color-border) 78%, transparent);
+  border-radius: calc(10px * var(--app-ui-scale));
   background: color-mix(in srgb, var(--color-surface) 86%, #ffffff);
 }
 
@@ -3094,71 +3134,75 @@ textarea::placeholder {
 
 .calendar-panel {
   display: grid;
-  gap: calc(16px * var(--app-ui-scale));
+  gap: calc(10px * var(--app-ui-scale));
+  min-width: 0;
+  max-width: 100%;
 }
 
 .calendar-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: calc(14px * var(--app-ui-scale));
+  gap: calc(10px * var(--app-ui-scale));
 }
 
 .segmented-control {
   display: inline-grid;
   grid-auto-flow: column;
   align-items: center;
-  height: calc(36px * var(--app-ui-scale));
+  height: calc(30px * var(--app-ui-scale));
   gap: 3px;
-  padding: 3px;
-  border: 2px solid color-mix(in srgb, var(--color-border) 78%, transparent);
+  padding: 2px;
+  border: 1px solid color-mix(in srgb, var(--color-border) 78%, transparent);
   border-radius: 999px;
   background: color-mix(in srgb, var(--color-surface-strong) 82%, #fff);
   box-shadow: inset 0 2px 4px rgba(114, 93, 66, 0.08);
 }
 
 .segmented-control button {
-  height: calc(26px * var(--app-ui-scale)) !important;
+  height: calc(22px * var(--app-ui-scale)) !important;
   min-width: calc(48px * var(--app-ui-scale));
-  min-height: calc(26px * var(--app-ui-scale)) !important;
-  padding: 0 calc(12px * var(--app-ui-scale)) !important;
+  min-height: calc(22px * var(--app-ui-scale)) !important;
+  padding: 0 calc(9px * var(--app-ui-scale)) !important;
   border-radius: 999px !important;
   box-shadow: none !important;
   line-height: 1 !important;
 }
 
 .segmented-control .is-active {
-  box-shadow: 0 3px 0 rgba(114, 93, 66, 0.16) !important;
+  box-shadow: 0 2px 0 rgba(114, 93, 66, 0.14) !important;
 }
 
 .calendar-heading {
   display: flex;
   align-items: center;
-  gap: calc(12px * var(--app-ui-scale));
+  gap: calc(8px * var(--app-ui-scale));
 }
 
 .calendar-today-button {
-  width: calc(36px * var(--app-ui-scale)) !important;
-  min-width: calc(36px * var(--app-ui-scale)) !important;
-  height: calc(36px * var(--app-ui-scale)) !important;
-  min-height: calc(36px * var(--app-ui-scale)) !important;
+  width: calc(30px * var(--app-ui-scale)) !important;
+  min-width: calc(30px * var(--app-ui-scale)) !important;
+  height: calc(30px * var(--app-ui-scale)) !important;
+  min-height: calc(30px * var(--app-ui-scale)) !important;
   padding: 0 !important;
   border-radius: 999px !important;
   color: var(--color-text) !important;
-  box-shadow: 0 3px 0 rgba(114, 93, 66, 0.12) !important;
+  box-shadow: 0 2px 0 rgba(114, 93, 66, 0.1) !important;
 }
 
 .calendar-heading strong {
-  min-width: calc(132px * var(--app-ui-scale));
+  min-width: calc(112px * var(--app-ui-scale));
   color: var(--color-text);
-  font-size: calc(17px * var(--app-ui-scale));
+  font-size: calc(15px * var(--app-ui-scale));
   font-weight: 900;
   text-align: center;
 }
 
 .calendar-grid {
   display: grid;
-  gap: calc(12px * var(--app-ui-scale));
+  gap: calc(8px * var(--app-ui-scale));
+  min-width: 0;
+  max-width: 100%;
 }
 
 .calendar-month {
@@ -3171,17 +3215,17 @@ textarea::placeholder {
 }
 
 .calendar-week .calendar-cell {
-  min-height: calc(104px * var(--app-ui-scale));
+  min-height: calc(86px * var(--app-ui-scale));
 }
 
 .calendar-cell {
   display: grid;
   min-width: 0;
-  min-height: calc(136px * var(--app-ui-scale));
-  grid-template-rows: auto minmax(calc(78px * var(--app-ui-scale)), 1fr);
-  gap: calc(10px * var(--app-ui-scale));
-  padding: calc(13px * var(--app-ui-scale)) !important;
-  border: 2px solid color-mix(in srgb, var(--color-border) 70%, transparent) !important;
+  min-height: calc(112px * var(--app-ui-scale));
+  grid-template-rows: auto minmax(calc(56px * var(--app-ui-scale)), 1fr);
+  gap: calc(7px * var(--app-ui-scale));
+  padding: calc(9px * var(--app-ui-scale)) !important;
+  border: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent) !important;
 }
 
 .calendar-cell.is-today {
@@ -3190,8 +3234,8 @@ textarea::placeholder {
     radial-gradient(circle, color-mix(in srgb, var(--color-primary) 24%, transparent) 1.4px, transparent 2px) 0 0 / 16px 16px,
     color-mix(in srgb, var(--color-primary) 12%, var(--color-surface)) !important;
   box-shadow:
-    0 7px 0 color-mix(in srgb, var(--color-primary) 42%, var(--color-border)),
-    0 16px 30px var(--island-soft-shadow) !important;
+    0 3px 0 color-mix(in srgb, var(--color-primary) 42%, var(--color-border)),
+    0 10px 18px var(--island-soft-shadow) !important;
 }
 
 .calendar-cell header {
@@ -3208,8 +3252,8 @@ textarea::placeholder {
 
 .calendar-cell header strong {
   display: grid;
-  width: calc(30px * var(--app-ui-scale));
-  height: calc(30px * var(--app-ui-scale));
+  width: calc(24px * var(--app-ui-scale));
+  height: calc(24px * var(--app-ui-scale));
   place-items: center;
   border-radius: 50%;
   background: var(--color-surface);
@@ -3222,13 +3266,13 @@ textarea::placeholder {
   color: #fffdf1;
   box-shadow:
     inset 0 0 0 2px color-mix(in srgb, #ffffff 54%, var(--color-primary)),
-    0 3px 0 color-mix(in srgb, var(--color-primary) 48%, var(--color-border));
+    0 2px 0 color-mix(in srgb, var(--color-primary) 48%, var(--color-border));
 }
 
 .calendar-items {
   display: grid;
   align-content: start;
-  gap: calc(7px * var(--app-ui-scale));
+  gap: calc(4px * var(--app-ui-scale));
   min-width: 0;
 }
 
@@ -3236,6 +3280,7 @@ textarea::placeholder {
   position: relative;
   display: block;
   min-width: 0;
+  max-width: 100%;
   width: 100%;
 }
 
@@ -3247,6 +3292,10 @@ textarea::placeholder {
   max-width: min(320px, 78vw);
 }
 
+.calendar-task-tooltip [role="tooltip"][aria-hidden="true"] {
+  display: none;
+}
+
 .calendar-task {
   display: block;
   min-width: 0;
@@ -3254,9 +3303,9 @@ textarea::placeholder {
   overflow: hidden;
   color: var(--color-text) !important;
   cursor: default;
-  font-size: calc(13px * var(--app-ui-scale));
+  font-size: calc(12px * var(--app-ui-scale));
   font-weight: 900;
-  line-height: 1.45;
+  line-height: 1.35;
   padding: 1px 2px;
   text-align: left;
   text-overflow: ellipsis;
@@ -3458,31 +3507,31 @@ textarea::placeholder {
 
 .theme-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(calc(220px * var(--app-ui-scale)), 1fr));
-  gap: calc(15px * var(--app-ui-scale));
+  grid-template-columns: repeat(auto-fit, minmax(calc(184px * var(--app-ui-scale)), 1fr));
+  gap: calc(10px * var(--app-ui-scale));
 }
 
 .theme-tile {
   display: grid;
-  grid-template-columns: calc(52px * var(--app-ui-scale)) minmax(0, 1fr) calc(26px * var(--app-ui-scale));
+  grid-template-columns: calc(40px * var(--app-ui-scale)) minmax(0, 1fr) calc(22px * var(--app-ui-scale));
   align-items: center;
-  gap: calc(13px * var(--app-ui-scale));
-  min-height: calc(94px * var(--app-ui-scale));
-  border: 2px solid color-mix(in srgb, var(--color-border) 78%, transparent);
-  border-radius: 24px 22px 26px 22px;
+  gap: calc(9px * var(--app-ui-scale));
+  min-height: calc(70px * var(--app-ui-scale));
+  border: 1px solid color-mix(in srgb, var(--color-border) 78%, transparent);
+  border-radius: 16px 15px 18px 15px;
   background:
     var(--island-paper-dots) 0 0 / 16px 16px,
     var(--color-surface);
   color: var(--color-text);
-  box-shadow: 0 5px 0 rgba(114, 93, 66, 0.12);
-  padding: calc(17px * var(--app-ui-scale));
+  box-shadow: 0 2px 0 rgba(114, 93, 66, 0.08);
+  padding: calc(11px * var(--app-ui-scale));
   text-align: left;
   transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
 }
 
 .theme-tile:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 7px 0 rgba(114, 93, 66, 0.14);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 0 rgba(114, 93, 66, 0.1);
 }
 
 .theme-tile:active {
@@ -3499,18 +3548,18 @@ textarea::placeholder {
 
 .theme-tile strong {
   overflow: hidden;
-  font-size: calc(16px * var(--app-ui-scale));
+  font-size: calc(14px * var(--app-ui-scale));
   font-weight: 900;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .theme-swatch {
-  width: calc(52px * var(--app-ui-scale));
-  height: calc(52px * var(--app-ui-scale));
-  border: 3px solid #fff8dc;
-  border-radius: 18px 16px 20px 16px;
-  box-shadow: 0 4px 0 rgba(114, 93, 66, 0.16);
+  width: calc(40px * var(--app-ui-scale));
+  height: calc(40px * var(--app-ui-scale));
+  border: 2px solid #fff8dc;
+  border-radius: 13px 12px 15px 12px;
+  box-shadow: 0 2px 0 rgba(114, 93, 66, 0.13);
 }
 
 .title-color-config {
@@ -3580,30 +3629,30 @@ textarea::placeholder {
 
 .module-option-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(calc(150px * var(--app-ui-scale)), 1fr));
-  gap: calc(10px * var(--app-ui-scale));
+  grid-template-columns: repeat(auto-fit, minmax(calc(132px * var(--app-ui-scale)), 1fr));
+  gap: calc(7px * var(--app-ui-scale));
 }
 
 .module-option {
   --module-color: var(--color-primary);
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) calc(26px * var(--app-ui-scale));
+  grid-template-columns: minmax(0, 1fr) calc(22px * var(--app-ui-scale));
   min-width: 0;
-  min-height: calc(48px * var(--app-ui-scale));
+  min-height: calc(38px * var(--app-ui-scale));
   align-items: center;
-  gap: calc(9px * var(--app-ui-scale));
-  border: 2px solid color-mix(in srgb, var(--module-color) 56%, var(--color-border));
-  border-radius: 16px 14px 18px 14px;
+  gap: calc(7px * var(--app-ui-scale));
+  border: 1px solid color-mix(in srgb, var(--module-color) 56%, var(--color-border));
+  border-radius: 12px 11px 13px 11px;
   background:
     linear-gradient(90deg, color-mix(in srgb, var(--module-color) 16%, transparent), transparent 48%),
     color-mix(in srgb, var(--color-surface) 92%, #ffffff);
   color: var(--color-text);
-  box-shadow: 0 4px 0 rgba(114, 93, 66, 0.11);
+  box-shadow: 0 2px 0 rgba(114, 93, 66, 0.08);
   cursor: default;
   font-size: calc(13px * var(--app-ui-scale));
   font-weight: 900;
-  padding: calc(11px * var(--app-ui-scale)) calc(13px * var(--app-ui-scale));
+  padding: calc(8px * var(--app-ui-scale)) calc(10px * var(--app-ui-scale));
   transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
 }
 
@@ -3721,22 +3770,22 @@ textarea::placeholder {
 
 .font-family-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(calc(190px * var(--app-ui-scale)), 1fr));
-  gap: calc(10px * var(--app-ui-scale));
+  grid-template-columns: repeat(auto-fit, minmax(calc(164px * var(--app-ui-scale)), 1fr));
+  gap: calc(7px * var(--app-ui-scale));
 }
 
 .font-family-option {
   position: relative;
   display: grid;
-  min-height: calc(76px * var(--app-ui-scale));
+  min-height: calc(58px * var(--app-ui-scale));
   gap: calc(5px * var(--app-ui-scale));
   align-content: center;
-  border: 2px solid color-mix(in srgb, var(--color-border) 76%, transparent);
-  border-radius: 18px 16px 20px 16px;
+  border: 1px solid color-mix(in srgb, var(--color-border) 76%, transparent);
+  border-radius: 13px 12px 15px 12px;
   background: color-mix(in srgb, var(--color-surface) 92%, #ffffff);
   color: var(--color-text);
-  box-shadow: 0 4px 0 rgba(114, 93, 66, 0.11);
-  padding: calc(13px * var(--app-ui-scale)) calc(36px * var(--app-ui-scale)) calc(13px * var(--app-ui-scale)) calc(14px * var(--app-ui-scale));
+  box-shadow: 0 2px 0 rgba(114, 93, 66, 0.08);
+  padding: calc(9px * var(--app-ui-scale)) calc(30px * var(--app-ui-scale)) calc(9px * var(--app-ui-scale)) calc(10px * var(--app-ui-scale));
   text-align: left;
   transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
 }
@@ -3807,30 +3856,30 @@ textarea::placeholder {
 
 .profile-layout {
   display: grid;
-  grid-template-columns: minmax(calc(260px * var(--app-ui-scale)), calc(320px * var(--app-ui-scale))) minmax(0, 1fr);
+  grid-template-columns: minmax(calc(226px * var(--app-ui-scale)), calc(288px * var(--app-ui-scale))) minmax(0, 1fr);
   align-items: start;
-  gap: calc(20px * var(--app-ui-scale));
+  gap: calc(12px * var(--app-ui-scale));
 }
 
 .profile-card,
 .profile-section-card {
-  border: 2px solid color-mix(in srgb, var(--color-border) 72%, transparent) !important;
-  box-shadow: 0 7px 0 rgba(114, 93, 66, 0.12), 0 16px 30px var(--island-soft-shadow);
+  border: 1px solid color-mix(in srgb, var(--color-border) 72%, transparent) !important;
+  box-shadow: 0 3px 0 rgba(114, 93, 66, 0.08), 0 10px 18px var(--island-soft-shadow);
 }
 
 .profile-overview {
   position: sticky;
-  top: calc(24px * var(--app-ui-scale));
+  top: calc(14px * var(--app-ui-scale));
   display: grid;
   justify-items: center;
-  gap: calc(14px * var(--app-ui-scale));
-  padding: calc(22px * var(--app-ui-scale)) !important;
+  gap: calc(10px * var(--app-ui-scale));
+  padding: calc(14px * var(--app-ui-scale)) !important;
 }
 
 .profile-avatar-large {
-  width: calc(116px * var(--app-ui-scale));
-  height: calc(116px * var(--app-ui-scale));
-  font-size: calc(42px * var(--app-ui-scale));
+  width: calc(88px * var(--app-ui-scale));
+  height: calc(88px * var(--app-ui-scale));
+  font-size: calc(32px * var(--app-ui-scale));
 }
 
 .profile-avatar-button {
@@ -3895,20 +3944,20 @@ textarea::placeholder {
 .profile-sections {
   display: grid;
   min-width: 0;
-  gap: calc(18px * var(--app-ui-scale));
+  gap: calc(12px * var(--app-ui-scale));
 }
 
 .profile-section-card {
   display: grid;
-  gap: calc(14px * var(--app-ui-scale));
-  padding: calc(20px * var(--app-ui-scale)) !important;
+  gap: calc(10px * var(--app-ui-scale));
+  padding: calc(13px * var(--app-ui-scale)) !important;
 }
 
 .profile-section-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: calc(14px * var(--app-ui-scale));
+  gap: calc(10px * var(--app-ui-scale));
   color: var(--color-primary);
 }
 
@@ -3935,16 +3984,16 @@ textarea::placeholder {
 .version-details {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: calc(10px * var(--app-ui-scale));
+  gap: calc(7px * var(--app-ui-scale));
 }
 
 .version-details > div {
   display: grid;
   min-width: 0;
-  gap: calc(5px * var(--app-ui-scale));
-  padding: calc(12px * var(--app-ui-scale));
+  gap: calc(4px * var(--app-ui-scale));
+  padding: calc(8px * var(--app-ui-scale));
   border: 1px dashed color-mix(in srgb, var(--color-border) 72%, transparent);
-  border-radius: 14px;
+  border-radius: 10px;
   background: color-mix(in srgb, var(--color-surface) 84%, white);
 }
 
@@ -4019,23 +4068,23 @@ textarea::placeholder {
 .profile-security-modal .primary-button[class*="animal-btn-"] {
   width: auto !important;
   min-width: 0 !important;
-  height: calc(42px * var(--app-ui-scale)) !important;
-  min-height: calc(42px * var(--app-ui-scale)) !important;
-  padding: 0 calc(18px * var(--app-ui-scale)) !important;
+  height: calc(34px * var(--app-ui-scale)) !important;
+  min-height: calc(34px * var(--app-ui-scale)) !important;
+  padding: 0 calc(13px * var(--app-ui-scale)) !important;
   border-radius: 999px !important;
-  font-size: calc(14px * var(--app-ui-scale)) !important;
+  font-size: calc(13px * var(--app-ui-scale)) !important;
   line-height: 1 !important;
 }
 
 .profile-overview .ghost-button,
 .profile-overview .ghost-button[class*="animal-btn-"] {
-  min-width: calc(144px * var(--app-ui-scale)) !important;
+  min-width: calc(118px * var(--app-ui-scale)) !important;
 }
 
 .profile-layout .primary-button > span,
 .profile-layout .ghost-button > span,
 .profile-security-modal .primary-button > span {
-  gap: calc(8px * var(--app-ui-scale));
+  gap: calc(6px * var(--app-ui-scale));
 }
 
 .profile-layout .primary-button svg,
@@ -5788,9 +5837,9 @@ textarea::placeholder {
 
 @media (max-width: 720px) {
   :root {
-    --app-footer-height-sea: calc(54px * var(--app-ui-scale));
-    --app-footer-height-tree: calc(44px * var(--app-ui-scale));
-    --app-footer-gap: calc(14px * var(--app-ui-scale));
+    --app-footer-height-sea: calc(50px * var(--app-ui-scale));
+    --app-footer-height-tree: calc(40px * var(--app-ui-scale));
+    --app-footer-gap: calc(5px * var(--app-ui-scale));
   }
 
   .app-shell {
@@ -5956,8 +6005,8 @@ textarea::placeholder {
   }
 
   .workspace {
-    gap: calc(14px * var(--app-ui-scale));
-    padding: 14px 12px calc(14px + var(--workspace-footer-space));
+    gap: calc(10px * var(--app-ui-scale));
+    padding: 10px 10px calc(6px + var(--workspace-footer-space));
   }
 
   .sidebar,

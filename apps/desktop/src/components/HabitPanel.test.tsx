@@ -33,7 +33,7 @@ vi.mock("animal-island-ui", () => ({
       {children}
     </button>
   ),
-  Card: ({ children, className }: any) => <section className={className}>{children}</section>,
+  Card: ({ children, className, pattern, type, ...props }: any) => <section className={className} {...props}>{children}</section>,
   Input: ({ maxLength, min, onChange, required, type = "text", value }: any) => (
     <input maxLength={maxLength} min={min} required={required} type={type} value={value} onChange={onChange} />
   ),
@@ -156,6 +156,25 @@ describe("HabitPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "今日学习日语打卡" }));
 
     await waitFor(() => expect(apiMock.checkInHabit).toHaveBeenCalledWith("habit-1", today));
+  });
+
+  it("selects a habit when clicking anywhere on its sidebar card body", async () => {
+    const secondHabit: ApiHabit = { ...habit, id: "habit-2", title: "喝水记录", color: "blue", icon: "Droplets" };
+    const secondDetail: ApiHabitDetail = { ...detail, habit: secondHabit, stats: secondHabit.stats };
+    apiMock.habits.mockResolvedValue({ habits: [habit, secondHabit] });
+    apiMock.habitDetail.mockImplementation((habitId: string) => Promise.resolve(habitId === secondHabit.id ? secondDetail : detail));
+    const { container } = render(<HabitPanel createOpen={false} showArchived={false} onCreateOpenChange={vi.fn()} />);
+
+    await waitFor(() => expect(screen.getByText("喝水记录")).toBeInTheDocument());
+
+    const secondCard = Array.from(container.querySelectorAll(".habit-list-card"))
+      .find((card) => card.textContent?.includes("喝水记录"));
+    const secondStats = secondCard?.querySelector(".habit-card-stats");
+    expect(secondStats).not.toBeNull();
+
+    fireEvent.click(secondStats!);
+
+    await waitFor(() => expect(apiMock.habitDetail).toHaveBeenLastCalledWith("habit-2", today.slice(0, 7)));
   });
 
   it("keeps habit list content in place while a list refresh is pending", async () => {

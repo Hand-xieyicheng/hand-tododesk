@@ -710,6 +710,7 @@ export function HabitPanel({ createOpen, showArchived, onCreateOpenChange }: Hab
               <Card
                 className={`habit-list-card color-${habit.color}${selectedId === habit.id ? " is-active" : ""}${habit.archivedAt ? " is-archived" : ""}`}
                 key={habit.id}
+                onClick={() => setSelectedId(habit.id)}
                 pattern="default"
               >
                 <button className="habit-list-main" type="button" onClick={() => setSelectedId(habit.id)}>
@@ -723,7 +724,7 @@ export function HabitPanel({ createOpen, showArchived, onCreateOpenChange }: Hab
                   <span><Flame size={14} /> {habit.stats.currentStreak}{habit.stats.currentStreakUnit}</span>
                   <span>{habit.stats.monthCompletionRate}%</span>
                 </div>
-                <div className="habit-card-actions">
+                <div className="habit-card-actions" onClick={(event) => event.stopPropagation()}>
                   <Button
                     aria-label={!habit.todayPlanned ? `今日${habit.title}非计划` : habit.todayChecked ? `取消今日${habit.title}打卡` : `今日${habit.title}打卡`}
                     className={habit.todayChecked ? "habit-check-button is-checked" : "habit-check-button"}
