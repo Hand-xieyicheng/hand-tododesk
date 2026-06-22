@@ -11,6 +11,7 @@ import { authRoutes } from "./routes/auth.js";
 import { habitRoutes } from "./routes/habits.js";
 import { pomodoroRoutes } from "./routes/pomodoro.js";
 import { preferenceRoutes } from "./routes/preferences.js";
+import { tagRoutes } from "./routes/tags.js";
 import { taskRoutes } from "./routes/tasks.js";
 import { userRoutes } from "./routes/users.js";
 import { AVATAR_MAX_BYTES, avatarDirectory, ensureAvatarDirectory } from "./services/avatar.js";
@@ -88,6 +89,7 @@ export async function buildApp() {
   await app.register(anniversaryRoutes);
   await app.register(habitRoutes);
   await app.register(memoRoutes);
+  await app.register(tagRoutes);
   await app.register(taskRoutes);
   await app.register(pomodoroRoutes);
   await app.register(preferenceRoutes);

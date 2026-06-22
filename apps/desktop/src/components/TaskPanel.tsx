@@ -1,18 +1,23 @@
 import { type FormEvent, type KeyboardEvent, useEffect, useMemo, useState } from "react";
-import { sortTasksForDisplay, type ApiTask, type CreateTaskRequest, type TaskCardDisplayMode, type TaskPriority, type TaskStatus, type TaskViewMode } from "@todo/shared";
+import { sortTasksForDisplay, type ApiTag, type ApiTask, type CreateTaskRequest, type TaskCardDisplayMode, type TaskPriority, type TaskStatus, type TaskViewMode } from "@todo/shared";
 import { Button, Card, Divider, Input, Modal, Select } from "animal-island-ui";
-import { Check, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { Check, Pencil, Plus, RotateCcw, Save, Trash2, X } from "lucide-react";
 import { api } from "../api/client";
 import { getTodayEndDatetimeLocal } from "../lib/datetime";
+import { ConfirmDialog } from "./ConfirmDialog";
 
 interface TaskPanelProps {
   createOpen: boolean;
   showCompletedTasks: boolean;
+  tags: ApiTag[];
   taskCardDisplayMode: TaskCardDisplayMode;
+  tagMaintenanceOpen: boolean;
+  taskTagFilter: string;
   tasks: ApiTask[];
   viewMode: TaskViewMode;
   onChanged(): Promise<void>;
   onCreateOpenChange(open: boolean): void;
+  onTagMaintenanceOpenChange(open: boolean): void;
 }
 
 const priorityLabels: Record<TaskPriority, string> = {
@@ -59,6 +64,10 @@ const repeatOptions = [
   { key: "MONTHLY", label: "每月" }
 ];
 
+const noTagSelectValue = "__none__";
+const allTagsFilterValue = "__all__";
+const untaggedTagsFilterValue = "__untagged__";
+
 function emptyQuadrants() {
   const quadrants = {} as Record<TaskPriority, ApiTask[]>;
   for (const priority of priorityOrder) {
@@ -87,6 +96,16 @@ function getTaskMetaItems(task: ApiTask) {
     `${task.pomodoroCompletedCount} 个番茄`,
     ...task.tags.map((tag) => `#${tag.name}`)
   ].filter((item): item is string => Boolean(item));
+}
+
+function taskMatchesTagFilter(task: ApiTask, filter: string) {
+  if (filter === allTagsFilterValue) {
+    return true;
+  }
+  if (filter === untaggedTagsFilterValue) {
+    return task.tags.length === 0;
+  }
+  return task.tags.some((tag) => tag.id === filter);
 }
 
 interface TaskDetailModalProps {
@@ -216,20 +235,181 @@ function TaskCard({ task, compact, displayMode, onDelete, onOpenDetails, onSetSt
   );
 }
 
-export function TaskPanel({ createOpen, showCompletedTasks, taskCardDisplayMode, tasks, viewMode, onChanged, onCreateOpenChange }: TaskPanelProps) {
+interface TagMaintenanceModalProps {
+  open: boolean;
+  tags: ApiTag[];
+  onChanged(): Promise<void>;
+  onClose(): void;
+}
+
+function TagMaintenanceModal({ open, tags, onChanged, onClose }: TagMaintenanceModalProps) {
+  const [name, setName] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<ApiTag | null>(null);
+  const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+
+  useEffect(() => {
+    if (!open) {
+      setName("");
+      setEditingId(null);
+      setEditingName("");
+      setDeleteTarget(null);
+      setMessage("");
+    }
+  }, [open]);
+
+  function beginEdit(tag: ApiTag) {
+    setMessage("");
+    setEditingId(tag.id);
+    setEditingName(tag.name);
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setEditingName("");
+    setMessage("");
+  }
+
+  async function createTag(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const nextName = name.trim();
+    if (!nextName || busy) {
+      return;
+    }
+    setBusy(true);
+    setMessage("");
+    try {
+      await api.createTag({ name: nextName });
+      setName("");
+      await onChanged();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "标签创建失败");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveEdit(tag: ApiTag) {
+    const nextName = editingName.trim();
+    if (!nextName || busy) {
+      return;
+    }
+    setBusy(true);
+    setMessage("");
+    try {
+      await api.updateTag(tag.id, { name: nextName });
+      cancelEdit();
+      await onChanged();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "标签保存失败");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget || deleteBusy) {
+      return;
+    }
+    setDeleteBusy(true);
+    setMessage("");
+    try {
+      await api.deleteTag(deleteTarget.id);
+      setDeleteTarget(null);
+      if (editingId === deleteTarget.id) {
+        cancelEdit();
+      }
+      await onChanged();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "标签删除失败");
+    } finally {
+      setDeleteBusy(false);
+    }
+  }
+
+  return (
+    <>
+      <Modal
+        className="tag-maintenance-modal"
+        open={open}
+        title="标签维护"
+        width={560}
+        footer={null}
+        typewriter={false}
+        onClose={onClose}
+      >
+        <div className="tag-maintenance-content">
+          <form className="tag-maintenance-form" onSubmit={createTag}>
+            <Input value={name} onChange={(event) => setName(event.target.value)} placeholder="输入标签名称" maxLength={40} allowClear shadow />
+            <Button htmlType="submit" icon={<Plus size={15} />} loading={busy} type="primary">
+              新增
+            </Button>
+          </form>
+          {message ? <div className="inline-alert">{message}</div> : null}
+          <div className="tag-maintenance-list">
+            {tags.length === 0 ? <Card className="empty-state" type="dashed">暂无标签</Card> : null}
+            {tags.map((tag) => (
+              <div className="tag-maintenance-row" key={tag.id}>
+                {editingId === tag.id ? (
+                  <>
+                    <Input value={editingName} onChange={(event) => setEditingName(event.target.value)} maxLength={40} allowClear shadow />
+                    <Button aria-label={`保存${tag.name}`} icon={<Save size={15} />} loading={busy} size="small" type="default" onClick={() => void saveEdit(tag)} />
+                    <Button aria-label={`取消编辑${tag.name}`} icon={<X size={15} />} disabled={busy} size="small" type="text" onClick={cancelEdit} />
+                  </>
+                ) : (
+                  <>
+                    <span className="tag-maintenance-name">#{tag.name}</span>
+                    <Button aria-label={`编辑${tag.name}`} icon={<Pencil size={15} />} size="small" type="default" onClick={() => beginEdit(tag)} />
+                    <Button aria-label={`删除${tag.name}`} danger icon={<Trash2 size={15} />} size="small" type="default" onClick={() => setDeleteTarget(tag)} />
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </Modal>
+      <ConfirmDialog
+        danger
+        open={Boolean(deleteTarget)}
+        title="删除标签"
+        confirmText="删除"
+        description={<span>确定删除「{deleteTarget?.name ?? ""}」？关联待办将变为无标签。</span>}
+        loading={deleteBusy}
+        onCancel={() => {
+          if (!deleteBusy) {
+            setDeleteTarget(null);
+          }
+        }}
+        onConfirm={() => void confirmDelete()}
+      />
+    </>
+  );
+}
+
+export function TaskPanel({ createOpen, showCompletedTasks, tags, taskCardDisplayMode, tagMaintenanceOpen, taskTagFilter, tasks, viewMode, onChanged, onCreateOpenChange, onTagMaintenanceOpenChange }: TaskPanelProps) {
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
   const [dueAt, setDueAt] = useState(() => getTodayEndDatetimeLocal());
   const [priority, setPriority] = useState<TaskPriority>("IMPORTANT_NOT_URGENT");
-  const [tags, setTags] = useState("");
+  const [tagId, setTagId] = useState(noTagSelectValue);
   const [repeat, setRepeat] = useState<"NONE" | "DAILY" | "WEEKLY" | "MONTHLY">("NONE");
   const [formMessage, setFormMessage] = useState("");
   const [panelMessage, setPanelMessage] = useState("");
   const [detailTask, setDetailTask] = useState<ApiTask | null>(null);
   const [quadrants, setQuadrants] = useState<Record<TaskPriority, ApiTask[]>>(() => emptyQuadrants());
+  const tagOptions = useMemo(() => [
+    { key: noTagSelectValue, label: "不选择" },
+    ...tags.map((tag) => ({ key: tag.id, label: tag.name }))
+  ], [tags]);
   const visibleTasks = useMemo(
-    () => sortTasksForDisplay(showCompletedTasks ? tasks : tasks.filter((task) => task.status !== "COMPLETED")),
-    [showCompletedTasks, tasks]
+    () => sortTasksForDisplay(
+      (showCompletedTasks ? tasks : tasks.filter((task) => task.status !== "COMPLETED"))
+        .filter((task) => taskMatchesTagFilter(task, taskTagFilter))
+    ),
+    [showCompletedTasks, taskTagFilter, tasks]
   );
 
   async function loadQuadrants() {
@@ -254,6 +434,12 @@ export function TaskPanel({ createOpen, showCompletedTasks, taskCardDisplayMode,
     }
   }, [createOpen]);
 
+  useEffect(() => {
+    if (tagId !== noTagSelectValue && !tags.some((tag) => tag.id === tagId)) {
+      setTagId(noTagSelectValue);
+    }
+  }, [tagId, tags]);
+
   async function refreshAfterChange() {
     await onChanged();
     if (viewMode === "quadrant") {
@@ -266,7 +452,7 @@ export function TaskPanel({ createOpen, showCompletedTasks, taskCardDisplayMode,
     setNotes("");
     setDueAt(getTodayEndDatetimeLocal());
     setPriority("IMPORTANT_NOT_URGENT");
-    setTags("");
+    setTagId(noTagSelectValue);
     setRepeat("NONE");
   }
 
@@ -279,7 +465,7 @@ export function TaskPanel({ createOpen, showCompletedTasks, taskCardDisplayMode,
       dueAt: dueAt ? new Date(dueAt).toISOString() : null,
       priority,
       status: "TODO",
-      tagNames: tags.split(",").map((item) => item.trim()).filter(Boolean),
+      tagId: tagId === noTagSelectValue ? null : tagId,
       recurrenceRule: repeat === "NONE" ? null : {
         frequency: repeat,
         interval: 1,
@@ -317,6 +503,12 @@ export function TaskPanel({ createOpen, showCompletedTasks, taskCardDisplayMode,
   return (
     <>
       <TaskDetailModal task={detailTask} onClose={() => setDetailTask(null)} />
+      <TagMaintenanceModal
+        open={tagMaintenanceOpen}
+        tags={tags}
+        onChanged={refreshAfterChange}
+        onClose={() => onTagMaintenanceOpenChange(false)}
+      />
 
       <Modal
         className="task-create-modal"
@@ -353,7 +545,7 @@ export function TaskPanel({ createOpen, showCompletedTasks, taskCardDisplayMode,
             </label>
             <label>
               <span>标签</span>
-              <Input value={tags} onChange={(event) => setTags(event.target.value)} placeholder="工作,生活" allowClear shadow />
+              <Select value={tagId} onChange={setTagId} options={tagOptions} />
             </label>
           </div>
           {formMessage ? <div className="inline-alert">{formMessage}</div> : null}
@@ -377,7 +569,10 @@ export function TaskPanel({ createOpen, showCompletedTasks, taskCardDisplayMode,
           <section className="quadrant-grid">
             {priorityOrder.map((item) => {
               const sourceItems = quadrants[item] ?? [];
-              const items = sortTasksForDisplay(showCompletedTasks ? sourceItems : sourceItems.filter((task) => task.status !== "COMPLETED"));
+              const items = sortTasksForDisplay(
+                (showCompletedTasks ? sourceItems : sourceItems.filter((task) => task.status !== "COMPLETED"))
+                  .filter((task) => taskMatchesTagFilter(task, taskTagFilter))
+              );
               return (
                 <Card className={`quadrant-panel priority-${priorityClass(item)}`} key={item} pattern="default">
                   <header>

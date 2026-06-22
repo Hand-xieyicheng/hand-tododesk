@@ -10,9 +10,12 @@ const db = vi.hoisted(() => ({
 }));
 
 vi.mock("../db.js", () => ({
+  asDate: (value: unknown) => value instanceof Date ? value : value ? new Date(String(value)) : null,
   execute: db.execute,
+  id: () => "generated-id",
   queryOne: db.queryOne,
-  queryRows: db.queryRows
+  queryRows: db.queryRows,
+  transaction: (callback: (connection: { execute: typeof db.execute }) => Promise<unknown>) => callback({ execute: db.execute })
 }));
 
 const token = signAccessToken({ sub: "user-1", email: "todo@example.com" });

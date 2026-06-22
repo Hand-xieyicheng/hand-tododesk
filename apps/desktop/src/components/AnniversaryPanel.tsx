@@ -449,7 +449,7 @@ export function AnniversaryPanel({ createOpen, onCreateOpenChange }: Anniversary
       </Modal>
 
       <section className="anniversary-panel">
-        <div className="anniversary-tabs" aria-label="倒数纪念日分类">
+        <div className="anniversary-tabs segmented-control" aria-label="倒数纪念日分类">
           {categoryTabs.map((tab) => (
             <Button
               className={activeCategory === tab.key ? "is-active" : ""}

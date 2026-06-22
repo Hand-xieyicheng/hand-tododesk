@@ -15,7 +15,8 @@ vi.mock("../db.js", () => ({
   execute: db.execute,
   id: () => "generated-id",
   queryOne: db.queryOne,
-  queryRows: db.queryRows
+  queryRows: db.queryRows,
+  transaction: (callback: (connection: { execute: typeof db.execute }) => Promise<unknown>) => callback({ execute: db.execute })
 }));
 
 function addDays(dateKey: string, days: number) {

@@ -8,6 +8,7 @@ const apiMock = vi.hoisted(() => ({
   createTask: vi.fn(),
   getThemePreference: vi.fn(),
   setThemePreference: vi.fn(),
+  tags: vi.fn(),
   tasks: vi.fn(),
   updateTask: vi.fn()
 }));
@@ -74,6 +75,11 @@ const task: ApiTask = {
   pomodoroCompletedMinutes: 25
 };
 
+const tagOptions = [
+  { id: "tag-1", name: "财务" },
+  { id: "tag-2", name: "生活" }
+];
+
 const titlePreference: ApiThemePreference = {
   themeId: "shinchan",
   titleColor: "app-teal",
@@ -114,6 +120,7 @@ describe("FloatingCard", () => {
     vi.clearAllMocks();
     alwaysOnTop = false;
     apiMock.tasks.mockResolvedValue({ tasks: [task] });
+    apiMock.tags.mockResolvedValue({ tags: tagOptions });
     apiMock.getThemePreference.mockResolvedValue(titlePreference);
     windowMock.isAlwaysOnTop.mockImplementation(async () => alwaysOnTop);
     windowMock.setAlwaysOnTop.mockImplementation(async (value: boolean) => {
@@ -130,12 +137,52 @@ describe("FloatingCard", () => {
     expect(container.querySelector(".floating-task-notes")).not.toBeInTheDocument();
     expect(container.querySelector(".floating-task-meta")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "编辑" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "完成" })).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "完成" })).toHaveAttribute("aria-checked", "false");
     expect(screen.getByRole("tooltip")).toHaveTextContent("补齐报销附件");
     expect(screen.getByRole("tooltip")).toHaveTextContent("重要不紧急");
     expect(screen.getByRole("tooltip")).toHaveTextContent("无截止时间");
     expect(screen.getByRole("tooltip")).toHaveTextContent("1 个番茄");
     expect(screen.getByRole("tooltip")).toHaveTextContent("#财务");
+  });
+
+  it("completes an unfinished floating task from the left checkbox", async () => {
+    apiMock.updateTask.mockResolvedValue({
+      task: taskWith({
+        status: "COMPLETED",
+        completedAt: "2026-06-14T12:00:00.000Z"
+      })
+    });
+    render(<FloatingCard />);
+
+    const checkbox = await screen.findByRole("checkbox", { name: "完成" });
+
+    expect(checkbox).toHaveAttribute("aria-checked", "false");
+    fireEvent.click(checkbox);
+
+    await waitFor(() => expect(apiMock.updateTask).toHaveBeenCalledWith("task-1", { status: "COMPLETED" }));
+  });
+
+  it("resets a completed floating task from the left checkbox", async () => {
+    apiMock.tasks.mockResolvedValue({
+      tasks: [taskWith({
+        status: "COMPLETED",
+        completedAt: "2026-06-14T12:00:00.000Z"
+      })]
+    });
+    apiMock.updateTask.mockResolvedValue({
+      task: taskWith({
+        status: "TODO",
+        completedAt: null
+      })
+    });
+    render(<FloatingCard />);
+
+    const checkbox = await screen.findByRole("checkbox", { name: "重置为未完成" });
+
+    expect(checkbox).toHaveAttribute("aria-checked", "true");
+    fireEvent.click(checkbox);
+
+    await waitFor(() => expect(apiMock.updateTask).toHaveBeenCalledWith("task-1", { status: "TODO" }));
   });
 
   it("toggles the current floating window always-on-top state", async () => {
@@ -190,6 +237,21 @@ describe("FloatingCard", () => {
     fireEvent.click(await screen.findByRole("button", { name: "新增" }));
 
     expect(screen.getByLabelText("截止时间")).toHaveValue(getTodayEndDatetimeLocal());
+  });
+
+  it("submits one selected tag id from the floating form", async () => {
+    apiMock.createTask.mockResolvedValue({ task });
+    render(<FloatingCard />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "新增" }));
+    fireEvent.change(screen.getByLabelText("标题"), { target: { value: "补票据" } });
+    fireEvent.change(screen.getByLabelText("标签"), { target: { value: "tag-1" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    await waitFor(() => expect(apiMock.createTask).toHaveBeenCalledWith(expect.objectContaining({
+      title: "补票据",
+      tagId: "tag-1"
+    })));
   });
 
   it("sorts visible tasks with unfinished items first and created date ascending", async () => {

@@ -143,7 +143,7 @@ export async function userRoutes(app: FastifyInstance) {
       );
     });
 
-    void sendVerificationEmail(body.email, token);
+    void sendVerificationEmail(body.email, token, "email-change");
     const user = await getCurrentUser(request.user.id);
     return { user: publicUser(user ?? { ...current, email: body.email, emailVerifiedAt: null }), verificationEmailSent: true };
   });

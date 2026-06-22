@@ -20,6 +20,30 @@ type TokenRow = DbRow & {
   usedAt: Date | string | null;
 };
 
+const defaultTagNames = ["工作", "生活", "娱乐"] as const;
+
+function emailVerificationSuccessPage() {
+  return `<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>小柴记邀请已接受</title>
+  </head>
+  <body style="margin:0;min-height:100vh;display:grid;place-items:center;background:#eef7f3;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#18352f;">
+    <main style="width:min(520px,calc(100vw - 32px));background:#ffffff;border:1px solid #d6ebe2;border-radius:18px;box-shadow:0 18px 42px rgba(15,118,110,0.14);overflow:hidden;">
+      <section style="background:#0f766e;color:#ffffff;padding:28px 32px;">
+        <div style="font-size:13px;letter-spacing:2px;text-transform:uppercase;opacity:0.78;">TODODESK INVITATION</div>
+        <h1 style="margin:10px 0 0;font-size:28px;line-height:1.25;">邀请已接受</h1>
+      </section>
+      <section style="padding:28px 32px 32px;">
+        <p style="margin:0;font-size:16px;line-height:1.8;color:#24443e;">邮箱验证已完成，现在可以回到小柴记应用登录。</p>
+      </section>
+    </main>
+  </body>
+</html>`;
+}
+
 async function issueTokens(user: { id: string; email: string }) {
   const refreshToken = createOpaqueToken();
   await execute(
@@ -39,7 +63,34 @@ export async function authRoutes(app: FastifyInstance) {
     const body = registerRequestSchema.parse(request.body);
     const existing = await queryOne<UserRow>("SELECT * FROM `User` WHERE `email` = ?", [body.email]);
     if (existing) {
-      return reply.code(409).send({ error: "Email already registered" });
+      if (existing.emailVerifiedAt) {
+        return reply.code(409).send({ error: "Email already registered" });
+      }
+
+      const passwordHash = await bcrypt.hash(body.password, 12);
+      const token = createOpaqueToken();
+      const name = body.name ?? null;
+
+      await transaction(async (connection) => {
+        await connection.execute(
+          "UPDATE `User` SET `passwordHash` = ?, `name` = ?, `updatedAt` = NOW(3) WHERE `id` = ?",
+          [passwordHash, name, existing.id]
+        );
+        await connection.execute(
+          "UPDATE `EmailVerificationToken` SET `usedAt` = NOW(3) WHERE `userId` = ? AND `usedAt` IS NULL",
+          [existing.id]
+        );
+        await connection.execute(
+          "INSERT INTO `EmailVerificationToken` (`id`, `userId`, `tokenHash`, `expiresAt`) VALUES (?, ?, ?, ?)",
+          [id(), existing.id, hashToken(token), toMysqlDate(addHours(new Date(), 24))]
+        );
+      });
+
+      void sendVerificationEmail(existing.email, token, "registration");
+      return reply.send({
+        user: publicUser({ ...existing, name, emailVerifiedAt: null }),
+        verificationEmailSent: true
+      });
     }
 
     const passwordHash = await bcrypt.hash(body.password, 12);
@@ -65,9 +116,15 @@ export async function authRoutes(app: FastifyInstance) {
         "INSERT INTO `UserThemePreference` (`userId`, `themeId`, `updatedAt`) VALUES (?, 'default', NOW(3))",
         [user.id]
       );
+      for (const tagName of defaultTagNames) {
+        await connection.execute(
+          "INSERT INTO `Tag` (`id`, `userId`, `name`) VALUES (?, ?, ?)",
+          [id(), user.id, tagName]
+        );
+      }
     });
 
-    void sendVerificationEmail(user.email, token);
+    void sendVerificationEmail(user.email, token, "registration");
     return reply.code(201).send({ user: publicUser(user), verificationEmailSent: true });
   });
 
@@ -88,7 +145,7 @@ export async function authRoutes(app: FastifyInstance) {
       await connection.execute("UPDATE `EmailVerificationToken` SET `usedAt` = NOW(3) WHERE `id` = ?", [record.id]);
     });
 
-    return reply.type("text/html").send("<h1>小柴记邮箱验证成功</h1><p>现在可以回到应用登录。</p>");
+    return reply.type("text/html; charset=utf-8").send(emailVerificationSuccessPage());
   });
 
   app.post("/auth/login", async (request, reply) => {

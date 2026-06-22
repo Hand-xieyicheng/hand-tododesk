@@ -323,12 +323,22 @@ export const createTaskRequestSchema = z.object({
   dueAt: z.string().datetime().optional().nullable(),
   priority: z.enum(taskPriorityValues).default("IMPORTANT_NOT_URGENT"),
   status: z.enum(taskStatusValues).default("TODO"),
-  tagNames: z.array(z.string().trim().min(1).max(40)).max(12).default([]),
+  tagId: z.string().trim().min(1).optional().nullable(),
   recurrenceRule: recurrenceRuleSchema.optional().nullable()
 });
 
 export const updateTaskRequestSchema = createTaskRequestSchema.partial().extend({
   recurrenceRule: recurrenceRuleSchema.optional().nullable()
+});
+
+export const tagNameSchema = z.string().trim().min(1).max(40);
+
+export const createTagRequestSchema = z.object({
+  name: tagNameSchema
+});
+
+export const updateTagRequestSchema = z.object({
+  name: tagNameSchema
 });
 
 export const calendarQuerySchema = z.object({
@@ -443,6 +453,8 @@ export type HabitListQuery = z.infer<typeof habitListQuerySchema>;
 export type HabitDetailQuery = z.infer<typeof habitDetailQuerySchema>;
 export type CreateTaskRequest = z.infer<typeof createTaskRequestSchema>;
 export type UpdateTaskRequest = z.infer<typeof updateTaskRequestSchema>;
+export type CreateTagRequest = z.infer<typeof createTagRequestSchema>;
+export type UpdateTagRequest = z.infer<typeof updateTagRequestSchema>;
 export type RecurrenceRuleInput = z.infer<typeof recurrenceRuleSchema>;
 export type CalendarQuery = z.infer<typeof calendarQuerySchema>;
 export type CalendarView = (typeof calendarViewValues)[number];

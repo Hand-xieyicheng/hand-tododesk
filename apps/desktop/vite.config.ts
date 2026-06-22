@@ -5,8 +5,8 @@ export default defineConfig({
   plugins: [react()],
   clearScreen: false,
   server: {
-    port: 5173,
-    strictPort: false
+    port: 8090,
+    strictPort: true
   },
   test: {
     environment: "jsdom",

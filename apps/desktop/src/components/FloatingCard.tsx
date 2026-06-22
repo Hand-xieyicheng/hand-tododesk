@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent, MouseEvent, PointerEvent } from "react";
-import { defaultVisibleSidebarModules, sortTasksForDisplay, type ApiTask, type ApiThemePreference, type CreateTaskRequest, type TaskCardDisplayMode, type TaskPriority, type TaskStatus, type UpdateTaskRequest } from "@todo/shared";
+import { defaultVisibleSidebarModules, sortTasksForDisplay, type ApiTag, type ApiTask, type ApiThemePreference, type CreateTaskRequest, type TaskCardDisplayMode, type TaskPriority, type TaskStatus, type UpdateTaskRequest } from "@todo/shared";
 import { Button, Card, Input, Select, Tooltip } from "animal-island-ui";
-import { Check, Eye, EyeOff, Monitor, Pencil, Pin, Plus, RefreshCw, RotateCcw, Save, X } from "lucide-react";
+import { Check, Eye, EyeOff, Monitor, Pencil, Pin, Plus, RefreshCw, Save, X } from "lucide-react";
 import { api } from "../api/client";
 import todoDeskLogo from "../assets/tododesk-logo.png";
 import { applyDisplaySize } from "../lib/displaySize";
@@ -17,7 +17,7 @@ interface TaskDraft {
   notes: string;
   dueAt: string;
   priority: TaskPriority;
-  tags: string;
+  tagId: string;
 }
 
 const priorityLabels: Record<TaskPriority, string> = {
@@ -35,6 +35,7 @@ const priorityOrder: TaskPriority[] = [
 ];
 
 const priorityOptions = priorityOrder.map((priority) => ({ key: priority, label: priorityLabels[priority] }));
+const noTagSelectValue = "__none__";
 
 const defaultThemePreference: ApiThemePreference = {
   themeId: "default",
@@ -59,7 +60,7 @@ function emptyDraft(): TaskDraft {
     notes: "",
     dueAt: getTodayEndDatetimeLocal(),
     priority: "IMPORTANT_NOT_URGENT",
-    tags: ""
+    tagId: noTagSelectValue
   };
 }
 
@@ -69,12 +70,8 @@ function draftFromTask(task: ApiTask): TaskDraft {
     notes: task.notes ?? "",
     dueAt: toDatetimeLocal(task.dueAt),
     priority: task.priority,
-    tags: task.tags.map((tag) => tag.name).join(",")
+    tagId: task.tags[0]?.id ?? noTagSelectValue
   };
-}
-
-function parseTags(value: string) {
-  return value.split(",").map((item) => item.trim()).filter(Boolean);
 }
 
 function dueAtToIso(value: string) {
@@ -191,6 +188,7 @@ function FloatingHeader() {
 
 export function FloatingCard() {
   const [tasks, setTasks] = useState<ApiTask[]>([]);
+  const [tags, setTags] = useState<ApiTag[]>([]);
   const [showCompletedTasks, setShowCompletedTasks] = useState(defaultThemePreference.showCompletedTasks);
   const [taskCardDisplayMode, setTaskCardDisplayMode] = useState<TaskCardDisplayMode>(defaultThemePreference.taskCardDisplayMode);
   const [message, setMessage] = useState("");
@@ -204,6 +202,10 @@ export function FloatingCard() {
   const visibleTasks = useMemo(() => {
     return sortTasksForDisplay(showCompletedTasks ? tasks : tasks.filter((task) => task.status !== "COMPLETED"));
   }, [showCompletedTasks, tasks]);
+  const tagOptions = useMemo(() => [
+    { key: noTagSelectValue, label: "不选择" },
+    ...tags.map((tag) => ({ key: tag.id, label: tag.name }))
+  ], [tags]);
   const openTaskCount = useMemo(() => tasks.filter((task) => task.status !== "COMPLETED").length, [tasks]);
   const formTitle = formMode === "edit" ? "编辑待办" : "新增待办";
   const showCompletedAction = showCompletedTasks ? "隐藏已完成待办" : "显示已完成待办";
@@ -225,11 +227,13 @@ export function FloatingCard() {
     }
     setMessage("");
     try {
-      const [taskPayload, preference] = await Promise.all([
+      const [taskPayload, tagPayload, preference] = await Promise.all([
         api.tasks(),
+        api.tags(),
         api.getThemePreference().catch(() => defaultThemePreference)
       ]);
       setTasks(taskPayload.tasks);
+      setTags(tagPayload.tags);
       applyThemePreference(preference);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "加载失败");
@@ -281,6 +285,14 @@ export function FloatingCard() {
     setDraft((current) => ({ ...current, ...patch }));
   }
 
+  useEffect(() => {
+    setDraft((current) => (
+      current.tagId !== noTagSelectValue && !tags.some((tag) => tag.id === current.tagId)
+        ? { ...current, tagId: noTagSelectValue }
+        : current
+    ));
+  }, [tags]);
+
   function beginCreate() {
     setMessage("");
     setEditingTaskId(null);
@@ -319,7 +331,7 @@ export function FloatingCard() {
           notes: draft.notes.trim() || null,
           dueAt: dueAtToIso(draft.dueAt),
           priority: draft.priority,
-          tagNames: parseTags(draft.tags)
+          tagId: draft.tagId === noTagSelectValue ? null : draft.tagId
         };
         const payload = await api.updateTask(editingTaskId, input);
         setTasks((current) => current.map((task) => task.id === editingTaskId ? payload.task : task));
@@ -330,7 +342,7 @@ export function FloatingCard() {
           dueAt: dueAtToIso(draft.dueAt),
           priority: draft.priority,
           status: "TODO",
-          tagNames: parseTags(draft.tags),
+          tagId: draft.tagId === noTagSelectValue ? null : draft.tagId,
           recurrenceRule: null
         };
         const payload = await api.createTask(input);
@@ -376,31 +388,30 @@ export function FloatingCard() {
   return (
     <div className="floating-card">
       <FloatingHeader />
+      <div className="floating-toolbar">
+        <Button className="floating-toolbar-primary" icon={<Plus size={15} />} size="small" type="default" onClick={beginCreate}>
+          新增
+        </Button>
+        <Button
+          aria-label={showCompletedAction}
+          disabled={savingPreference}
+          icon={showCompletedTasks ? <Eye size={15} /> : <EyeOff size={15} />}
+          loading={savingPreference}
+          size="small"
+          title={showCompletedAction}
+          onClick={() => void toggleShowCompletedTasks(!showCompletedTasks)}
+        />
+        <Button
+          aria-label="刷新待办"
+          icon={<RefreshCw size={15} />}
+          loading={loading}
+          size="small"
+          title="刷新待办"
+          type="default"
+          onClick={() => void loadData()}
+        />
+      </div>
       <main>
-        <div className="floating-toolbar">
-          <Button className="floating-toolbar-primary" icon={<Plus size={15} />} size="small" type="default" onClick={beginCreate}>
-            新增
-          </Button>
-          <Button
-            aria-label={showCompletedAction}
-            disabled={savingPreference}
-            icon={showCompletedTasks ? <Eye size={15} /> : <EyeOff size={15} />}
-            loading={savingPreference}
-            size="small"
-            title={showCompletedAction}
-            onClick={() => void toggleShowCompletedTasks(!showCompletedTasks)}
-          />
-          <Button
-            aria-label="刷新待办"
-            icon={<RefreshCw size={15} />}
-            loading={loading}
-            size="small"
-            title="刷新待办"
-            type="default"
-            onClick={() => void loadData()}
-          />
-        </div>
-
         <div className="floating-summary">
           <span>{openTaskCount} 个未完成</span>
           {showCompletedTasks ? <span>含已完成</span> : <span>仅未完成</span>}
@@ -432,7 +443,7 @@ export function FloatingCard() {
             </div>
             <label>
               <span>标签</span>
-              <Input value={draft.tags} onChange={(event) => updateDraft({ tags: event.target.value })} placeholder="工作,生活" allowClear shadow />
+              <Select value={draft.tagId} onChange={(next) => updateDraft({ tagId: next })} options={tagOptions} />
             </label>
             <Button block htmlType="submit" icon={<Save size={15} />} loading={savingTaskId === "form"} type="primary">
               保存
@@ -482,6 +493,18 @@ export function FloatingCard() {
 
             return (
               <Card className={`${isCompleted ? "floating-task is-completed" : "floating-task"}${titleOnly ? " is-title-only" : ""}`} key={task.id} pattern="default">
+                <button
+                  aria-checked={isCompleted}
+                  aria-label={statusAction}
+                  className="floating-task-checkbox"
+                  disabled={savingTaskId === task.id}
+                  role="checkbox"
+                  title={statusAction}
+                  type="button"
+                  onClick={() => void setTaskStatus(task, nextStatus)}
+                >
+                  {isCompleted ? <Check size={14} /> : null}
+                </button>
                 {titleOnly ? (
                   <Tooltip className="floating-task-tooltip" placement="top-start" title={fullContent} trigger="hover" variant="default">
                     {copy}
@@ -496,16 +519,6 @@ export function FloatingCard() {
                     title="编辑"
                     type="default"
                     onClick={() => beginEdit(task)}
-                  />
-                  <Button
-                    aria-label={statusAction}
-                    disabled={savingTaskId === task.id}
-                    icon={isCompleted ? <RotateCcw size={15} /> : <Check size={15} />}
-                    loading={savingTaskId === task.id}
-                    size="small"
-                    title={statusAction}
-                    type={isCompleted ? "default" : "default"}
-                    onClick={() => void setTaskStatus(task, nextStatus)}
                   />
                 </div>
               </Card>

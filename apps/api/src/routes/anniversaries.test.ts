@@ -14,7 +14,8 @@ vi.mock("../db.js", () => ({
   execute: db.execute,
   id: () => "anniversary-new",
   queryOne: db.queryOne,
-  queryRows: db.queryRows
+  queryRows: db.queryRows,
+  transaction: (callback: (connection: { execute: typeof db.execute }) => Promise<unknown>) => callback({ execute: db.execute })
 }));
 
 const token = signAccessToken({ sub: "user-1", email: "todo@example.com" });

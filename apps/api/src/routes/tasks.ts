@@ -115,19 +115,9 @@ async function serializeTask(row: TaskRow): Promise<ApiTask> {
   };
 }
 
-async function syncTaskTags(taskId: string, userId: string, tagNames: string[]) {
-  await execute("DELETE FROM `TaskTag` WHERE `taskId` = ?", [taskId]);
-
-  for (const name of tagNames) {
-    await execute(
-      "INSERT INTO `Tag` (`id`, `userId`, `name`) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE `name` = VALUES(`name`)",
-      [id(), userId, name]
-    );
-    const tag = await queryOne<DbRow & { id: string }>("SELECT `id` FROM `Tag` WHERE `userId` = ? AND `name` = ?", [userId, name]);
-    if (tag) {
-      await execute("INSERT IGNORE INTO `TaskTag` (`taskId`, `tagId`) VALUES (?, ?)", [taskId, tag.id]);
-    }
-  }
+async function tagBelongsToUser(tagId: string, userId: string) {
+  const tag = await queryOne<DbRow & { id: string }>("SELECT `id` FROM `Tag` WHERE `id` = ? AND `userId` = ?", [tagId, userId]);
+  return Boolean(tag);
 }
 
 async function upsertRecurrence(taskId: string, recurrenceRule: RecurrenceRuleInput | null) {
@@ -186,6 +176,10 @@ export async function taskRoutes(app: FastifyInstance) {
   app.post("/tasks", { preHandler: app.authenticate }, async (request, reply) => {
     const body = createTaskRequestSchema.parse(request.body);
     const taskId = id();
+    const tagId = body.tagId ?? null;
+    if (tagId && !(await tagBelongsToUser(tagId, request.user.id))) {
+      return reply.code(400).send({ error: "Tag not found" });
+    }
 
     await transaction(async (connection) => {
       await connection.execute(
@@ -203,10 +197,12 @@ export async function taskRoutes(app: FastifyInstance) {
           body.status === "COMPLETED" ? toMysqlDate(new Date()) : null
         ]
       );
+      if (tagId) {
+        await connection.execute("INSERT INTO `TaskTag` (`taskId`, `tagId`) VALUES (?, ?)", [taskId, tagId]);
+      }
     });
 
     await upsertRecurrence(taskId, body.recurrenceRule ?? null);
-    await syncTaskTags(taskId, request.user.id, body.tagNames);
     const task = await queryOne<TaskRow>("SELECT * FROM `Task` WHERE `id` = ?", [taskId]);
     return reply.code(201).send({ task: task ? await serializeTask(task) : null });
   });
@@ -218,35 +214,44 @@ export async function taskRoutes(app: FastifyInstance) {
     if (!existing) {
       return reply.code(404).send({ error: "Task not found" });
     }
+    const tagId = body.tagId ?? null;
+    if (body.tagId !== undefined && tagId && !(await tagBelongsToUser(tagId, request.user.id))) {
+      return reply.code(400).send({ error: "Tag not found" });
+    }
 
-    await execute(
-      `UPDATE \`Task\` SET
-        \`title\` = COALESCE(?, \`title\`),
-        \`notes\` = ?,
-        \`dueAt\` = ?,
-        \`priority\` = COALESCE(?, \`priority\`),
-        \`status\` = COALESCE(?, \`status\`),
-        \`completedAt\` = ?,
-        \`updatedAt\` = NOW(3)
-       WHERE \`id\` = ? AND \`userId\` = ?`,
-      [
-        body.title ?? null,
-        body.notes === undefined ? existing.notes : body.notes,
-        body.dueAt === undefined ? existing.dueAt : toMysqlDate(body.dueAt ? new Date(body.dueAt) : null),
-        body.priority ?? null,
-        body.status ?? null,
-        body.status === undefined ? existing.completedAt : body.status === "COMPLETED" ? toMysqlDate(new Date()) : null,
-        taskId,
-        request.user.id
-      ]
-    );
+    await transaction(async (connection) => {
+      await connection.execute(
+        `UPDATE \`Task\` SET
+          \`title\` = COALESCE(?, \`title\`),
+          \`notes\` = ?,
+          \`dueAt\` = ?,
+          \`priority\` = COALESCE(?, \`priority\`),
+          \`status\` = COALESCE(?, \`status\`),
+          \`completedAt\` = ?,
+          \`updatedAt\` = NOW(3)
+         WHERE \`id\` = ? AND \`userId\` = ?`,
+        [
+          body.title ?? null,
+          body.notes === undefined ? existing.notes : body.notes,
+          body.dueAt === undefined ? existing.dueAt : toMysqlDate(body.dueAt ? new Date(body.dueAt) : null),
+          body.priority ?? null,
+          body.status ?? null,
+          body.status === undefined ? existing.completedAt : body.status === "COMPLETED" ? toMysqlDate(new Date()) : null,
+          taskId,
+          request.user.id
+        ]
+      );
+
+      if (body.tagId !== undefined) {
+        await connection.execute("DELETE FROM `TaskTag` WHERE `taskId` = ?", [taskId]);
+        if (tagId) {
+          await connection.execute("INSERT INTO `TaskTag` (`taskId`, `tagId`) VALUES (?, ?)", [taskId, tagId]);
+        }
+      }
+    });
 
     if (body.recurrenceRule !== undefined) {
       await upsertRecurrence(taskId, body.recurrenceRule);
-    }
-
-    if (body.tagNames !== undefined) {
-      await syncTaskTags(taskId, request.user.id, body.tagNames);
     }
 
     const task = await queryOne<TaskRow>("SELECT * FROM `Task` WHERE `id` = ?", [taskId]);

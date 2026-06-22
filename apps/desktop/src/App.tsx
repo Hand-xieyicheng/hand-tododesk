@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CSSProperties, PointerEvent } from "react";
-import { defaultAppFeatureFlags, defaultVisibleSidebarModules, type ApiTask, type ApiThemePreference, type ApiUser, type AppBootstrapResponse, type AppCloseBehavior, type AppFeatureFlags, type DisplaySize, type FontFamily, type FooterType as AppFooterType, type SidebarModule, type TaskCardDisplayMode, type TaskViewMode, type ThemeId, type TitleColor } from "@todo/shared";
-import { Button, Footer, Loading, Title, Tooltip } from "animal-island-ui";
+import { defaultAppFeatureFlags, defaultVisibleSidebarModules, type ApiTag, type ApiTask, type ApiThemePreference, type ApiUser, type AppBootstrapResponse, type AppCloseBehavior, type AppFeatureFlags, type DisplaySize, type FontFamily, type FooterType as AppFooterType, type SidebarModule, type TaskCardDisplayMode, type TaskViewMode, type ThemeId, type TitleColor } from "@todo/shared";
+import { Button, Footer, Loading, Select, Title, Tooltip } from "animal-island-ui";
 import type { TitleSize } from "animal-island-ui";
-import { Bell, CalendarDays, CheckSquare2, Clock3, Eye, EyeOff, Flame, Hourglass, LayoutGrid, ListTodo, LogOut, NotebookPen, PanelLeftOpen, Pin, Plus, UserRound } from "lucide-react";
+import { Bell, CalendarDays, CheckSquare2, Clock3, Eye, EyeOff, Flame, Hourglass, LayoutGrid, ListTodo, LogOut, NotebookPen, PanelLeftOpen, Pin, Plus, Tags, UserRound } from "lucide-react";
 import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { api, ApiError, authSessionExpiredEvent } from "./api/client";
 import { AuthView } from "./components/AuthView";
@@ -14,6 +14,7 @@ import { LandingPage } from "./components/LandingPage";
 import { MemoPanel } from "./components/MemoPanel";
 import { PomodoroView } from "./components/PomodoroView";
 import { ProfileCenter } from "./components/ProfileCenter";
+import { ResetPasswordView } from "./components/ResetPasswordView";
 import { TaskPanel } from "./components/TaskPanel";
 import todoDeskLogo from "./assets/tododesk-logo.png";
 import { applyDisplaySize, normalizeDisplaySize } from "./lib/displaySize";
@@ -66,6 +67,8 @@ const defaultThemePreference: ApiThemePreference = {
 };
 
 const preferenceSyncIntervalMs = 5000;
+const allTagsFilterValue = "__all__";
+const untaggedTagsFilterValue = "__untagged__";
 
 const dragIgnoredTargetSelector = [
   "a",
@@ -140,6 +143,9 @@ export function App() {
   const navigate = useNavigate();
   const [user, setUser] = useState<ApiUser | null>(() => getSavedUser());
   const [tasks, setTasks] = useState<ApiTask[]>([]);
+  const [tags, setTags] = useState<ApiTag[]>([]);
+  const [taskTagFilter, setTaskTagFilter] = useState(allTagsFilterValue);
+  const [taskTagMaintenanceOpen, setTaskTagMaintenanceOpen] = useState(false);
   const [appBootstrap, setAppBootstrap] = useState<AppBootstrapResponse | null>(null);
   const [taskViewMode, setTaskViewMode] = useState<TaskViewMode>("list");
   const [taskCreateOpen, setTaskCreateOpen] = useState(false);
@@ -171,6 +177,11 @@ export function App() {
     (item.id !== "habits" || featureFlags.habits) &&
     (item.id !== "pomodoro" || featureFlags.pomodoro)
   )), [featureFlags.anniversaries, featureFlags.calendar, featureFlags.habits, featureFlags.pomodoro]);
+  const taskTagFilterOptions = useMemo(() => [
+    { key: allTagsFilterValue, label: "全部标签" },
+    { key: untaggedTagsFilterValue, label: "无标签" },
+    ...tags.map((tag) => ({ key: tag.id, label: tag.name }))
+  ], [tags]);
   const visibleNavItems = useMemo(() => {
     const availableItemMap = new Map(availableNavItems.map((item) => [item.id, item]));
     return visibleSidebarModules
@@ -257,12 +268,14 @@ export function App() {
     setLoading(true);
     setMessage("");
     try {
-      const [taskPayload, preference, profile] = await Promise.all([
+      const [taskPayload, tagPayload, preference, profile] = await Promise.all([
         api.tasks(),
+        api.tags(),
         api.getThemePreference().catch(() => defaultThemePreference),
         api.currentUser()
       ]);
       setTasks(taskPayload.tasks);
+      setTags(tagPayload.tags);
       setUser(profile.user);
       saveUser(profile.user);
       applyThemePreference(preference);
@@ -270,6 +283,9 @@ export function App() {
       if (error instanceof ApiError && error.status === 401) {
         await clearSession();
         setUser(null);
+        setTasks([]);
+        setTags([]);
+        setTaskTagFilter(allTagsFilterValue);
       } else {
         setMessage(error instanceof Error ? error.message : "加载失败");
       }
@@ -297,6 +313,8 @@ export function App() {
     function handleSessionExpired() {
       setUser(null);
       setTasks([]);
+      setTags([]);
+      setTaskTagFilter(allTagsFilterValue);
       navigateToView("tasks", true);
       setMessage("");
       setLoading(false);
@@ -331,6 +349,16 @@ export function App() {
   useEffect(() => {
     void loadAppData({ immersive: true });
   }, [user?.id]);
+
+  useEffect(() => {
+    if (
+      taskTagFilter !== allTagsFilterValue &&
+      taskTagFilter !== untaggedTagsFilterValue &&
+      !tags.some((tag) => tag.id === taskTagFilter)
+    ) {
+      setTaskTagFilter(allTagsFilterValue);
+    }
+  }, [tags, taskTagFilter]);
 
   useEffect(() => {
     if (
@@ -403,6 +431,8 @@ export function App() {
     await api.logout();
     setUser(null);
     setTasks([]);
+    setTags([]);
+    setTaskTagFilter(allTagsFilterValue);
     navigateToView("tasks", true);
   }
 
@@ -414,7 +444,16 @@ export function App() {
   function handlePasswordChanged() {
     setUser(null);
     setTasks([]);
+    setTags([]);
+    setTaskTagFilter(allTagsFilterValue);
     navigateToView("tasks", true);
+  }
+
+  function handlePasswordResetCompleted() {
+    setUser(null);
+    setTasks([]);
+    setTags([]);
+    setTaskTagFilter(allTagsFilterValue);
   }
 
   function handleThemeChanged(next: ThemeId) {
@@ -536,12 +575,22 @@ export function App() {
     }
   }
 
+  if (location.pathname === "/reset-password") {
+    return (
+      <Routes>
+        <Route path="/reset-password" element={<ResetPasswordView onSessionCleared={handlePasswordResetCompleted} />} />
+        <Route path="*" element={<Navigate to="/reset-password" replace />} />
+      </Routes>
+    );
+  }
+
   if (!user) {
     return (
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/auth" element={<AuthView onAuthed={handleAuthed} />} />
         <Route path="/register" element={<AuthView initialMode="register" onAuthed={handleAuthed} />} />
+        <Route path="/reset-password" element={<ResetPasswordView onSessionCleared={handlePasswordResetCompleted} />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     );
@@ -664,6 +713,13 @@ export function App() {
             ) : null}
             {activeView === "tasks" ? (
               <>
+                <label className="topbar-tag-filter">
+                  <span>标签</span>
+                  <Select value={taskTagFilter} onChange={setTaskTagFilter} options={taskTagFilterOptions} />
+                </label>
+                <Button className="task-tag-maintenance-button" icon={<Tags size={14} />} size="small" type="default" onClick={() => setTaskTagMaintenanceOpen(true)}>
+                  标签维护
+                </Button>
                 <Tooltip className="task-completion-toggle-tooltip" placement="bottom" title={showCompletedTasksAction} trigger="hover" variant="default">
                   <Button
                     aria-label={showCompletedTasksAction}
@@ -737,11 +793,15 @@ export function App() {
               <TaskPanel
                 createOpen={taskCreateOpen}
                 showCompletedTasks={showCompletedTasks}
+                tags={tags}
                 taskCardDisplayMode={taskCardDisplayMode}
+                tagMaintenanceOpen={taskTagMaintenanceOpen}
+                taskTagFilter={taskTagFilter}
                 tasks={tasks}
                 viewMode={featureFlags.taskQuadrant ? taskViewMode : "list"}
                 onChanged={loadAppData}
                 onCreateOpenChange={setTaskCreateOpen}
+                onTagMaintenanceOpenChange={setTaskTagMaintenanceOpen}
               />
             )}
           />

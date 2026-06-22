@@ -12,6 +12,8 @@ import {
   createAnniversaryRequestSchema,
   createHabitRequestSchema,
   createMemoRequestSchema,
+  createTagRequestSchema,
+  createTaskRequestSchema,
   defaultAppFeatureFlags,
   displaySizeValues,
   fontFamilyValues,
@@ -29,7 +31,9 @@ import {
   updateAnniversaryRequestSchema,
   updateHabitRequestSchema,
   updateMemoRequestSchema,
+  updateTagRequestSchema,
   updateThemePreferenceRequestSchema,
+  updateTaskRequestSchema,
   updateProfileRequestSchema,
   userGenderValues
 } from "./index";
@@ -123,11 +127,11 @@ describe("app bootstrap schema", () => {
     });
 
     expect(appBootstrapResponseSchema.parse({
-      apiVersion: "0.2.10",
+      apiVersion: "0.2.11",
       releaseChannel: "stable",
       desktop: {
         minimumVersion: "0.1.0",
-        latestVersion: "0.2.10",
+        latestVersion: "0.2.11",
         updateEndpoint: "https://github.com/Hand-xieyicheng/hand-tododesk/releases/latest/download/latest.json"
       },
       featureFlags: {
@@ -143,11 +147,11 @@ describe("app bootstrap schema", () => {
 
   it("rejects unsupported release channels", () => {
     expect(appBootstrapResponseSchema.safeParse({
-      apiVersion: "0.2.10",
+      apiVersion: "0.2.11",
       releaseChannel: "beta",
       desktop: {
         minimumVersion: "0.1.0",
-        latestVersion: "0.2.10",
+        latestVersion: "0.2.11",
         updateEndpoint: "https://github.com/Hand-xieyicheng/hand-tododesk/releases/latest/download/latest.json"
       },
       featureFlags: defaultAppFeatureFlags
@@ -321,6 +325,24 @@ describe("habit schemas", () => {
 });
 
 describe("task display sorting", () => {
+  it("accepts a single task tag id and tag maintenance names", () => {
+    expect(createTaskRequestSchema.parse({
+      title: " 写计划 ",
+      tagId: "tag-1"
+    })).toMatchObject({
+      title: "写计划",
+      tagId: "tag-1"
+    });
+    expect(createTaskRequestSchema.parse({
+      title: "无标签任务",
+      tagId: null
+    }).tagId).toBeNull();
+    expect(updateTaskRequestSchema.parse({ tagId: null })).toEqual({ tagId: null });
+    expect(createTaskRequestSchema.parse({ title: "旧格式", tagNames: ["工作"] })).not.toHaveProperty("tagNames");
+    expect(createTagRequestSchema.parse({ name: " 工作 " })).toEqual({ name: "工作" });
+    expect(updateTagRequestSchema.safeParse({ name: "" }).success).toBe(false);
+  });
+
   it("puts unfinished tasks first and sorts each group by created date ascending", () => {
     const tasks = [
       { id: "done-new", status: "COMPLETED", createdAt: "2026-06-04T00:00:00.000Z" },

@@ -43,7 +43,7 @@
    npm run dev:desktop
    ```
 
-   当前机器上如有其他服务监听 `localhost:5173` 的 IPv6 地址，请使用 `http://127.0.0.1:5173/` 访问小柴记。
+   默认访问地址为 `http://localhost:8090/`。如当前机器上的 IPv6 解析异常，请使用 `http://127.0.0.1:8090/` 访问小柴记。
 
 6. 启动 Tauri 桌面应用：
 
@@ -131,7 +131,7 @@ FEATURE_FLAGS_JSON={"calendar":true,"pomodoro":true,"taskQuadrant":true,"floatin
 2. 确认 `apps/api/.env` 里的 `EXTRA_APP_ORIGINS` 包含安装版 Tauri 的 Origin：
 
    ```env
-   EXTRA_APP_ORIGINS=http://127.0.0.1:5173,http://tauri.localhost,https://tauri.localhost,tauri://localhost
+   EXTRA_APP_ORIGINS=http://127.0.0.1:8090,http://tauri.localhost,https://tauri.localhost,tauri://localhost
    ```
 
 3. 修改 `.env` 后需要重启后端服务，再重新登录。

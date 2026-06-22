@@ -1,13 +1,16 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ApiTask } from "@todo/shared";
 import { getTodayEndDatetimeLocal } from "../lib/datetime";
 import { TaskPanel } from "./TaskPanel";
 
 const apiMock = vi.hoisted(() => ({
+  createTag: vi.fn(),
   createTask: vi.fn(),
+  deleteTag: vi.fn(),
   deleteTask: vi.fn(),
   taskQuadrants: vi.fn(),
+  updateTag: vi.fn(),
   updateTask: vi.fn()
 }));
 
@@ -20,7 +23,7 @@ vi.mock("animal-island-ui", () => ({
   ),
   Card: ({ children, className }: any) => <section className={className}>{children}</section>,
   Divider: () => <hr />,
-  Input: ({ onChange, value }: any) => <input value={value} onChange={onChange} />,
+  Input: ({ allowClear: _allowClear, shadow: _shadow, onChange, value, ...props }: any) => <input {...props} value={value} onChange={onChange} />,
   Modal: ({ children, onClose, open, title }: any) => (
     open ? (
       <div aria-label={typeof title === "string" ? title : undefined} role="dialog">
@@ -71,6 +74,11 @@ const task: ApiTask = {
   pomodoroCompletedMinutes: 50
 };
 
+const tagOptions = [
+  { id: "tag-1", name: "工作" },
+  { id: "tag-2", name: "生活" }
+];
+
 function taskWith(patch: Partial<ApiTask>): ApiTask {
   return {
     ...task,
@@ -88,16 +96,20 @@ function emptyQuadrants() {
   };
 }
 
-function renderPanel(displayMode: "full" | "title", panelTasks: ApiTask[] = [task]) {
+function renderPanel(displayMode: "full" | "title", panelTasks: ApiTask[] = [task], tagFilter = "__all__") {
   return render(
     <TaskPanel
       createOpen={false}
       showCompletedTasks
+      tags={tagOptions}
       taskCardDisplayMode={displayMode}
+      tagMaintenanceOpen={false}
+      taskTagFilter={tagFilter}
       tasks={panelTasks}
       viewMode="list"
       onChanged={vi.fn(async () => undefined)}
       onCreateOpenChange={vi.fn()}
+      onTagMaintenanceOpenChange={vi.fn()}
     />
   );
 }
@@ -144,15 +156,89 @@ describe("TaskPanel", () => {
       <TaskPanel
         createOpen
         showCompletedTasks
+        tags={tagOptions}
         taskCardDisplayMode="full"
+        tagMaintenanceOpen={false}
+        taskTagFilter="__all__"
         tasks={[]}
         viewMode="list"
         onChanged={vi.fn(async () => undefined)}
         onCreateOpenChange={vi.fn()}
+        onTagMaintenanceOpenChange={vi.fn()}
       />
     );
 
     expect(screen.getByLabelText("截止时间")).toHaveValue(getTodayEndDatetimeLocal());
+  });
+
+  it("submits a selected tag id from the create dropdown", async () => {
+    apiMock.createTask.mockResolvedValue({ task });
+    const onChanged = vi.fn(async () => undefined);
+    const onCreateOpenChange = vi.fn();
+    render(
+      <TaskPanel
+        createOpen
+        showCompletedTasks
+        tags={tagOptions}
+        taskCardDisplayMode="full"
+        tagMaintenanceOpen={false}
+        taskTagFilter="__all__"
+        tasks={[]}
+        viewMode="list"
+        onChanged={onChanged}
+        onCreateOpenChange={onCreateOpenChange}
+        onTagMaintenanceOpenChange={vi.fn()}
+      />
+    );
+
+    fireEvent.change(screen.getByLabelText("标题"), { target: { value: "整理计划" } });
+    fireEvent.change(within(screen.getByRole("dialog", { name: "新建待办" })).getByLabelText("标签"), { target: { value: "tag-1" } });
+    fireEvent.click(screen.getByRole("button", { name: "添加" }));
+
+    await waitFor(() => expect(apiMock.createTask).toHaveBeenCalledWith(expect.objectContaining({
+      title: "整理计划",
+      tagId: "tag-1"
+    })));
+    await waitFor(() => expect(onCreateOpenChange).toHaveBeenCalledWith(false));
+  });
+
+  it("creates, renames, and deletes tags from the maintenance modal", async () => {
+    apiMock.createTag.mockResolvedValue({ tag: { id: "tag-3", name: "私人" } });
+    apiMock.updateTag.mockResolvedValue({ tag: { id: "tag-1", name: "办公" } });
+    apiMock.deleteTag.mockResolvedValue(undefined);
+    const onChanged = vi.fn(async () => undefined);
+    render(
+      <TaskPanel
+        createOpen={false}
+        showCompletedTasks
+        tags={tagOptions}
+        taskCardDisplayMode="full"
+        tagMaintenanceOpen
+        taskTagFilter="__all__"
+        tasks={[]}
+        viewMode="list"
+        onChanged={onChanged}
+        onCreateOpenChange={vi.fn()}
+        onTagMaintenanceOpenChange={vi.fn()}
+      />
+    );
+
+    fireEvent.change(screen.getByPlaceholderText("输入标签名称"), { target: { value: "私人" } });
+    fireEvent.click(within(screen.getByRole("dialog", { name: "标签维护" })).getByRole("button", { name: "新增" }));
+
+    await waitFor(() => expect(apiMock.createTag).toHaveBeenCalledWith({ name: "私人" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "编辑工作" }));
+    fireEvent.change(screen.getByDisplayValue("工作"), { target: { value: "办公" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存工作" }));
+
+    await waitFor(() => expect(apiMock.updateTag).toHaveBeenCalledWith("tag-1", { name: "办公" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "删除生活" }));
+    fireEvent.click(screen.getByRole("button", { name: "删除" }));
+
+    await waitFor(() => expect(apiMock.deleteTag).toHaveBeenCalledWith("tag-2"));
+    expect(onChanged).toHaveBeenCalledTimes(3);
   });
 
   it("sorts list tasks with unfinished items first and created date ascending", () => {
@@ -183,6 +269,16 @@ describe("TaskPanel", () => {
       "晚创建未完成",
       "早创建已完成"
     ]);
+  });
+
+  it("filters list tasks by selected tag", () => {
+    const workTask = taskWith({ id: "work", title: "工作任务", tags: [{ id: "tag-1", name: "工作" }] });
+    const lifeTask = taskWith({ id: "life", title: "生活任务", tags: [{ id: "tag-2", name: "生活" }] });
+
+    renderPanel("full", [workTask, lifeTask], "tag-2");
+
+    expect(screen.queryByText("工作任务")).not.toBeInTheDocument();
+    expect(screen.getByText("生活任务")).toBeInTheDocument();
   });
 
   it("sorts quadrant tasks with the same display rule", async () => {
@@ -217,11 +313,15 @@ describe("TaskPanel", () => {
       <TaskPanel
         createOpen={false}
         showCompletedTasks
+        tags={tagOptions}
         taskCardDisplayMode="full"
+        tagMaintenanceOpen={false}
+        taskTagFilter="__all__"
         tasks={[completedOld, openNew, openOld]}
         viewMode="quadrant"
         onChanged={vi.fn(async () => undefined)}
         onCreateOpenChange={vi.fn()}
+        onTagMaintenanceOpenChange={vi.fn()}
       />
     );
 
@@ -233,5 +333,37 @@ describe("TaskPanel", () => {
       "象限晚创建未完成",
       "象限早创建已完成"
     ]);
+  });
+
+  it("filters quadrant tasks by selected tag", async () => {
+    const workTask = taskWith({ id: "work", title: "象限工作", tags: [{ id: "tag-1", name: "工作" }] });
+    const lifeTask = taskWith({ id: "life", title: "象限生活", tags: [{ id: "tag-2", name: "生活" }] });
+    apiMock.taskQuadrants.mockResolvedValue({
+      quadrants: {
+        ...emptyQuadrants(),
+        IMPORTANT_URGENT: [workTask, lifeTask]
+      }
+    });
+
+    render(
+      <TaskPanel
+        createOpen={false}
+        showCompletedTasks
+        tags={tagOptions}
+        taskCardDisplayMode="full"
+        tagMaintenanceOpen={false}
+        taskTagFilter="tag-2"
+        tasks={[workTask, lifeTask]}
+        viewMode="quadrant"
+        onChanged={vi.fn(async () => undefined)}
+        onCreateOpenChange={vi.fn()}
+        onTagMaintenanceOpenChange={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(apiMock.taskQuadrants).toHaveBeenCalled());
+    await waitFor(() => expect(screen.getByText("象限生活")).toBeInTheDocument());
+
+    expect(screen.queryByText("象限工作")).not.toBeInTheDocument();
   });
 });

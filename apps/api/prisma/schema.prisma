@@ -148,6 +148,11 @@ model TaskTag {
   @@index([tagId])
 }
 
+model SchemaMarker {
+  key       String   @id
+  createdAt DateTime @default(now())
+}
+
 model RecurrenceRule {
   id        String              @id @default(cuid())
   taskId    String              @unique

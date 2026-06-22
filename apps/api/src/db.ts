@@ -6,6 +6,7 @@ import { escapeId } from "mysql2";
 import { config } from "./config.js";
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
+const taskSingleTagMarkerKey = "task_single_tag_management_v1";
 
 export const pool = mysql.createPool({
   host: config.DB_HOST ?? "localhost",
@@ -54,11 +55,23 @@ export function id() {
   return crypto.randomUUID();
 }
 
+function padDatePart(value: number) {
+  return String(value).padStart(2, "0");
+}
+
 export function toMysqlDate(date: Date | null | undefined) {
   if (!date) {
     return null;
   }
-  return date.toISOString().slice(0, 19).replace("T", " ");
+  return [
+    date.getFullYear(),
+    padDatePart(date.getMonth() + 1),
+    padDatePart(date.getDate())
+  ].join("-") + " " + [
+    padDatePart(date.getHours()),
+    padDatePart(date.getMinutes()),
+    padDatePart(date.getSeconds())
+  ].join(":");
 }
 
 export function asDate(value: unknown) {
@@ -281,6 +294,40 @@ async function ensureVisibleSidebarModulesSchema() {
   );
 }
 
+async function ensureSchemaMarkerTable() {
+  await execute(
+    `CREATE TABLE IF NOT EXISTS \`SchemaMarker\` (
+      \`key\` VARCHAR(191) NOT NULL,
+      \`createdAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+      PRIMARY KEY (\`key\`)
+    ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`
+  );
+}
+
+async function ensureTaskSingleTagDefaults() {
+  await ensureSchemaMarkerTable();
+  const marker = await queryOne<DbRow & { key: string }>("SELECT `key` FROM `SchemaMarker` WHERE `key` = ?", [taskSingleTagMarkerKey]);
+  if (marker) {
+    return;
+  }
+
+  await transaction(async (connection) => {
+    await connection.execute("DELETE FROM `TaskTag`");
+    await connection.execute("DELETE FROM `Tag`");
+    await connection.execute(
+      `INSERT INTO \`Tag\` (\`id\`, \`userId\`, \`name\`, \`createdAt\`)
+       SELECT UUID(), u.\`id\`, defaults.\`name\`, NOW(3)
+       FROM \`User\` u
+       JOIN (
+        SELECT '工作' AS \`name\`
+        UNION ALL SELECT '生活'
+        UNION ALL SELECT '娱乐'
+       ) defaults`
+    );
+    await connection.execute("INSERT INTO `SchemaMarker` (`key`) VALUES (?)", [taskSingleTagMarkerKey]);
+  });
+}
+
 async function ensureIncrementalSchema() {
   await ensureTaskPrioritySchema();
   await ensureMemoSchema();
@@ -300,6 +347,7 @@ async function ensureIncrementalSchema() {
   await ensureColumn("UserThemePreference", "sidebarCollapsed", "ALTER TABLE `UserThemePreference` ADD COLUMN `sidebarCollapsed` BOOLEAN NOT NULL DEFAULT FALSE");
   await ensureColumn("UserThemePreference", "fontFamily", "ALTER TABLE `UserThemePreference` ADD COLUMN `fontFamily` VARCHAR(191) NOT NULL DEFAULT 'system'");
   await ensureVisibleSidebarModulesSchema();
+  await ensureTaskSingleTagDefaults();
 }
 
 async function runAllMigrations() {

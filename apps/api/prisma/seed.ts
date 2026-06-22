@@ -1,10 +1,12 @@
 import bcrypt from "bcryptjs";
+import { randomUUID } from "node:crypto";
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
 const email = "demo@tododesk.local";
 const password = "Password123";
+const defaultTagNames = ["工作", "生活", "娱乐"] as const;
 
 async function main() {
   const user = await prisma.user.upsert({
@@ -19,6 +21,15 @@ async function main() {
         create: { themeId: "default" }
       }
     }
+  });
+
+  await prisma.tag.createMany({
+    data: defaultTagNames.map((name) => ({
+      id: randomUUID(),
+      userId: user.id,
+      name
+    })),
+    skipDuplicates: true
   });
 
   const task = await prisma.task.upsert({

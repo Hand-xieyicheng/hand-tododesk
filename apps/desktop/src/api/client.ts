@@ -6,6 +6,7 @@ import type {
   ApiMemo,
   ApiMemoAsset,
   ApiMemoListItem,
+  ApiTag,
   ApiTask,
   ApiThemePreference,
   ApiUser,
@@ -17,6 +18,7 @@ import type {
   CreateHabitRequest,
   CreateMemoRequest,
   CreateAnniversaryRequest,
+  CreateTagRequest,
   CreateTaskRequest,
   PomodoroSession,
   PomodoroStats,
@@ -29,6 +31,7 @@ import type {
   UpdateHabitOrderRequest,
   UpdateHabitRequest,
   UpdateProfileRequest,
+  UpdateTagRequest,
   UpdateThemePreferenceRequest,
   UpdateTaskRequest
 } from "@todo/shared";
@@ -39,6 +42,7 @@ import {
   createAnniversaryRequestSchema,
   createHabitRequestSchema,
   createMemoRequestSchema,
+  createTagRequestSchema,
   forgotPasswordRequestSchema,
   habitCheckInRequestSchema,
   loginRequestSchema,
@@ -49,6 +53,7 @@ import {
   updateAnniversaryRequestSchema,
   updateHabitOrderRequestSchema,
   updateHabitRequestSchema,
+  updateTagRequestSchema,
   updateThemePreferenceRequestSchema,
   updateProfileRequestSchema
 } from "@todo/shared";
@@ -80,7 +85,10 @@ interface RequestOptions {
 }
 
 function networkErrorMessage() {
-  return `无法连接到本机 API（${API_BASE_URL}）。请确认后端服务已启动，并且后端 EXTRA_APP_ORIGINS 包含 http://tauri.localhost。`;
+  const appOrigin = typeof window !== "undefined" && window.location.origin !== "null"
+    ? window.location.origin
+    : "当前前端地址";
+  return `无法连接到本机 API（${API_BASE_URL}）。请确认后端服务已启动，并且后端 APP_ORIGIN/EXTRA_APP_ORIGINS 包含 ${appOrigin} 或 http://tauri.localhost。`;
 }
 
 export class ApiError extends Error {
@@ -339,6 +347,24 @@ export const api = {
   },
   async taskQuadrants() {
     return request<{ quadrants: Record<TaskPriority, ApiTask[]> }>("/tasks/quadrants");
+  },
+  async tags() {
+    return request<{ tags: ApiTag[] }>("/tags");
+  },
+  async createTag(input: CreateTagRequest) {
+    return request<{ tag: ApiTag }>("/tags", {
+      method: "POST",
+      body: JSON.stringify(createTagRequestSchema.parse(input))
+    });
+  },
+  async updateTag(id: string, input: UpdateTagRequest) {
+    return request<{ tag: ApiTag }>(`/tags/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(updateTagRequestSchema.parse(input))
+    });
+  },
+  async deleteTag(id: string) {
+    return request<void>(`/tags/${id}`, { method: "DELETE" });
   },
   async createTask(input: CreateTaskRequest) {
     return request<{ task: ApiTask }>("/tasks", {
