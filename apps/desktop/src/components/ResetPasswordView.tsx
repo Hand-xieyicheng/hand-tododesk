@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { defaultThemeId } from "@todo/shared";
 import { Button, Card, Divider, Input, Loading, Title } from "animal-island-ui";
 import { KeyRound } from "lucide-react";
 import { api } from "../api/client";
@@ -22,7 +23,7 @@ export function ResetPasswordView({ onSessionCleared }: ResetPasswordViewProps) 
   const [completed, setCompleted] = useState(false);
 
   useEffect(() => {
-    applyTheme("default");
+    applyTheme(defaultThemeId);
   }, []);
 
   async function submit(event: FormEvent) {

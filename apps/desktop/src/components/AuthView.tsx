@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useState } from "react";
-import type { ApiUser } from "@todo/shared";
+import { defaultThemeId, type ApiUser } from "@todo/shared";
 import { Button, Card, Divider, Input, Loading, Title } from "animal-island-ui";
 import { KeyRound, Mail, UserPlus } from "lucide-react";
 import { api } from "../api/client";
@@ -37,7 +37,7 @@ export function AuthView({ initialMode = "login", onAuthed }: AuthViewProps) {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    applyTheme("default");
+    applyTheme(defaultThemeId);
   }, []);
 
   useEffect(() => {

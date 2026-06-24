@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import type { FastifyInstance } from "fastify";
 import {
+  defaultThemeId,
   forgotPasswordRequestSchema,
   loginRequestSchema,
   refreshRequestSchema,
@@ -113,8 +114,8 @@ export async function authRoutes(app: FastifyInstance) {
         [id(), user.id, hashToken(token), toMysqlDate(addHours(new Date(), 24))]
       );
       await connection.execute(
-        "INSERT INTO `UserThemePreference` (`userId`, `themeId`, `updatedAt`) VALUES (?, 'default', NOW(3))",
-        [user.id]
+        "INSERT INTO `UserThemePreference` (`userId`, `themeId`, `updatedAt`) VALUES (?, ?, NOW(3))",
+        [user.id, defaultThemeId]
       );
       for (const tagName of defaultTagNames) {
         await connection.execute(

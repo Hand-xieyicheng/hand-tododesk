@@ -11,22 +11,26 @@ import {
   changePasswordRequestSchema,
   createAnniversaryRequestSchema,
   createHabitRequestSchema,
-  createMemoRequestSchema,
-  createTagRequestSchema,
-  createTaskRequestSchema,
-  defaultAppFeatureFlags,
-  displaySizeValues,
-  floatingCardThemeIdValues,
-  fontFamilyValues,
+	  createMemoRequestSchema,
+	  createTagRequestSchema,
+	  createTaskRequestSchema,
+	  defaultAppFeatureFlags,
+	  defaultThemeId,
+	  displaySizeValues,
+	  floatingCardThemeIdValues,
+	  fontFamilyValues,
   footerTypeValues,
   habitColorValues,
   habitFrequencyValues,
   habitRecommendedIconValues,
-  releaseChannelValues,
-  sortTasksForDisplay,
-  taskCardDisplayModeValues,
-  taskViewModeValues,
-  titleColorValues,
+	  releaseChannelValues,
+	  legacyThemeIdMap,
+	  normalizeThemeId,
+	  sortTasksForDisplay,
+	  taskCardDisplayModeValues,
+	  taskViewModeValues,
+	  themeIdValues,
+	  titleColorValues,
   resolveBuiltInAnniversaryTemplate,
   updateAnniversaryOrderRequestSchema,
   updateAnniversaryRequestSchema,
@@ -55,27 +59,38 @@ describe("profile schemas", () => {
     expect(changePasswordRequestSchema.safeParse({ currentPassword: "secret", newPassword: "abc12345" }).success).toBe(true);
   });
 
-  it("accepts persisted appearance preferences", () => {
-    expect(footerTypeValues).toEqual(["sea", "tree"]);
-    expect(taskViewModeValues).toEqual(["list", "quadrant"]);
-    expect(taskCardDisplayModeValues).toEqual(["full", "title"]);
-    expect(floatingCardThemeIdValues).toEqual([
-      "warm-paper",
-      "white-ink",
-      "black-snow",
-      "cream",
-      "blush",
-      "peach",
-      "lemon",
-      "mint",
-      "sage",
-      "sky",
-      "aqua",
-      "lavender",
-      "coral",
-      "teal",
-      "navy"
-    ]);
+	  it("accepts persisted appearance preferences", () => {
+	    const expectedThemeIds = [
+	      "warm-paper",
+	      "white-ink",
+	      "black-snow",
+	      "cream",
+	      "blush",
+	      "peach",
+	      "lemon",
+	      "mint",
+	      "sage",
+	      "sky",
+	      "aqua",
+	      "lavender",
+	      "coral",
+	      "teal",
+	      "navy"
+	    ];
+	    expect(footerTypeValues).toEqual(["sea", "tree"]);
+	    expect(themeIdValues).toEqual(expectedThemeIds);
+	    expect(defaultThemeId).toBe("warm-paper");
+	    expect(legacyThemeIdMap).toMatchObject({
+	      default: "warm-paper",
+	      shinchan: "peach",
+	      labubu: "lavender",
+	      doraemon: "sky"
+	    });
+	    expect(normalizeThemeId("doraemon")).toBe("sky");
+	    expect(normalizeThemeId("unknown")).toBe("warm-paper");
+	    expect(taskViewModeValues).toEqual(["list", "quadrant", "kanban"]);
+	    expect(taskCardDisplayModeValues).toEqual(["full", "title"]);
+	    expect(floatingCardThemeIdValues).toEqual(expectedThemeIds);
     expect(appCloseBehaviorValues).toEqual(["hide", "quit"]);
     expect(displaySizeValues).toEqual(["small", "default", "large"]);
     expect(fontFamilyValues).toEqual([
@@ -107,6 +122,8 @@ describe("profile schemas", () => {
     expect(updateThemePreferenceRequestSchema.parse({ footerType: "tree" })).toEqual({ footerType: "tree" });
     expect(updateThemePreferenceRequestSchema.parse({ showCompletedTasks: false })).toEqual({ showCompletedTasks: false });
     expect(updateThemePreferenceRequestSchema.parse({ taskViewMode: "quadrant" })).toEqual({ taskViewMode: "quadrant" });
+    expect(updateThemePreferenceRequestSchema.parse({ taskViewMode: "kanban" })).toEqual({ taskViewMode: "kanban" });
+    expect(updateThemePreferenceRequestSchema.safeParse({ taskViewMode: "board" }).success).toBe(false);
     expect(updateThemePreferenceRequestSchema.parse({ taskCardDisplayMode: "full" })).toEqual({ taskCardDisplayMode: "full" });
     expect(updateThemePreferenceRequestSchema.parse({ taskCardDisplayMode: "title" })).toEqual({ taskCardDisplayMode: "title" });
     expect(updateThemePreferenceRequestSchema.safeParse({ taskCardDisplayMode: "compact" }).success).toBe(false);
@@ -126,12 +143,13 @@ describe("profile schemas", () => {
     expect(updateThemePreferenceRequestSchema.parse({ fontFamily: "lemi-xiaonaipao" })).toEqual({ fontFamily: "lemi-xiaonaipao" });
     expect(updateThemePreferenceRequestSchema.parse({ fontFamily: "baiwuchang-keke" })).toEqual({ fontFamily: "baiwuchang-keke" });
     expect(updateThemePreferenceRequestSchema.safeParse({ fontFamily: "serif" }).success).toBe(false);
-    expect(updateThemePreferenceRequestSchema.parse({ themeId: "shinchan", titleColor: "warm-peach-pink" })).toEqual({
-      themeId: "shinchan",
-      titleColor: "warm-peach-pink"
-    });
-    expect(updateThemePreferenceRequestSchema.safeParse({}).success).toBe(false);
-  });
+	    expect(updateThemePreferenceRequestSchema.parse({ themeId: "peach", titleColor: "warm-peach-pink" })).toEqual({
+	      themeId: "peach",
+	      titleColor: "warm-peach-pink"
+	    });
+	    expect(updateThemePreferenceRequestSchema.safeParse({ themeId: "shinchan" }).success).toBe(false);
+	    expect(updateThemePreferenceRequestSchema.safeParse({}).success).toBe(false);
+	  });
 });
 
 describe("app bootstrap schema", () => {
@@ -147,11 +165,11 @@ describe("app bootstrap schema", () => {
     });
 
     expect(appBootstrapResponseSchema.parse({
-      apiVersion: "0.2.12",
+      apiVersion: "0.2.13",
       releaseChannel: "stable",
       desktop: {
         minimumVersion: "0.1.0",
-        latestVersion: "0.2.12",
+        latestVersion: "0.2.13",
         updateEndpoint: "https://github.com/Hand-xieyicheng/hand-tododesk/releases/latest/download/latest.json"
       },
       featureFlags: {
@@ -167,11 +185,11 @@ describe("app bootstrap schema", () => {
 
   it("rejects unsupported release channels", () => {
     expect(appBootstrapResponseSchema.safeParse({
-      apiVersion: "0.2.12",
+      apiVersion: "0.2.13",
       releaseChannel: "beta",
       desktop: {
         minimumVersion: "0.1.0",
-        latestVersion: "0.2.12",
+        latestVersion: "0.2.13",
         updateEndpoint: "https://github.com/Hand-xieyicheng/hand-tododesk/releases/latest/download/latest.json"
       },
       featureFlags: defaultAppFeatureFlags

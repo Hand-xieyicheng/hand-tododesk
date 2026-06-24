@@ -13,6 +13,7 @@ export function ThemeSettings({ themeId, onThemeChanged }: ThemeSettingsProps) {
       {Object.values(themeRegistry).map((theme) => (
         <button
           className={themeId === theme.id ? "theme-tile is-active" : "theme-tile"}
+          data-theme={theme.id}
           key={theme.id}
           type="button"
           onClick={() => {
@@ -20,7 +21,7 @@ export function ThemeSettings({ themeId, onThemeChanged }: ThemeSettingsProps) {
             onThemeChanged(theme.id);
           }}
         >
-          <span className="theme-swatch" style={{ background: `linear-gradient(135deg, ${theme.palette.primary}, ${theme.palette.accent} 55%, ${theme.palette.warning})` }} />
+          <span className="theme-swatch" style={{ background: `linear-gradient(135deg, ${theme.palette.primary}, ${theme.palette.secondary} 55%, ${theme.palette.warning})` }} />
           <strong>{theme.label}</strong>
           {themeId === theme.id ? <Check size={18} /> : null}
         </button>
@@ -28,4 +29,3 @@ export function ThemeSettings({ themeId, onThemeChanged }: ThemeSettingsProps) {
     </section>
   );
 }
-

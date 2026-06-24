@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties, FormEvent } from "react";
-import { defaultVisibleSidebarModules, sortTasksForDisplay, type ApiTag, type ApiTask, type ApiThemePreference, type CreateTaskRequest, type FloatingCardThemeId, type TaskCardDisplayMode, type TaskPriority, type TaskStatus, type UpdateTaskRequest } from "@todo/shared";
+import { defaultThemeId, defaultVisibleSidebarModules, sortTasksForDisplay, type ApiTag, type ApiTask, type ApiThemePreference, type CreateTaskRequest, type FloatingCardThemeId, type TaskCardDisplayMode, type TaskPriority, type TaskStatus, type UpdateTaskRequest } from "@todo/shared";
 import { Button, Card, Input, Select, Tooltip } from "animal-island-ui";
 import { Check, Eye, EyeOff, Pencil, Plus, RefreshCw, Save, X } from "lucide-react";
 import { api } from "../api/client";
@@ -39,7 +39,7 @@ const priorityOptions = priorityOrder.map((priority) => ({ key: priority, label:
 const noTagSelectValue = "__none__";
 
 const defaultThemePreference: ApiThemePreference = {
-  themeId: "default",
+  themeId: defaultThemeId,
   titleColor: "app-teal",
   footerVisible: true,
   footerType: "sea",

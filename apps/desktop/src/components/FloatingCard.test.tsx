@@ -81,7 +81,7 @@ const tagOptions = [
 ];
 
 const titlePreference: ApiThemePreference = {
-  themeId: "shinchan",
+  themeId: "warm-paper",
   titleColor: "app-teal",
   footerVisible: true,
   footerType: "sea",

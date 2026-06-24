@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ApiTask } from "@todo/shared";
@@ -107,6 +108,24 @@ function renderPanel(displayMode: "full" | "title", panelTasks: ApiTask[] = [tas
       taskTagFilter={tagFilter}
       tasks={panelTasks}
       viewMode="list"
+      onChanged={vi.fn(async () => undefined)}
+      onCreateOpenChange={vi.fn()}
+      onTagMaintenanceOpenChange={vi.fn()}
+    />
+  );
+}
+
+function renderKanbanPanel(panelTasks: ApiTask[], showCompletedTasks = true, displayMode: "full" | "title" = "title") {
+  return render(
+    <TaskPanel
+      createOpen={false}
+      showCompletedTasks={showCompletedTasks}
+      tags={tagOptions}
+      taskCardDisplayMode={displayMode}
+      tagMaintenanceOpen={false}
+      taskTagFilter="tag-2"
+      tasks={panelTasks}
+      viewMode="kanban"
       onChanged={vi.fn(async () => undefined)}
       onCreateOpenChange={vi.fn()}
       onTagMaintenanceOpenChange={vi.fn()}
@@ -365,5 +384,143 @@ describe("TaskPanel", () => {
     await waitFor(() => expect(screen.getByText("象限生活")).toBeInTheDocument());
 
     expect(screen.queryByText("象限工作")).not.toBeInTheDocument();
+  });
+
+  it("groups kanban tasks by untagged and tag columns with the shared display order", () => {
+    const untaggedTask = taskWith({
+      id: "kanban-untagged",
+      title: "看板其它",
+      tags: [],
+      createdAt: "2026-06-01T00:00:00.000Z"
+    });
+    const workNew = taskWith({
+      id: "kanban-work-new",
+      title: "看板工作晚",
+      tags: [{ id: "tag-1", name: "工作" }],
+      createdAt: "2026-06-03T00:00:00.000Z"
+    });
+    const workOld = taskWith({
+      id: "kanban-work-old",
+      title: "看板工作早",
+      tags: [{ id: "tag-1", name: "工作" }],
+      createdAt: "2026-06-02T00:00:00.000Z"
+    });
+    const lifeTask = taskWith({
+      id: "kanban-life",
+      title: "看板生活",
+      tags: [{ id: "tag-2", name: "生活" }, { id: "tag-1", name: "工作" }],
+      createdAt: "2026-06-04T00:00:00.000Z"
+    });
+
+    const { container } = renderKanbanPanel([workNew, untaggedTask, lifeTask, workOld]);
+
+    const columns = [...container.querySelectorAll<HTMLElement>(".kanban-column")];
+    expect(columns.map((column) => column.querySelector("header h3")?.textContent)).toEqual(["其它", "工作", "生活"]);
+
+    const otherColumn = screen.getByRole("region", { name: "其它看板列" });
+    const workColumn = screen.getByRole("region", { name: "工作看板列" });
+    const lifeColumn = screen.getByRole("region", { name: "生活看板列" });
+
+    expect(within(otherColumn).getByText("1")).toBeInTheDocument();
+    expect(within(workColumn).getByText("2")).toBeInTheDocument();
+    expect(within(lifeColumn).getByText("1")).toBeInTheDocument();
+    expect(within(otherColumn).getByText("看板其它")).toBeInTheDocument();
+    expect([...workColumn.querySelectorAll(".task-item h3")].map((item) => item.textContent)).toEqual([
+      "看板工作早",
+      "看板工作晚"
+    ]);
+    expect(within(lifeColumn).getByText("看板生活")).toBeInTheDocument();
+    expect(within(workColumn).queryByText("看板生活")).not.toBeInTheDocument();
+  });
+
+  it("hides completed tasks from kanban columns when completed items are disabled", () => {
+    const completedTask = taskWith({
+      id: "kanban-completed",
+      title: "看板已完成",
+      status: "COMPLETED",
+      tags: [{ id: "tag-1", name: "工作" }],
+      createdAt: "2026-06-01T00:00:00.000Z",
+      completedAt: "2026-06-05T00:00:00.000Z"
+    });
+    const openTask = taskWith({
+      id: "kanban-open",
+      title: "看板未完成",
+      status: "TODO",
+      tags: [{ id: "tag-1", name: "工作" }],
+      createdAt: "2026-06-02T00:00:00.000Z"
+    });
+
+    renderKanbanPanel([completedTask, openTask], false);
+
+    const workColumn = screen.getByRole("region", { name: "工作看板列" });
+    expect(within(workColumn).getByText("1")).toBeInTheDocument();
+    expect(within(workColumn).getByText("看板未完成")).toBeInTheDocument();
+    expect(within(workColumn).queryByText("看板已完成")).not.toBeInTheDocument();
+  });
+
+  it("keeps vertical wheel movement independent from horizontal kanban scrolling", () => {
+    const { container } = renderKanbanPanel([task]);
+    const board = container.querySelector<HTMLElement>(".kanban-board");
+    expect(board).not.toBeNull();
+
+    Object.defineProperty(board, "scrollWidth", { configurable: true, value: 1200 });
+    Object.defineProperty(board, "clientWidth", { configurable: true, value: 360 });
+    board!.scrollLeft = 0;
+
+    fireEvent.wheel(board!, { deltaX: 0, deltaY: 140 });
+
+    expect(board!.scrollLeft).toBe(0);
+
+    fireEvent.wheel(board!, { deltaX: 140, deltaY: 0 });
+
+    expect(board!.scrollLeft).toBe(140);
+  });
+
+  it("preselects the column tag when creating a task from a kanban column", async () => {
+    apiMock.createTask.mockResolvedValue({ task });
+    const onChanged = vi.fn(async () => undefined);
+
+    function KanbanCreateHarness() {
+      const [createOpen, setCreateOpen] = useState(false);
+      return (
+        <TaskPanel
+          createOpen={createOpen}
+          showCompletedTasks
+          tags={tagOptions}
+          taskCardDisplayMode="title"
+          tagMaintenanceOpen={false}
+          taskTagFilter="__all__"
+          tasks={[]}
+          viewMode="kanban"
+          onChanged={onChanged}
+          onCreateOpenChange={setCreateOpen}
+          onTagMaintenanceOpenChange={vi.fn()}
+        />
+      );
+    }
+
+    render(<KanbanCreateHarness />);
+
+    fireEvent.click(within(screen.getByRole("region", { name: "工作看板列" })).getByRole("button", { name: "新建任务" }));
+    expect(within(screen.getByRole("dialog", { name: "新建待办" })).getByLabelText("标签")).toHaveValue("tag-1");
+    fireEvent.change(screen.getByLabelText("标题"), { target: { value: "标签列任务" } });
+    fireEvent.click(screen.getByRole("button", { name: "添加" }));
+
+    await waitFor(() => expect(apiMock.createTask).toHaveBeenLastCalledWith(expect.objectContaining({
+      title: "标签列任务",
+      tagId: "tag-1"
+    })));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "新建待办" })).not.toBeInTheDocument());
+
+    fireEvent.click(within(screen.getByRole("region", { name: "其它看板列" })).getByRole("button", { name: "新建任务" }));
+    expect(within(screen.getByRole("dialog", { name: "新建待办" })).getByLabelText("标签")).toHaveValue("__none__");
+    fireEvent.change(screen.getByLabelText("标题"), { target: { value: "其它列任务" } });
+    fireEvent.click(screen.getByRole("button", { name: "添加" }));
+
+    await waitFor(() => expect(apiMock.createTask).toHaveBeenLastCalledWith(expect.objectContaining({
+      title: "其它列任务",
+      tagId: null
+    })));
+    expect(onChanged).toHaveBeenCalledTimes(2);
   });
 });

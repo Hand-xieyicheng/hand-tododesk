@@ -1,108 +1,67 @@
-import type { ThemeId } from "@todo/shared";
+import { normalizeThemeId, themeIdValues, type ThemeId } from "@todo/shared";
+import { sharedThemePaletteRegistry, type SharedThemePalette } from "./themePalettes";
 
 export interface ThemeDefinition {
   id: ThemeId;
   label: string;
-  palette: {
-    background: string;
-    surface: string;
-    surfaceStrong: string;
-    text: string;
-    muted: string;
-    primary: string;
-    accent: string;
-    warning: string;
-    border: string;
-  };
+  palette: SharedThemePalette;
   assets: {
     hero?: string;
     sticker?: string;
   };
 }
 
-export const themeRegistry: Record<ThemeId, ThemeDefinition> = {
-  default: {
-    id: "default",
-    label: "海岛晨光",
-    palette: {
-      background: "#f7f3df",
-      surface: "#fffdf1",
-      surfaceStrong: "#f0e8d8",
-      text: "#725d42",
-      muted: "#9f927d",
-      primary: "#19c8b9",
-      accent: "#e59266",
-      warning: "#f7cd67",
-      border: "#c4b89e"
-    },
-    assets: {}
-  },
-  shinchan: {
-    id: "shinchan",
-    label: "蜡笔午后",
-    palette: {
-      background: "#fff1df",
-      surface: "#fffaf0",
-      surfaceStrong: "#ffe0c8",
-      text: "#70462d",
-      muted: "#a17056",
-      primary: "#fc736d",
-      accent: "#889df0",
-      warning: "#f7cd67",
-      border: "#e9b48f"
-    },
-    assets: {}
-  },
-  labubu: {
-    id: "labubu",
-    label: "莓果森林",
-    palette: {
-      background: "#f4efe7",
-      surface: "#fff9ef",
-      surfaceStrong: "#eadcf4",
-      text: "#60475d",
-      muted: "#8c7489",
-      primary: "#b77dee",
-      accent: "#82d5bb",
-      warning: "#ecdf52",
-      border: "#d8bfd8"
-    },
-    assets: {}
-  },
-  doraemon: {
-    id: "doraemon",
-    label: "蓝铃港口",
-    palette: {
-      background: "#edf6f3",
-      surface: "#fffdf1",
-      surfaceStrong: "#dcecf6",
-      text: "#4f5d6f",
-      muted: "#728494",
-      primary: "#889df0",
-      accent: "#fc736d",
-      warning: "#f7cd67",
-      border: "#b9cfdd"
-    },
-    assets: {}
-  }
-};
+export const themeRegistry: Record<ThemeId, ThemeDefinition> = Object.fromEntries(
+  themeIdValues.map((id) => [
+    id,
+    {
+      id,
+      label: sharedThemePaletteRegistry[id].label,
+      palette: sharedThemePaletteRegistry[id],
+      assets: {}
+    }
+  ])
+) as Record<ThemeId, ThemeDefinition>;
 
-export function applyTheme(themeId: string) {
-  const theme = themeRegistry[(themeId as ThemeId) in themeRegistry ? themeId as ThemeId : "default"];
+export function applyTheme(themeId: string | null | undefined) {
+  const theme = themeRegistry[normalizeThemeId(themeId)];
+  const palette = theme.palette;
   const root = document.documentElement;
   root.dataset.theme = theme.id;
-  for (const [key, value] of Object.entries(theme.palette)) {
+  root.style.colorScheme = palette.controlColorScheme;
+  const colorVariables = {
+    background: palette.background,
+    surface: palette.surface,
+    "surface-strong": palette.surfaceStrong,
+    text: palette.text,
+    muted: palette.muted,
+    border: palette.border,
+    primary: palette.primary,
+    secondary: palette.secondary,
+    accent: palette.accent,
+    warning: palette.warning,
+    "on-primary": palette.onPrimary,
+    shadow: palette.shadow,
+    "soft-shadow": palette.softShadow,
+    dots: palette.dots,
+    "control-color-scheme": palette.controlColorScheme
+  };
+  for (const [key, value] of Object.entries(colorVariables)) {
     root.style.setProperty(`--color-${key}`, value);
   }
-  root.style.setProperty("--animal-primary-color", theme.palette.primary);
-  root.style.setProperty("--animal-primary-color-bg", theme.palette.surfaceStrong);
-  root.style.setProperty("--animal-warning-color", theme.palette.warning);
-  root.style.setProperty("--animal-error-color", theme.palette.accent);
-  root.style.setProperty("--animal-text-color", theme.palette.text);
-  root.style.setProperty("--animal-text-color-secondary", theme.palette.muted);
-  root.style.setProperty("--animal-text-color-muted", theme.palette.muted);
-  root.style.setProperty("--animal-border-color", theme.palette.border);
-  root.style.setProperty("--animal-bg-color", theme.palette.surface);
-  root.style.setProperty("--animal-bg-color-secondary", theme.palette.surfaceStrong);
+  root.style.setProperty("--island-ink", palette.text);
+  root.style.setProperty("--island-shadow", palette.shadow);
+  root.style.setProperty("--island-soft-shadow", palette.softShadow);
+  root.style.setProperty("--island-paper-dots", `radial-gradient(circle, ${palette.dots} 1px, transparent 1.6px)`);
+  root.style.setProperty("--animal-primary-color", palette.primary);
+  root.style.setProperty("--animal-primary-color-bg", palette.surfaceStrong);
+  root.style.setProperty("--animal-warning-color", palette.warning);
+  root.style.setProperty("--animal-error-color", palette.accent);
+  root.style.setProperty("--animal-text-color", palette.text);
+  root.style.setProperty("--animal-text-color-secondary", palette.muted);
+  root.style.setProperty("--animal-text-color-muted", palette.muted);
+  root.style.setProperty("--animal-border-color", palette.border);
+  root.style.setProperty("--animal-bg-color", palette.surface);
+  root.style.setProperty("--animal-bg-color-secondary", palette.surfaceStrong);
   return theme;
 }

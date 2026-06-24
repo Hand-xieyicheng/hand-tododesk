@@ -21,7 +21,7 @@ vi.mock("../db.js", () => ({
 const token = signAccessToken({ sub: "user-1", email: "todo@example.com" });
 
 const currentPreference = {
-  themeId: "shinchan",
+  themeId: "peach",
   titleColor: "app-teal",
   footerVisible: 1,
   footerType: "sea",
@@ -63,12 +63,60 @@ describe("preference routes", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
+      themeId: "warm-paper",
       taskCardDisplayMode: "full",
       floatingCardThemeId: "warm-paper",
       appCloseBehavior: "hide",
       visibleSidebarModules: ["tasks", "memos", "anniversaries", "habits", "calendar", "pomodoro"],
       sidebarCollapsed: false
     });
+  });
+
+  it("normalizes legacy and invalid stored theme ids", async () => {
+    db.queryOne.mockResolvedValueOnce({ ...currentPreference, themeId: "shinchan" });
+
+    const legacyResponse = await injectPreference("GET");
+
+    expect(legacyResponse.statusCode).toBe(200);
+    expect(legacyResponse.json()).toMatchObject({
+      themeId: "peach"
+    });
+
+    db.queryOne.mockResolvedValueOnce({ ...currentPreference, themeId: "custom" });
+
+    const invalidResponse = await injectPreference("GET");
+
+    expect(invalidResponse.statusCode).toBe(200);
+    expect(invalidResponse.json()).toMatchObject({
+      themeId: "warm-paper"
+    });
+  });
+
+  it("saves selected global theme ids", async () => {
+    db.queryOne.mockResolvedValue(currentPreference);
+
+    const response = await injectPreference("PUT", { themeId: "navy" });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      themeId: "navy"
+    });
+    expect(db.execute).toHaveBeenLastCalledWith(expect.stringContaining("themeId"), [
+      "user-1",
+      "navy",
+      "app-teal",
+      true,
+      "sea",
+      true,
+      "list",
+      "full",
+      "warm-paper",
+      "hide",
+      "default",
+      "tasks,memos,anniversaries,habits,calendar,pomodoro",
+      false,
+      "system"
+    ]);
   });
 
   it("saves title card display mode", async () => {
@@ -82,7 +130,7 @@ describe("preference routes", () => {
     });
     expect(db.execute).toHaveBeenLastCalledWith(expect.stringContaining("taskCardDisplayMode"), [
       "user-1",
-      "shinchan",
+      "peach",
       "app-teal",
       true,
       "sea",
@@ -120,7 +168,7 @@ describe("preference routes", () => {
     });
     expect(db.execute).toHaveBeenLastCalledWith(expect.stringContaining("floatingCardThemeId"), [
       "user-1",
-      "shinchan",
+      "peach",
       "app-teal",
       true,
       "sea",
@@ -158,7 +206,7 @@ describe("preference routes", () => {
     });
     expect(db.execute).toHaveBeenLastCalledWith(expect.stringContaining("fontFamily"), [
       "user-1",
-      "shinchan",
+      "peach",
       "app-teal",
       true,
       "sea",
@@ -196,7 +244,7 @@ describe("preference routes", () => {
     });
     expect(db.execute).toHaveBeenLastCalledWith(expect.stringContaining("appCloseBehavior"), [
       "user-1",
-      "shinchan",
+      "peach",
       "app-teal",
       true,
       "sea",
@@ -234,7 +282,7 @@ describe("preference routes", () => {
     });
     expect(db.execute).toHaveBeenLastCalledWith(expect.stringContaining("sidebarCollapsed"), [
       "user-1",
-      "shinchan",
+      "peach",
       "app-teal",
       true,
       "sea",
@@ -261,7 +309,7 @@ describe("preference routes", () => {
     });
     expect(db.execute).toHaveBeenLastCalledWith(expect.stringContaining("visibleSidebarModules"), [
       "user-1",
-      "shinchan",
+      "peach",
       "app-teal",
       true,
       "sea",
@@ -288,7 +336,7 @@ describe("preference routes", () => {
     });
     expect(db.execute).toHaveBeenLastCalledWith(expect.stringContaining("visibleSidebarModules"), [
       "user-1",
-      "shinchan",
+      "peach",
       "app-teal",
       true,
       "sea",

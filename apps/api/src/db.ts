@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import mysql, { type PoolConnection, type ResultSetHeader, type RowDataPacket } from "mysql2/promise";
 import { escapeId } from "mysql2";
+import { defaultThemeId } from "@todo/shared";
 import { config } from "./config.js";
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -328,6 +329,21 @@ async function ensureTaskSingleTagDefaults() {
   });
 }
 
+async function ensureThemePreferenceThemeSchema() {
+  await execute(`ALTER TABLE \`UserThemePreference\` MODIFY COLUMN \`themeId\` VARCHAR(191) NOT NULL DEFAULT '${defaultThemeId}'`);
+  await execute(
+    `UPDATE \`UserThemePreference\`
+     SET \`themeId\` = CASE \`themeId\`
+      WHEN 'default' THEN 'warm-paper'
+      WHEN 'shinchan' THEN 'peach'
+      WHEN 'labubu' THEN 'lavender'
+      WHEN 'doraemon' THEN 'sky'
+      ELSE \`themeId\`
+     END
+     WHERE \`themeId\` IN ('default', 'shinchan', 'labubu', 'doraemon')`
+  );
+}
+
 async function ensureIncrementalSchema() {
   await ensureTaskPrioritySchema();
   await ensureMemoSchema();
@@ -347,6 +363,7 @@ async function ensureIncrementalSchema() {
   await ensureColumn("UserThemePreference", "visibleSidebarModules", "ALTER TABLE `UserThemePreference` ADD COLUMN `visibleSidebarModules` VARCHAR(191) NOT NULL DEFAULT 'tasks,memos,anniversaries,habits,calendar,pomodoro'");
   await ensureColumn("UserThemePreference", "sidebarCollapsed", "ALTER TABLE `UserThemePreference` ADD COLUMN `sidebarCollapsed` BOOLEAN NOT NULL DEFAULT FALSE");
   await ensureColumn("UserThemePreference", "fontFamily", "ALTER TABLE `UserThemePreference` ADD COLUMN `fontFamily` VARCHAR(191) NOT NULL DEFAULT 'system'");
+  await ensureThemePreferenceThemeSchema();
   await ensureVisibleSidebarModulesSchema();
   await ensureTaskSingleTagDefaults();
 }

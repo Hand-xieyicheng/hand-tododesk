@@ -72,10 +72,7 @@ export const habitRecommendedIconValues = [
   "Code"
 ] as const;
 export const habitColorValues = ["mint", "blue", "yellow", "orange", "rose", "purple", "teal", "slate"] as const;
-export const themeIdValues = ["default", "shinchan", "labubu", "doraemon"] as const;
-export const taskViewModeValues = ["list", "quadrant"] as const;
-export const taskCardDisplayModeValues = ["full", "title"] as const;
-export const floatingCardThemeIdValues = [
+export const themeIdValues = [
   "warm-paper",
   "white-ink",
   "black-snow",
@@ -92,6 +89,16 @@ export const floatingCardThemeIdValues = [
   "teal",
   "navy"
 ] as const;
+export const floatingCardThemeIdValues = [...themeIdValues] as const;
+export const defaultThemeId = "warm-paper" satisfies ThemeId;
+export const legacyThemeIdMap = {
+  default: "warm-paper",
+  shinchan: "peach",
+  labubu: "lavender",
+  doraemon: "sky"
+} as const satisfies Record<string, ThemeId>;
+export const taskViewModeValues = ["list", "quadrant", "kanban"] as const;
+export const taskCardDisplayModeValues = ["full", "title"] as const;
 export const appCloseBehaviorValues = ["hide", "quit"] as const;
 export const displaySizeValues = ["small", "default", "large"] as const;
 export const sidebarModuleValues = ["tasks", "memos", "anniversaries", "habits", "calendar", "pomodoro"] as const;
@@ -505,6 +512,13 @@ export type PomodoroStatus = (typeof pomodoroStatusValues)[number];
 export type UserGender = (typeof userGenderValues)[number];
 export type AppFeatureFlags = z.infer<typeof appFeatureFlagsSchema>;
 export type AppBootstrapResponse = z.infer<typeof appBootstrapResponseSchema>;
+
+export function normalizeThemeId(value: string | null | undefined): ThemeId {
+  if (themeIdValues.includes(value as ThemeId)) {
+    return value as ThemeId;
+  }
+  return legacyThemeIdMap[value as keyof typeof legacyThemeIdMap] ?? defaultThemeId;
+}
 
 export interface ApiThemePreference {
   themeId: ThemeId;

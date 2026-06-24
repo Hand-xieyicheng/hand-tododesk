@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, ClipboardEvent } from "react";
-import { defaultVisibleSidebarModules, type ApiMemo, type ApiThemePreference, type FloatingCardThemeId } from "@todo/shared";
+import { defaultThemeId, defaultVisibleSidebarModules, type ApiMemo, type ApiThemePreference, type FloatingCardThemeId } from "@todo/shared";
 import { Button, Card } from "animal-island-ui";
 import { RefreshCw } from "lucide-react";
 import { api } from "../api/client";
@@ -17,7 +17,7 @@ const preferenceSyncIntervalMs = 5000;
 type SaveState = "idle" | "saving" | "error";
 
 const defaultThemePreference: ApiThemePreference = {
-  themeId: "default",
+  themeId: defaultThemeId,
   titleColor: "app-teal",
   footerVisible: true,
   footerType: "sea",

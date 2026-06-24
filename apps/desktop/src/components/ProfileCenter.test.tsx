@@ -59,11 +59,11 @@ const user: ApiUser = {
 };
 
 const appBootstrap: AppBootstrapResponse = {
-  apiVersion: "0.2.12",
+  apiVersion: "0.2.13",
   releaseChannel: "stable",
   desktop: {
     minimumVersion: "0.1.0",
-    latestVersion: "0.2.12",
+    latestVersion: "0.2.13",
     updateEndpoint: "https://example.com/latest.json"
   },
   featureFlags: {
@@ -88,7 +88,7 @@ const sidebarModuleOptions: Array<{ id: SidebarModule; label: string }> = [
 function createUpdater(status: AppUpdaterController["status"]): AppUpdaterController {
   return {
     status,
-    currentVersion: "0.2.12",
+    currentVersion: "0.2.13",
     targetVersion: null,
     releaseDate: null,
     releaseNotes: null,
@@ -115,7 +115,7 @@ function renderProfile(updater: AppUpdaterController, props: Partial<Parameters<
       fontFamily="system"
       sidebarModuleOptions={sidebarModuleOptions}
       taskCardDisplayMode="full"
-      themeId="shinchan"
+      themeId="warm-paper"
       titleColor="app-teal"
       visibleSidebarModules={defaultVisibleSidebarModules}
       onFooterVisibleChanged={vi.fn()}

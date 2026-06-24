@@ -53,7 +53,7 @@ const memoDetail: ApiMemo = {
 };
 
 const themePreference: ApiThemePreference = {
-  themeId: "shinchan",
+  themeId: "warm-paper",
   titleColor: "app-teal",
   footerVisible: true,
   footerType: "sea",

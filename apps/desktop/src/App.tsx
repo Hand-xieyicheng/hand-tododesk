@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CSSProperties, PointerEvent } from "react";
-import { defaultAppFeatureFlags, defaultVisibleSidebarModules, type ApiTag, type ApiTask, type ApiThemePreference, type ApiUser, type AppBootstrapResponse, type AppCloseBehavior, type AppFeatureFlags, type DisplaySize, type FloatingCardThemeId, type FontFamily, type FooterType as AppFooterType, type SidebarModule, type TaskCardDisplayMode, type TaskViewMode, type ThemeId, type TitleColor } from "@todo/shared";
+import { defaultAppFeatureFlags, defaultThemeId, defaultVisibleSidebarModules, normalizeThemeId, type ApiTag, type ApiTask, type ApiThemePreference, type ApiUser, type AppBootstrapResponse, type AppCloseBehavior, type AppFeatureFlags, type DisplaySize, type FloatingCardThemeId, type FontFamily, type FooterType as AppFooterType, type SidebarModule, type TaskCardDisplayMode, type TaskViewMode, type ThemeId, type TitleColor } from "@todo/shared";
 import { Button, Footer, Loading, Select, Title, Tooltip } from "animal-island-ui";
-import { Bell, CalendarDays, CheckSquare2, Clock3, Eye, EyeOff, Flame, Hourglass, LayoutGrid, ListTodo, LogOut, NotebookPen, PanelLeftOpen, Pin, Plus, Tags, UserRound } from "lucide-react";
+import { Bell, CalendarDays, CheckSquare2, Clock3, Eye, EyeOff, Flame, Hourglass, Kanban, LayoutGrid, ListTodo, LogOut, NotebookPen, PanelLeftOpen, Pin, Plus, Tags, UserRound } from "lucide-react";
 import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { api, ApiError, authSessionExpiredEvent } from "./api/client";
 import { AuthView } from "./components/AuthView";
@@ -47,7 +47,7 @@ const navItems: Array<{ id: SidebarModule; label: string; icon: typeof CheckSqua
 ];
 
 const defaultThemePreference: ApiThemePreference = {
-  themeId: "default",
+  themeId: defaultThemeId,
   titleColor: "app-teal",
   footerVisible: true,
   footerType: "sea",
@@ -148,7 +148,7 @@ export function App() {
   const [anniversaryCreateOpen, setAnniversaryCreateOpen] = useState(false);
   const [habitCreateOpen, setHabitCreateOpen] = useState(false);
   const [habitShowArchived, setHabitShowArchived] = useState(false);
-  const [themeId, setThemeId] = useState<ThemeId>("default");
+  const [themeId, setThemeId] = useState<ThemeId>(() => normalizeThemeId(localStorage.getItem("tododesk.theme")));
   const [titleColor, setTitleColor] = useState<TitleColor>("app-teal");
   const [footerVisible, setFooterVisible] = useState(true);
   const [footerType, setFooterType] = useState<AppFooterType>("sea");
@@ -208,6 +208,7 @@ export function App() {
     "--workspace-footer-gap": footerVisible ? "var(--app-footer-gap)" : "0px"
   } as CSSProperties;
   const appShellClassName = `app-shell${sidebarCollapsed ? " is-sidebar-collapsed" : ""}${isMacosDesktopRuntime() ? " is-macos-desktop" : ""}`;
+  const effectiveTaskViewMode: TaskViewMode = featureFlags.taskQuadrant ? taskViewMode : "list";
   const showCompletedTasksAction = showCompletedTasks ? "隐藏已完成事项" : "显示已完成事项";
   const showArchivedHabitsAction = habitShowArchived ? "隐藏归档" : "显示归档";
   const sidebarToggleAction = sidebarCollapsed ? "展开侧边栏" : "收起侧边栏";
@@ -221,10 +222,11 @@ export function App() {
   }, [navigate]);
 
   function applyThemePreference(preference: ApiThemePreference) {
+    const nextThemeId = normalizeThemeId(preference.themeId);
     const nextDisplaySize = normalizeDisplaySize(preference.displaySize);
     const nextFontFamily = normalizeFontFamily(preference.fontFamily);
 
-    setThemeId(preference.themeId);
+    setThemeId(nextThemeId);
     setTitleColor(preference.titleColor);
     setFooterVisible(preference.footerVisible);
     setFooterType(preference.footerType);
@@ -237,11 +239,11 @@ export function App() {
     setVisibleSidebarModules(preference.visibleSidebarModules ?? defaultVisibleSidebarModules);
     setSidebarCollapsed(preference.sidebarCollapsed ?? false);
     setFontFamily(nextFontFamily);
-    localStorage.setItem("tododesk.theme", preference.themeId);
+    localStorage.setItem("tododesk.theme", nextThemeId);
     localStorage.setItem("tododesk.displaySize", nextDisplaySize);
     localStorage.setItem("tododesk.sidebarCollapsed", String(preference.sidebarCollapsed ?? false));
     localStorage.setItem("tododesk.fontFamily", nextFontFamily);
-    applyTheme(preference.themeId);
+    applyTheme(nextThemeId);
     applyDisplaySize(nextDisplaySize);
     applyFontFamily(nextFontFamily);
     void syncNativeAppCloseBehavior(preference.appCloseBehavior);
@@ -370,7 +372,7 @@ export function App() {
   }, [activeView, featureFlags.anniversaries, featureFlags.calendar, featureFlags.habits, featureFlags.pomodoro, navigateToView]);
 
   useEffect(() => {
-    if (!featureFlags.taskQuadrant && taskViewMode === "quadrant") {
+    if (!featureFlags.taskQuadrant && taskViewMode !== "list") {
       setTaskViewMode("list");
     }
   }, [featureFlags.taskQuadrant, taskViewMode]);
@@ -720,10 +722,12 @@ export function App() {
             ) : null}
             {activeView === "tasks" ? (
               <>
-                <label className="topbar-tag-filter">
-                  <span>标签</span>
-                  <Select value={taskTagFilter} onChange={setTaskTagFilter} options={taskTagFilterOptions} />
-                </label>
+                {effectiveTaskViewMode === "kanban" ? null : (
+                  <label className="topbar-tag-filter">
+                    <span>标签</span>
+                    <Select value={taskTagFilter} onChange={setTaskTagFilter} options={taskTagFilterOptions} />
+                  </label>
+                )}
                 <Button className="task-tag-maintenance-button" icon={<Tags size={14} />} size="small" type="default" onClick={() => setTaskTagMaintenanceOpen(true)}>
                   标签维护
                 </Button>
@@ -756,6 +760,15 @@ export function App() {
                       onClick={() => handleTaskViewModeChanged("quadrant")}
                     >
                       四象限
+                    </Button>
+                    <Button
+                      className={taskViewMode === "kanban" ? "is-active" : ""}
+                      icon={<Kanban size={14} />}
+                      size="small"
+                      type={taskViewMode === "kanban" ? "primary" : "text"}
+                      onClick={() => handleTaskViewModeChanged("kanban")}
+                    >
+                      看板
                     </Button>
                   </div>
                 ) : null}
@@ -805,7 +818,7 @@ export function App() {
                 tagMaintenanceOpen={taskTagMaintenanceOpen}
                 taskTagFilter={taskTagFilter}
                 tasks={tasks}
-                viewMode={featureFlags.taskQuadrant ? taskViewMode : "list"}
+                viewMode={effectiveTaskViewMode}
                 onChanged={loadAppData}
                 onCreateOpenChange={setTaskCreateOpen}
                 onTagMaintenanceOpenChange={setTaskTagMaintenanceOpen}

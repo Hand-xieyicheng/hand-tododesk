@@ -1,4 +1,4 @@
-import { type FormEvent, type KeyboardEvent, useEffect, useMemo, useState } from "react";
+import { type FormEvent, type KeyboardEvent, type PointerEvent, type WheelEvent, useEffect, useMemo, useRef, useState } from "react";
 import { sortTasksForDisplay, type ApiTag, type ApiTask, type CreateTaskRequest, type TaskCardDisplayMode, type TaskPriority, type TaskStatus, type TaskViewMode } from "@todo/shared";
 import { Button, Card, Divider, Input, Modal, Select } from "animal-island-ui";
 import { Check, Pencil, Plus, RotateCcw, Save, Trash2, X } from "lucide-react";
@@ -67,6 +67,14 @@ const repeatOptions = [
 const noTagSelectValue = "__none__";
 const allTagsFilterValue = "__all__";
 const untaggedTagsFilterValue = "__untagged__";
+const kanbanDragThresholdPx = 5;
+
+type KanbanDragState = {
+  pointerId: number;
+  startX: number;
+  scrollLeft: number;
+  dragging: boolean;
+};
 
 function emptyQuadrants() {
   const quadrants = {} as Record<TaskPriority, ApiTask[]>;
@@ -106,6 +114,50 @@ function taskMatchesTagFilter(task: ApiTask, filter: string) {
     return task.tags.length === 0;
   }
   return task.tags.some((tag) => tag.id === filter);
+}
+
+function closestElement(target: EventTarget | null, selector: string) {
+  return target instanceof Element ? target.closest(selector) : null;
+}
+
+function isKanbanDragIgnoredTarget(target: EventTarget | null) {
+  return Boolean(closestElement(target, "button, a, input, textarea, select, [role='button'], .task-item"));
+}
+
+interface KanbanColumn {
+  id: string;
+  title: string;
+  tagId: string | null;
+  tasks: ApiTask[];
+}
+
+function buildKanbanColumns(tasks: ApiTask[], tags: ApiTag[], showCompletedTasks: boolean): KanbanColumn[] {
+  const untaggedColumn: KanbanColumn = {
+    id: untaggedTagsFilterValue,
+    title: "其它",
+    tagId: null,
+    tasks: []
+  };
+  const tagColumns: KanbanColumn[] = tags.map((tag) => ({
+    id: tag.id,
+    title: tag.name,
+    tagId: tag.id,
+    tasks: []
+  }));
+  const columns = [untaggedColumn, ...tagColumns];
+  const columnByTagId = new Map(tagColumns.map((column) => [column.tagId, column]));
+  const sourceTasks = showCompletedTasks ? tasks : tasks.filter((task) => task.status !== "COMPLETED");
+
+  for (const task of sourceTasks) {
+    const firstTag = task.tags[0];
+    const column = firstTag ? columnByTagId.get(firstTag.id) ?? untaggedColumn : untaggedColumn;
+    column.tasks.push(task);
+  }
+
+  return columns.map((column) => ({
+    ...column,
+    tasks: sortTasksForDisplay(column.tasks)
+  }));
 }
 
 interface TaskDetailModalProps {
@@ -390,6 +442,7 @@ function TagMaintenanceModal({ open, tags, onChanged, onClose }: TagMaintenanceM
 }
 
 export function TaskPanel({ createOpen, showCompletedTasks, tags, taskCardDisplayMode, tagMaintenanceOpen, taskTagFilter, tasks, viewMode, onChanged, onCreateOpenChange, onTagMaintenanceOpenChange }: TaskPanelProps) {
+  const kanbanDragState = useRef<KanbanDragState | null>(null);
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
   const [dueAt, setDueAt] = useState(() => getTodayEndDatetimeLocal());
@@ -410,6 +463,10 @@ export function TaskPanel({ createOpen, showCompletedTasks, tags, taskCardDispla
         .filter((task) => taskMatchesTagFilter(task, taskTagFilter))
     ),
     [showCompletedTasks, taskTagFilter, tasks]
+  );
+  const kanbanColumns = useMemo(
+    () => buildKanbanColumns(tasks, tags, showCompletedTasks),
+    [showCompletedTasks, tags, tasks]
   );
 
   async function loadQuadrants() {
@@ -497,7 +554,72 @@ export function TaskPanel({ createOpen, showCompletedTasks, tags, taskCardDispla
 
   function closeCreateModal() {
     setFormMessage("");
+    resetForm();
     onCreateOpenChange(false);
+  }
+
+  function openCreateForKanbanColumn(nextTagId: string | null) {
+    resetForm();
+    setFormMessage("");
+    setTagId(nextTagId ?? noTagSelectValue);
+    onCreateOpenChange(true);
+  }
+
+  function handleKanbanWheel(event: WheelEvent<HTMLElement>) {
+    const board = event.currentTarget;
+    const canScrollHorizontally = board.scrollWidth > board.clientWidth;
+    const isHorizontalIntent = Math.abs(event.deltaX) > Math.abs(event.deltaY);
+    if (!canScrollHorizontally || !isHorizontalIntent || event.deltaX === 0) {
+      return;
+    }
+
+    event.preventDefault();
+    board.scrollLeft += event.deltaX;
+  }
+
+  function beginKanbanDrag(event: PointerEvent<HTMLElement>) {
+    if (event.button !== 0 || isKanbanDragIgnoredTarget(event.target)) {
+      return;
+    }
+
+    kanbanDragState.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      scrollLeft: event.currentTarget.scrollLeft,
+      dragging: false
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function moveKanbanDrag(event: PointerEvent<HTMLElement>) {
+    const state = kanbanDragState.current;
+    if (!state || state.pointerId !== event.pointerId) {
+      return;
+    }
+
+    const deltaX = event.clientX - state.startX;
+    if (Math.abs(deltaX) > kanbanDragThresholdPx) {
+      state.dragging = true;
+      event.currentTarget.classList.add("is-dragging");
+    }
+
+    if (state.dragging) {
+      event.preventDefault();
+      event.currentTarget.scrollLeft = state.scrollLeft - deltaX;
+    }
+  }
+
+  function endKanbanDrag(event: PointerEvent<HTMLElement>) {
+    const state = kanbanDragState.current;
+    if (!state || state.pointerId !== event.pointerId) {
+      return;
+    }
+
+    kanbanDragState.current = null;
+    event.currentTarget.classList.remove("is-dragging");
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
   }
 
   return (
@@ -563,6 +685,43 @@ export function TaskPanel({ createOpen, showCompletedTasks, tags, taskCardDispla
             {visibleTasks.length === 0 ? <Card className="empty-state" type="dashed">暂无待办</Card> : null}
             {visibleTasks.map((task) => (
               <TaskCard displayMode={taskCardDisplayMode} key={task.id} task={task} onDelete={deleteTask} onOpenDetails={setDetailTask} onSetStatus={setStatus} />
+            ))}
+          </section>
+        ) : viewMode === "kanban" ? (
+          <section
+            className="kanban-board"
+            aria-label="按标签分组的待办看板"
+            onPointerCancel={endKanbanDrag}
+            onPointerDown={beginKanbanDrag}
+            onPointerMove={moveKanbanDrag}
+            onPointerUp={endKanbanDrag}
+            onWheel={handleKanbanWheel}
+          >
+            {kanbanColumns.map((column) => (
+              <section className="kanban-column" key={column.id} aria-label={`${column.title}看板列`}>
+                <header>
+                  <div>
+                    <h3>{column.title}</h3>
+                    <span>{column.tagId ? "标签" : "无标签"}</span>
+                  </div>
+                  <strong>{column.tasks.length}</strong>
+                </header>
+                <Button
+                  className="kanban-add-task"
+                  icon={<Plus size={15} />}
+                  size="small"
+                  type="text"
+                  onClick={() => openCreateForKanbanColumn(column.tagId)}
+                >
+                  新建任务
+                </Button>
+                <div className="kanban-task-list">
+                  {column.tasks.length === 0 ? <div className="empty-state">暂无待办</div> : null}
+                  {column.tasks.map((task) => (
+                    <TaskCard compact displayMode={taskCardDisplayMode} key={task.id} task={task} onDelete={deleteTask} onOpenDetails={setDetailTask} onSetStatus={setStatus} />
+                  ))}
+                </div>
+              </section>
             ))}
           </section>
         ) : (

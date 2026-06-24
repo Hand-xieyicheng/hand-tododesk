@@ -1,10 +1,12 @@
 import type { FastifyInstance } from "fastify";
 import {
   appCloseBehaviorValues,
+  defaultThemeId,
   defaultVisibleSidebarModules,
   displaySizeValues,
   floatingCardThemeIdValues,
   fontFamilyValues,
+  normalizeThemeId,
   sidebarModuleValues,
   taskCardDisplayModeValues,
   taskViewModeValues,
@@ -35,7 +37,6 @@ type ThemePreferenceRow = DbRow & {
   fontFamily: string;
 };
 
-const defaultThemeId = "default";
 const defaultTitleColor = "app-teal";
 const defaultFooterVisible = true;
 const defaultFooterType = "sea";
@@ -54,6 +55,10 @@ function booleanFromDb(value: boolean | number | null | undefined, fallback: boo
     return fallback;
   }
   return typeof value === "boolean" ? value : value !== 0;
+}
+
+function themeIdFromDb(value: string | null | undefined) {
+  return normalizeThemeId(value);
 }
 
 function taskViewModeFromDb(value: string | null | undefined) {
@@ -119,7 +124,7 @@ export async function preferenceRoutes(app: FastifyInstance) {
       [request.user.id]
     );
     return {
-      themeId: preference?.themeId ?? defaultThemeId,
+      themeId: themeIdFromDb(preference?.themeId),
       titleColor: preference?.titleColor ?? defaultTitleColor,
       footerVisible: booleanFromDb(preference?.footerVisible, defaultFooterVisible),
       footerType: preference?.footerType ?? defaultFooterType,
@@ -142,7 +147,7 @@ export async function preferenceRoutes(app: FastifyInstance) {
       "SELECT `themeId`, `titleColor`, `footerVisible`, `footerType`, `showCompletedTasks`, `taskViewMode`, `taskCardDisplayMode`, `floatingCardThemeId`, `appCloseBehavior`, `displaySize`, `visibleSidebarModules`, `sidebarCollapsed`, `fontFamily` FROM `UserThemePreference` WHERE `userId` = ?",
       [request.user.id]
     );
-    const themeId = body.themeId ?? current?.themeId ?? defaultThemeId;
+    const themeId = body.themeId ?? themeIdFromDb(current?.themeId);
     const titleColor = body.titleColor ?? current?.titleColor ?? defaultTitleColor;
     const footerVisible = body.footerVisible ?? booleanFromDb(current?.footerVisible, defaultFooterVisible);
     const footerType = body.footerType ?? current?.footerType ?? defaultFooterType;

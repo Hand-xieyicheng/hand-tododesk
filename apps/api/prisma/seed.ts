@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import { randomUUID } from "node:crypto";
 import { PrismaClient } from "@prisma/client";
+import { defaultThemeId } from "@todo/shared";
 
 const prisma = new PrismaClient();
 
@@ -18,7 +19,7 @@ async function main() {
       passwordHash: await bcrypt.hash(password, 12),
       emailVerifiedAt: new Date(),
       themePreference: {
-        create: { themeId: "default" }
+        create: { themeId: defaultThemeId }
       }
     }
   });
