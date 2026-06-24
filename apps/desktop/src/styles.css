@@ -207,6 +207,11 @@ textarea {
   color: var(--color-text) !important;
 }
 
+[class*="animal-card-DJ515"] {
+  border-radius: 8px;
+}
+
+
 button {
   cursor: pointer;
 }
@@ -233,6 +238,12 @@ textarea:focus-visible,
 }
 
 .app-shell.is-sidebar-collapsed {
+  --app-sidebar-width: var(--app-sidebar-collapsed-width);
+}
+
+:root:not([data-display-size]) .app-shell.is-macos-desktop.is-sidebar-collapsed,
+:root[data-display-size="default"] .app-shell.is-macos-desktop.is-sidebar-collapsed {
+  --app-sidebar-collapsed-width: calc(var(--app-traffic-light-safe-area) + 8px);
   --app-sidebar-width: var(--app-sidebar-collapsed-width);
 }
 
@@ -777,6 +788,59 @@ textarea:focus-visible,
   box-shadow: 0 2px 0 var(--color-shadow);
 }
 
+:root:not([data-display-size]) .app-shell.is-macos-desktop.is-sidebar-collapsed .sidebar {
+  padding-inline: calc(12px * var(--app-ui-scale));
+}
+
+:root[data-display-size="default"] .app-shell.is-macos-desktop.is-sidebar-collapsed .sidebar {
+  padding-inline: calc(12px * var(--app-ui-scale));
+}
+
+:root:not([data-display-size]) .app-shell.is-macos-desktop.is-sidebar-collapsed .sidebar-collapse-button,
+:root[data-display-size="default"] .app-shell.is-macos-desktop.is-sidebar-collapsed .sidebar-collapse-button {
+  width: calc(42px * var(--app-ui-scale));
+  height: calc(42px * var(--app-ui-scale));
+  border-radius: 16px 14px 18px 14px;
+}
+
+:root:not([data-display-size]) .app-shell.is-macos-desktop.is-sidebar-collapsed .sidebar-collapse-button svg,
+:root[data-display-size="default"] .app-shell.is-macos-desktop.is-sidebar-collapsed .sidebar-collapse-button svg {
+  width: calc(19px * var(--app-ui-scale));
+  height: calc(19px * var(--app-ui-scale));
+}
+
+:root:not([data-display-size]) .app-shell.is-macos-desktop.is-sidebar-collapsed .nav-button,
+:root[data-display-size="default"] .app-shell.is-macos-desktop.is-sidebar-collapsed .nav-button {
+  height: calc(48px * var(--app-ui-scale)) !important;
+  min-height: calc(48px * var(--app-ui-scale));
+}
+
+:root:not([data-display-size]) .app-shell.is-macos-desktop.is-sidebar-collapsed .nav-button-icon,
+:root[data-display-size="default"] .app-shell.is-macos-desktop.is-sidebar-collapsed .nav-button-icon {
+  width: calc(42px * var(--app-ui-scale));
+  height: calc(42px * var(--app-ui-scale));
+  border-radius: 16px 14px 18px 14px;
+}
+
+:root:not([data-display-size]) .app-shell.is-macos-desktop.is-sidebar-collapsed .nav-button svg,
+:root[data-display-size="default"] .app-shell.is-macos-desktop.is-sidebar-collapsed .nav-button svg {
+  width: calc(20px * var(--app-ui-scale));
+  height: calc(20px * var(--app-ui-scale));
+}
+
+:root:not([data-display-size]) .app-shell.is-macos-desktop.is-sidebar-collapsed .sidebar-user-card,
+:root[data-display-size="default"] .app-shell.is-macos-desktop.is-sidebar-collapsed .sidebar-user-card {
+  width: calc(50px * var(--app-ui-scale));
+  min-height: calc(50px * var(--app-ui-scale));
+  border-radius: 17px 15px 19px 15px;
+}
+
+:root:not([data-display-size]) .app-shell.is-macos-desktop.is-sidebar-collapsed .sidebar-user-avatar,
+:root[data-display-size="default"] .app-shell.is-macos-desktop.is-sidebar-collapsed .sidebar-user-avatar {
+  width: calc(38px * var(--app-ui-scale));
+  height: calc(38px * var(--app-ui-scale));
+}
+
 .sidebar-user-avatar img,
 .profile-avatar-large img {
   width: 100%;
@@ -1136,8 +1200,26 @@ textarea:focus-visible,
   min-height: var(--topbar-action-height) !important;
   padding: 0 calc(11px * var(--app-ui-scale)) !important;
   border-radius: 999px !important;
+  color: var(--color-on-primary) !important;
   font-size: calc(13px * var(--app-ui-scale)) !important;
   line-height: 1 !important;
+}
+
+.topbar-actions .primary-button > span {
+  gap: calc(6px * var(--app-ui-scale));
+}
+
+.topbar-actions .primary-button [class*="animal-btn-icon"],
+.topbar-actions .primary-button svg {
+  width: calc(15px * var(--app-ui-scale));
+  height: calc(15px * var(--app-ui-scale));
+  flex: 0 0 auto;
+  color: inherit !important;
+  stroke: currentColor !important;
+}
+
+.topbar-actions .primary-button svg [stroke]:not([stroke="none"]) {
+  stroke: currentColor !important;
 }
 
 .task-tag-maintenance-button {
@@ -1187,7 +1269,7 @@ textarea:focus-visible,
 .inline-muted {
   padding: calc(9px * var(--app-ui-scale)) calc(12px * var(--app-ui-scale));
   border: 2px dashed color-mix(in srgb, var(--color-border) 76%, transparent);
-  border-radius: 16px 14px 18px 14px;
+  border-radius: 6px 4px 8px 4px;
   background: var(--color-surface);
   color: var(--color-muted);
   font-weight: 800;
@@ -1234,7 +1316,7 @@ textarea:focus-visible,
   min-width: 0;
   min-height: 0;
   border: 1px solid color-mix(in srgb, var(--color-border) 72%, transparent);
-  border-radius: 18px;
+  border-radius: 8px;
   background: color-mix(in srgb, var(--color-surface) 90%, var(--color-background));
   box-shadow: 0 3px 0 var(--color-shadow), 0 10px 18px var(--island-soft-shadow);
 }
@@ -1305,7 +1387,7 @@ textarea:focus-visible,
   gap: calc(4px * var(--app-ui-scale));
   padding: calc(8px * var(--app-ui-scale));
   border: 1px solid color-mix(in srgb, var(--color-border) 62%, transparent);
-  border-radius: 12px;
+  border-radius: 8px;
   background: color-mix(in srgb, var(--color-surface-strong) 76%, var(--color-surface));
   color: var(--color-text);
   box-shadow: 0 2px 0 var(--color-soft-shadow);
@@ -1491,7 +1573,7 @@ textarea:focus-visible,
 .memo-rich-toolbar {
   padding: calc(6px * var(--app-ui-scale));
   border: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
-  border-radius: 13px;
+  border-radius: 8px;
   background: color-mix(in srgb, var(--color-surface-strong) 70%, var(--color-surface));
 }
 
@@ -1502,7 +1584,7 @@ textarea:focus-visible,
   overflow-y: auto;
   padding: calc(11px * var(--app-ui-scale));
   border: 1px solid var(--color-border);
-  border-radius: 13px;
+  border-radius: 8px;
   background: color-mix(in srgb, var(--color-surface) 92%, var(--color-background));
   color: var(--color-text);
   font-size: calc(14px * var(--app-ui-scale));
@@ -1685,6 +1767,7 @@ textarea:focus-visible,
 .habit-modal [class*="animal-modalClipped"],
 .task-detail-modal [class*="animal-modalClipped"],
 .tag-maintenance-modal [class*="animal-modalClipped"],
+.profile-security-dialog [class*="animal-modalClipped"],
 .confirm-dialog [class*="animal-modalClipped"] {
   position: relative;
   overflow: visible;
@@ -1698,6 +1781,7 @@ textarea:focus-visible,
 .habit-modal [class*="animal-modalClipped"]::before,
 .task-detail-modal [class*="animal-modalClipped"]::before,
 .tag-maintenance-modal [class*="animal-modalClipped"]::before,
+.profile-security-dialog [class*="animal-modalClipped"]::before,
 .confirm-dialog [class*="animal-modalClipped"]::before {
   position: absolute;
   inset: 0;
@@ -1713,6 +1797,7 @@ textarea:focus-visible,
 .habit-modal [class*="animal-body"],
 .task-detail-modal [class*="animal-body"],
 .tag-maintenance-modal [class*="animal-body"],
+.profile-security-dialog [class*="animal-body"],
 .confirm-dialog [class*="animal-body"] {
   overflow: visible;
 }
@@ -1737,6 +1822,31 @@ textarea:focus-visible,
   padding: 0 calc(18px * var(--app-ui-scale)) !important;
   border-radius: 999px !important;
   font-weight: 900 !important;
+}
+
+.tag-maintenance-form .primary-button,
+.tag-maintenance-form .primary-button[class*="animal-btn-"] {
+  border-color: color-mix(in srgb, var(--color-primary) 76%, var(--color-border)) !important;
+  background: var(--color-primary) !important;
+  box-shadow: 0 3px 0 color-mix(in srgb, var(--color-shadow) 78%, transparent) !important;
+  color: var(--color-on-primary) !important;
+}
+
+.tag-maintenance-form .primary-button > span {
+  gap: calc(7px * var(--app-ui-scale));
+}
+
+.tag-maintenance-form .primary-button [class*="animal-btn-icon"],
+.tag-maintenance-form .primary-button svg {
+  width: calc(16px * var(--app-ui-scale));
+  height: calc(16px * var(--app-ui-scale));
+  flex: 0 0 auto;
+  color: inherit !important;
+  stroke: currentColor !important;
+}
+
+.tag-maintenance-form .primary-button svg [stroke]:not([stroke="none"]) {
+  stroke: currentColor !important;
 }
 
 .tag-maintenance-list {
@@ -3082,8 +3192,17 @@ textarea::placeholder {
   border: 2px solid color-mix(in srgb, var(--habit-accent) 28%, var(--color-surface));
   border-radius: 999px;
   background: color-mix(in srgb, var(--habit-accent) 18%, var(--color-surface));
-  color: var(--habit-accent);
+  color: var(--habit-accent) !important;
   box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.56);
+}
+
+.habit-icon-badge svg {
+  color: var(--habit-accent) !important;
+  stroke: currentColor !important;
+}
+
+.habit-icon-badge svg [stroke]:not([stroke="none"]) {
+  stroke: currentColor !important;
 }
 
 .habit-card-stats,
@@ -3312,8 +3431,13 @@ textarea::placeholder {
 }
 
 .habit-calendar-day-icon {
-  color: var(--habit-accent);
+  color: var(--habit-accent) !important;
+  stroke: currentColor !important;
   stroke-width: 2.4;
+}
+
+.habit-calendar-day-icon [stroke]:not([stroke="none"]) {
+  stroke: currentColor !important;
 }
 
 .habit-calendar-day.is-future {
@@ -3636,9 +3760,11 @@ textarea::placeholder {
   height: calc(30px * var(--app-ui-scale));
   gap: 3px;
   padding: 2px;
-  border: 1px solid color-mix(in srgb, var(--color-border) 78%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-primary) 34%, var(--color-border));
   border-radius: 999px;
-  background: color-mix(in srgb, var(--color-surface-strong) 82%, var(--color-surface));
+  background:
+    var(--island-paper-dots) 0 0 / 16px 16px,
+    color-mix(in srgb, var(--color-surface-strong) 76%, var(--color-background));
   box-shadow: inset 0 2px 4px var(--color-soft-shadow);
 }
 
@@ -3647,13 +3773,32 @@ textarea::placeholder {
   min-width: calc(48px * var(--app-ui-scale));
   min-height: calc(22px * var(--app-ui-scale)) !important;
   padding: 0 calc(9px * var(--app-ui-scale)) !important;
+  border: 1px solid transparent !important;
   border-radius: 999px !important;
+  background: transparent !important;
   box-shadow: none !important;
+  color: color-mix(in srgb, var(--color-muted) 78%, var(--color-text)) !important;
   line-height: 1 !important;
 }
 
 .segmented-control .is-active {
-  box-shadow: 0 2px 0 var(--color-shadow) !important;
+  border-color: color-mix(in srgb, var(--color-primary) 72%, var(--color-border)) !important;
+  background: var(--color-primary) !important;
+  box-shadow: 0 2px 0 color-mix(in srgb, var(--color-shadow) 78%, transparent) !important;
+  color: var(--color-on-primary) !important;
+}
+
+.segmented-control button:hover:not(:disabled),
+.segmented-control button:focus-visible {
+  border-color: color-mix(in srgb, var(--color-primary) 42%, var(--color-border)) !important;
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent) !important;
+  color: color-mix(in srgb, var(--color-primary) 70%, var(--color-text)) !important;
+}
+
+.segmented-control .is-active:hover:not(:disabled),
+.segmented-control .is-active:focus-visible {
+  background: color-mix(in srgb, var(--color-primary) 86%, var(--color-surface-strong)) !important;
+  color: var(--color-on-primary) !important;
 }
 
 .calendar-heading {
@@ -3674,6 +3819,11 @@ textarea::placeholder {
   color: var(--color-text) !important;
   box-shadow: 0 2px 0 var(--color-shadow) !important;
   flex: 0 0 calc(30px * var(--app-ui-scale));
+}
+
+.calendar-today-button svg {
+  width: calc(15px * var(--app-ui-scale));
+  height: calc(15px * var(--app-ui-scale));
 }
 
 .calendar-heading strong {
@@ -3747,11 +3897,18 @@ textarea::placeholder {
   box-shadow: inset 0 0 0 2px var(--color-shadow);
 }
 
+.calendar-date-number {
+  display: block;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  transform: translateY(-0.06em);
+}
+
 .calendar-cell.is-today header strong {
   background: var(--color-primary);
   color: var(--color-on-primary);
   box-shadow:
-    inset 0 0 0 2px color-mix(in srgb, #ffffff 54%, var(--color-primary)),
+    inset 0 0 0 2px color-mix(in srgb, var(--color-surface) 54%, var(--color-primary)),
     0 2px 0 color-mix(in srgb, var(--color-primary) 48%, var(--color-border));
 }
 
@@ -3842,7 +3999,7 @@ textarea::placeholder {
 .calendar-task-popover-meta span {
   padding: calc(2px * var(--app-ui-scale)) calc(8px * var(--app-ui-scale));
   border-radius: 999px;
-  background: color-mix(in srgb, var(--color-surface-strong) 70%, #ffffff);
+  background: color-mix(in srgb, var(--color-surface-strong) 70%, var(--color-surface));
   color: var(--color-muted);
   font-size: calc(11px * var(--app-ui-scale));
   font-weight: 900;
@@ -3854,6 +4011,25 @@ textarea::placeholder {
   min-height: calc(30px * var(--app-ui-scale)) !important;
   padding: 0 calc(13px * var(--app-ui-scale)) !important;
   font-size: calc(12px * var(--app-ui-scale)) !important;
+}
+
+.calendar-task-popover-action[class*="animal-btn-"] {
+  border-color: color-mix(in srgb, var(--color-primary) 72%, var(--color-border)) !important;
+  background: var(--color-primary) !important;
+  box-shadow: 0 3px 0 color-mix(in srgb, var(--color-shadow) 78%, transparent) !important;
+  color: var(--color-on-primary) !important;
+}
+
+.calendar-task-popover-action[class*="animal-btn-"]:hover:not(:disabled),
+.calendar-task-popover-action[class*="animal-btn-"]:focus-visible {
+  background: color-mix(in srgb, var(--color-primary) 86%, var(--color-surface-strong)) !important;
+  color: var(--color-on-primary) !important;
+}
+
+.calendar-task-popover-action[class*="animal-btn-"]:disabled {
+  border-color: color-mix(in srgb, var(--color-border) 70%, transparent) !important;
+  background: color-mix(in srgb, var(--color-surface-strong) 76%, var(--color-surface)) !important;
+  color: var(--color-muted) !important;
 }
 
 .pomodoro-layout {
@@ -4651,21 +4827,67 @@ textarea::placeholder {
   justify-self: start;
 }
 
+.profile-security-dialog [class*="animal-modal-"] {
+  color: var(--color-text) !important;
+}
+
+.profile-security-dialog [class*="animal-header"],
+.profile-security-dialog [class*="animal-title"] {
+  color: var(--color-text) !important;
+}
+
+.profile-security-dialog [class*="animal-body"] {
+  color: var(--color-text) !important;
+}
+
 .profile-security-tabs {
   width: 100%;
 }
 
 .profile-security-tabs > [class*="animal-tabList"] {
   justify-content: center;
+  gap: calc(8px * var(--app-ui-scale));
+  padding: calc(8px * var(--app-ui-scale));
+  border: 1px solid color-mix(in srgb, var(--color-border) 72%, transparent);
+  border-radius: calc(18px * var(--app-ui-scale)) calc(18px * var(--app-ui-scale)) 0 0;
+  background:
+    var(--island-paper-dots) 0 0 / 16px 16px,
+    color-mix(in srgb, var(--color-surface) 92%, var(--color-background));
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--color-border) 64%, transparent);
+}
+
+.profile-security-tabs > [class*="animal-tabList"] button,
+.profile-security-tabs > [class*="animal-tabList"] [role="tab"] {
+  border-color: transparent !important;
+  background: transparent !important;
+  color: var(--color-muted) !important;
+  box-shadow: none !important;
+}
+
+.profile-security-tabs > [class*="animal-tabList"] button[aria-selected="true"],
+.profile-security-tabs > [class*="animal-tabList"] [role="tab"][aria-selected="true"],
+.profile-security-tabs > [class*="animal-tabList"] button[class*="active"],
+.profile-security-tabs > [class*="animal-tabList"] [role="tab"][class*="active"] {
+  border-color: color-mix(in srgb, var(--color-primary) 72%, var(--color-border)) !important;
+  background: var(--color-primary) !important;
+  color: var(--color-on-primary) !important;
+  box-shadow: 0 3px 0 color-mix(in srgb, var(--color-shadow) 82%, transparent) !important;
 }
 
 .profile-security-tabs > [class*="animal-tabContent"] {
   width: 100%;
+  border: 1px solid color-mix(in srgb, var(--color-border) 72%, transparent);
+  border-top: 0;
+  border-radius: 0 0 calc(18px * var(--app-ui-scale)) calc(18px * var(--app-ui-scale));
+  background:
+    var(--island-paper-dots) 0 0 / 16px 16px,
+    color-mix(in srgb, var(--color-surface) 92%, var(--color-background));
 }
 
 .profile-security-tabs [class*="animal-tabContentInner"] {
   display: grid;
   justify-items: center;
+  padding: calc(20px * var(--app-ui-scale)) calc(18px * var(--app-ui-scale));
 }
 
 .profile-security-tab-label {
@@ -4679,6 +4901,11 @@ textarea::placeholder {
   display: grid;
   width: min(100%, 420px);
   gap: calc(16px * var(--app-ui-scale));
+  color: var(--color-text);
+}
+
+.profile-security-panel label > span {
+  color: var(--color-muted);
 }
 
 .profile-security-panel .primary-button {

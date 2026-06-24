@@ -28,7 +28,7 @@ describe("useAppUpdater", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     Reflect.deleteProperty(window, "__TAURI_INTERNALS__");
-    mocks.getVersion.mockResolvedValue("0.2.13");
+    mocks.getVersion.mockResolvedValue("0.2.14");
     mocks.relaunch.mockResolvedValue(undefined);
   });
 
@@ -62,7 +62,7 @@ describe("useAppUpdater", () => {
     });
 
     expect(result.current.status).toBe("current");
-    expect(result.current.currentVersion).toBe("0.2.13");
+    expect(result.current.currentVersion).toBe("0.2.14");
     expect(result.current.targetVersion).toBeNull();
   });
 
@@ -70,7 +70,7 @@ describe("useAppUpdater", () => {
     enableTauriRuntime();
     const update = {
       currentVersion: "0.2.1",
-      version: "0.2.13",
+      version: "0.2.14",
       date: "2026-06-15T00:00:00.000Z",
       body: "新增应用内更新",
       downloadAndInstall: vi.fn(async (onEvent: (event: unknown) => void) => {
@@ -88,7 +88,7 @@ describe("useAppUpdater", () => {
     });
 
     expect(result.current.status).toBe("available");
-    expect(result.current.targetVersion).toBe("0.2.13");
+    expect(result.current.targetVersion).toBe("0.2.14");
     expect(result.current.releaseNotes).toBe("新增应用内更新");
 
     await act(async () => {

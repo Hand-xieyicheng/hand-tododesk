@@ -931,7 +931,7 @@ export function ProfileCenter({
         </Card>
       </div>
 
-      <Modal open={securityOpen} title="账号安全" width={760} footer={null} typewriter={false} onClose={() => setSecurityOpen(false)}>
+      <Modal className="profile-security-dialog" open={securityOpen} title="账号安全" width={760} footer={null} typewriter={false} onClose={() => setSecurityOpen(false)}>
         <Tabs className="profile-security-tabs profile-security-modal" defaultActiveKey="email" items={securityTabs} />
       </Modal>
     </section>

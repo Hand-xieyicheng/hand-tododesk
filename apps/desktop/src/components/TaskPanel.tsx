@@ -396,7 +396,7 @@ function TagMaintenanceModal({ open, tags, onChanged, onClose }: TagMaintenanceM
         <div className="tag-maintenance-content">
           <form className="tag-maintenance-form" onSubmit={createTag}>
             <Input value={name} onChange={(event) => setName(event.target.value)} placeholder="输入标签名称" maxLength={40} allowClear shadow />
-            <Button htmlType="submit" icon={<Plus size={15} />} loading={busy} type="primary">
+            <Button className="primary-button tag-maintenance-submit" htmlType="submit" icon={<Plus size={15} />} loading={busy} type="primary">
               新增
             </Button>
           </form>

@@ -185,7 +185,7 @@ export function CalendarView({ onChanged }: CalendarViewProps) {
             <Card className={isToday ? "calendar-cell is-today" : "calendar-cell"} key={key} pattern={items.length > 0 ? "app-yellow" : "default"} style={cellStyle}>
               <header>
                 <span>{cell.toLocaleDateString("zh-CN", { weekday: "short" })}</span>
-                <strong>{cell.getDate()}</strong>
+                <strong><span className="calendar-date-number">{cell.getDate()}</span></strong>
               </header>
               <div className="calendar-items">
                 {items.map((item) => (
