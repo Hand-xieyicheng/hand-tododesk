@@ -123,6 +123,37 @@ fn open_floating_card(app: AppHandle, url: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn open_memo_floating_card(app: AppHandle, memo_id: String) -> Result<(), String> {
+    let normalized_memo_id = memo_id.trim();
+    if normalized_memo_id.is_empty()
+        || !normalized_memo_id
+            .chars()
+            .all(|character| character.is_ascii_alphanumeric() || character == '-' || character == '_')
+    {
+        return Err("Unsupported memo id".to_string());
+    }
+
+    let label = format!("memo-card-{normalized_memo_id}");
+    if let Some(window) = app.get_webview_window(&label) {
+        let _ = window.show();
+        let _ = window.set_focus();
+        return Ok(());
+    }
+
+    let url = format!("/?window=memo&memoId={normalized_memo_id}");
+    WebviewWindowBuilder::new(&app, label, WebviewUrl::App(url.into()))
+        .title(format!("{APP_NAME} 备忘录"))
+        .inner_size(380.0, 520.0)
+        .min_inner_size(300.0, 340.0)
+        .always_on_top(false)
+        .decorations(false)
+        .resizable(true)
+        .build()
+        .map(|_| ())
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
 fn set_app_close_behavior(
     preferences: tauri::State<'_, AppWindowPreferences>,
     behavior: String,
@@ -246,6 +277,7 @@ pub fn run() {
             load_remembered_password,
             delete_remembered_password,
             open_floating_card,
+            open_memo_floating_card,
             set_app_close_behavior,
             show_main_window
         ])

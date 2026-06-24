@@ -341,6 +341,7 @@ async function ensureIncrementalSchema() {
   await ensureColumn("UserThemePreference", "showCompletedTasks", "ALTER TABLE `UserThemePreference` ADD COLUMN `showCompletedTasks` BOOLEAN NOT NULL DEFAULT TRUE");
   await ensureColumn("UserThemePreference", "taskViewMode", "ALTER TABLE `UserThemePreference` ADD COLUMN `taskViewMode` VARCHAR(191) NOT NULL DEFAULT 'list'");
   await ensureColumn("UserThemePreference", "taskCardDisplayMode", "ALTER TABLE `UserThemePreference` ADD COLUMN `taskCardDisplayMode` VARCHAR(191) NOT NULL DEFAULT 'full'");
+  await ensureColumn("UserThemePreference", "floatingCardThemeId", "ALTER TABLE `UserThemePreference` ADD COLUMN `floatingCardThemeId` VARCHAR(191) NOT NULL DEFAULT 'warm-paper'");
   await ensureColumn("UserThemePreference", "appCloseBehavior", "ALTER TABLE `UserThemePreference` ADD COLUMN `appCloseBehavior` VARCHAR(191) NOT NULL DEFAULT 'hide'");
   await ensureColumn("UserThemePreference", "displaySize", "ALTER TABLE `UserThemePreference` ADD COLUMN `displaySize` VARCHAR(191) NOT NULL DEFAULT 'default'");
   await ensureColumn("UserThemePreference", "visibleSidebarModules", "ALTER TABLE `UserThemePreference` ADD COLUMN `visibleSidebarModules` VARCHAR(191) NOT NULL DEFAULT 'tasks,memos,anniversaries,habits,calendar,pomodoro'");

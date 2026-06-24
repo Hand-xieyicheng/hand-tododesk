@@ -16,6 +16,7 @@ import {
   createTaskRequestSchema,
   defaultAppFeatureFlags,
   displaySizeValues,
+  floatingCardThemeIdValues,
   fontFamilyValues,
   footerTypeValues,
   habitColorValues,
@@ -58,6 +59,23 @@ describe("profile schemas", () => {
     expect(footerTypeValues).toEqual(["sea", "tree"]);
     expect(taskViewModeValues).toEqual(["list", "quadrant"]);
     expect(taskCardDisplayModeValues).toEqual(["full", "title"]);
+    expect(floatingCardThemeIdValues).toEqual([
+      "warm-paper",
+      "white-ink",
+      "black-snow",
+      "cream",
+      "blush",
+      "peach",
+      "lemon",
+      "mint",
+      "sage",
+      "sky",
+      "aqua",
+      "lavender",
+      "coral",
+      "teal",
+      "navy"
+    ]);
     expect(appCloseBehaviorValues).toEqual(["hide", "quit"]);
     expect(displaySizeValues).toEqual(["small", "default", "large"]);
     expect(fontFamilyValues).toEqual([
@@ -92,6 +110,8 @@ describe("profile schemas", () => {
     expect(updateThemePreferenceRequestSchema.parse({ taskCardDisplayMode: "full" })).toEqual({ taskCardDisplayMode: "full" });
     expect(updateThemePreferenceRequestSchema.parse({ taskCardDisplayMode: "title" })).toEqual({ taskCardDisplayMode: "title" });
     expect(updateThemePreferenceRequestSchema.safeParse({ taskCardDisplayMode: "compact" }).success).toBe(false);
+    expect(updateThemePreferenceRequestSchema.parse({ floatingCardThemeId: "black-snow" })).toEqual({ floatingCardThemeId: "black-snow" });
+    expect(updateThemePreferenceRequestSchema.safeParse({ floatingCardThemeId: "custom" }).success).toBe(false);
     expect(updateThemePreferenceRequestSchema.parse({ appCloseBehavior: "hide" })).toEqual({ appCloseBehavior: "hide" });
     expect(updateThemePreferenceRequestSchema.parse({ appCloseBehavior: "quit" })).toEqual({ appCloseBehavior: "quit" });
     expect(updateThemePreferenceRequestSchema.safeParse({ appCloseBehavior: "close" }).success).toBe(false);
@@ -127,11 +147,11 @@ describe("app bootstrap schema", () => {
     });
 
     expect(appBootstrapResponseSchema.parse({
-      apiVersion: "0.2.11",
+      apiVersion: "0.2.12",
       releaseChannel: "stable",
       desktop: {
         minimumVersion: "0.1.0",
-        latestVersion: "0.2.11",
+        latestVersion: "0.2.12",
         updateEndpoint: "https://github.com/Hand-xieyicheng/hand-tododesk/releases/latest/download/latest.json"
       },
       featureFlags: {
@@ -147,11 +167,11 @@ describe("app bootstrap schema", () => {
 
   it("rejects unsupported release channels", () => {
     expect(appBootstrapResponseSchema.safeParse({
-      apiVersion: "0.2.11",
+      apiVersion: "0.2.12",
       releaseChannel: "beta",
       desktop: {
         minimumVersion: "0.1.0",
-        latestVersion: "0.2.11",
+        latestVersion: "0.2.12",
         updateEndpoint: "https://github.com/Hand-xieyicheng/hand-tododesk/releases/latest/download/latest.json"
       },
       featureFlags: defaultAppFeatureFlags

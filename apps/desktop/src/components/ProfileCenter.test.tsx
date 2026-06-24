@@ -59,11 +59,11 @@ const user: ApiUser = {
 };
 
 const appBootstrap: AppBootstrapResponse = {
-  apiVersion: "0.2.11",
+  apiVersion: "0.2.12",
   releaseChannel: "stable",
   desktop: {
     minimumVersion: "0.1.0",
-    latestVersion: "0.2.11",
+    latestVersion: "0.2.12",
     updateEndpoint: "https://example.com/latest.json"
   },
   featureFlags: {
@@ -88,7 +88,7 @@ const sidebarModuleOptions: Array<{ id: SidebarModule; label: string }> = [
 function createUpdater(status: AppUpdaterController["status"]): AppUpdaterController {
   return {
     status,
-    currentVersion: "0.2.11",
+    currentVersion: "0.2.12",
     targetVersion: null,
     releaseDate: null,
     releaseNotes: null,
@@ -109,6 +109,7 @@ function renderProfile(updater: AppUpdaterController, props: Partial<Parameters<
       appBootstrap={appBootstrap}
       appCloseBehavior="hide"
       displaySize="default"
+      floatingCardThemeId="warm-paper"
       footerVisible
       footerType="sea"
       fontFamily="system"
@@ -119,6 +120,7 @@ function renderProfile(updater: AppUpdaterController, props: Partial<Parameters<
       visibleSidebarModules={defaultVisibleSidebarModules}
       onFooterVisibleChanged={vi.fn()}
       onFooterTypeChanged={vi.fn()}
+      onFloatingCardThemeChanged={vi.fn()}
       onFontFamilyChanged={vi.fn()}
       onAppCloseBehaviorChanged={vi.fn()}
       onDisplaySizeChanged={vi.fn()}
@@ -197,5 +199,15 @@ describe("ProfileCenter", () => {
     expect(screen.getByText("南西新圆体")).toBeInTheDocument();
     expect(screen.getByText("乐米小奶泡体")).toBeInTheDocument();
     expect(screen.getByText("白无常可可体")).toBeInTheDocument();
+  });
+
+  it("shows floating card theme settings in theme configuration", () => {
+    renderProfile(createUpdater("idle"));
+
+    expect(screen.getByText("固定卡片主题")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "固定卡片主题 暖纸" })).toHaveAttribute("data-floating-card-theme", "warm-paper");
+    expect(screen.getByRole("button", { name: "固定卡片主题 白底黑字" })).toHaveAttribute("data-floating-card-theme", "white-ink");
+    expect(screen.getByRole("button", { name: "固定卡片主题 黑底白字" })).toHaveAttribute("data-floating-card-theme", "black-snow");
+    expect(screen.getByRole("button", { name: "固定卡片主题 深海蓝" })).toHaveAttribute("data-floating-card-theme", "navy");
   });
 });

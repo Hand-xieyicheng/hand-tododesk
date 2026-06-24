@@ -11,6 +11,10 @@ const apiMock = vi.hoisted(() => ({
   uploadMemoAsset: vi.fn()
 }));
 
+const tauriCoreMock = vi.hoisted(() => ({
+  invoke: vi.fn()
+}));
+
 vi.mock("animal-island-ui", () => ({
   Button: ({ children, className, danger, disabled, icon, loading, onClick, type, ...props }: any) => (
     <button
@@ -48,6 +52,8 @@ vi.mock("animal-island-ui", () => ({
 vi.mock("../api/client", () => ({
   api: apiMock
 }));
+
+vi.mock("@tauri-apps/api/core", () => tauriCoreMock);
 
 const memoListItem = {
   id: "memo-1",
@@ -96,6 +102,7 @@ describe("MemoPanel", () => {
     vi.clearAllMocks();
     apiMock.memos.mockResolvedValue({ memos: [memoListItem] });
     apiMock.memo.mockResolvedValue({ memo: memoDetail });
+    tauriCoreMock.invoke.mockResolvedValue(undefined);
   });
 
   it("uses a compact search input with icon-only label and updated placeholder", () => {
@@ -139,8 +146,53 @@ describe("MemoPanel", () => {
       "六级标题",
       "加粗",
       "插入表格",
-      "插入图片"
+      "插入图片",
+      "固定到桌面"
     ]));
+  });
+
+  it("saves the current memo before opening it as a desktop card", async () => {
+    apiMock.updateMemo.mockImplementation(async (_id: string, input: any) => ({
+      memo: {
+        ...memoDetail,
+        ...input,
+        excerpt: "更新摘要",
+        updatedAt: "2026-06-17T08:01:00.000Z"
+      }
+    }));
+
+    render(<MemoPanel />);
+
+    const editor = await screen.findByRole("textbox", { name: "备忘录正文" });
+    await waitFor(() => expect(apiMock.memo).toHaveBeenCalledWith("memo-1"));
+
+    const nextHtml = "<p>固定前先保存</p>";
+    editor.innerHTML = nextHtml;
+    fireEvent.input(editor);
+    fireEvent.click(screen.getByRole("button", { name: "固定到桌面" }));
+
+    await waitFor(() => expect(apiMock.updateMemo).toHaveBeenCalledWith("memo-1", expect.objectContaining({
+      contentHtml: nextHtml
+    })));
+    await waitFor(() => expect(tauriCoreMock.invoke).toHaveBeenCalledWith("open_memo_floating_card", { memoId: "memo-1" }));
+  });
+
+  it("opens an independent browser window when the native memo card command is unavailable", async () => {
+    const openMock = vi.spyOn(window, "open").mockReturnValue({ focus: vi.fn() } as unknown as Window);
+    tauriCoreMock.invoke.mockRejectedValueOnce(new Error("Tauri is unavailable"));
+
+    render(<MemoPanel />);
+
+    await waitFor(() => expect(apiMock.memo).toHaveBeenCalledWith("memo-1"));
+    fireEvent.click(screen.getByRole("button", { name: "固定到桌面" }));
+
+    await waitFor(() => expect(openMock).toHaveBeenCalledWith(
+      "/?window=memo&memoId=memo-1",
+      "tododesk-memo-memo-1",
+      "width=380,height=520"
+    ));
+
+    openMock.mockRestore();
   });
 
   it("keeps memo list content in place while search refresh is pending", async () => {

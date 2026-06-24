@@ -306,6 +306,7 @@ model UserThemePreference {
   showCompletedTasks Boolean  @default(true)
   taskViewMode       String   @default("list")
   taskCardDisplayMode String   @default("full")
+  floatingCardThemeId String   @default("warm-paper")
   appCloseBehavior   String   @default("hide")
   displaySize        String   @default("default")
   visibleSidebarModules String @default("tasks,memos,anniversaries,habits,calendar,pomodoro")

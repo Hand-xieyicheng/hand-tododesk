@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
-import type { FormEvent, MouseEvent, PointerEvent } from "react";
-import { defaultVisibleSidebarModules, sortTasksForDisplay, type ApiTag, type ApiTask, type ApiThemePreference, type CreateTaskRequest, type TaskCardDisplayMode, type TaskPriority, type TaskStatus, type UpdateTaskRequest } from "@todo/shared";
+import type { CSSProperties, FormEvent } from "react";
+import { defaultVisibleSidebarModules, sortTasksForDisplay, type ApiTag, type ApiTask, type ApiThemePreference, type CreateTaskRequest, type FloatingCardThemeId, type TaskCardDisplayMode, type TaskPriority, type TaskStatus, type UpdateTaskRequest } from "@todo/shared";
 import { Button, Card, Input, Select, Tooltip } from "animal-island-ui";
-import { Check, Eye, EyeOff, Monitor, Pencil, Pin, Plus, RefreshCw, Save, X } from "lucide-react";
+import { Check, Eye, EyeOff, Pencil, Plus, RefreshCw, Save, X } from "lucide-react";
 import { api } from "../api/client";
-import todoDeskLogo from "../assets/tododesk-logo.png";
 import { applyDisplaySize } from "../lib/displaySize";
 import { getTodayEndDatetimeLocal, toDatetimeLocal } from "../lib/datetime";
+import { defaultFloatingCardThemeId, getFloatingCardThemeStyle, normalizeFloatingCardThemeId } from "../lib/floatingCardThemes";
 import { applyFontFamily } from "../lib/fonts";
 import { applyTheme } from "../lib/themes";
+import { FloatingWindowHeader } from "./FloatingWindowHeader";
 
 type FormMode = "create" | "edit";
 
@@ -45,6 +46,7 @@ const defaultThemePreference: ApiThemePreference = {
   showCompletedTasks: true,
   taskViewMode: "list",
   taskCardDisplayMode: "full",
+  floatingCardThemeId: defaultFloatingCardThemeId,
   appCloseBehavior: "hide",
   displaySize: "default",
   visibleSidebarModules: defaultVisibleSidebarModules,
@@ -78,119 +80,12 @@ function dueAtToIso(value: string) {
   return value ? new Date(value).toISOString() : null;
 }
 
-function FloatingHeader() {
-  const [isAlwaysOnTop, setIsAlwaysOnTop] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function syncAlwaysOnTop() {
-      try {
-        const { getCurrentWindow } = await import("@tauri-apps/api/window");
-        const current = await getCurrentWindow().isAlwaysOnTop();
-        if (!cancelled) {
-          setIsAlwaysOnTop(current);
-        }
-      } catch {
-        // Browser preview fallback.
-      }
-    }
-
-    void syncAlwaysOnTop();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  async function dragWindow(event: PointerEvent<HTMLElement>) {
-    if (event.button !== 0) {
-      return;
-    }
-
-    event.preventDefault();
-    try {
-      const { getCurrentWindow } = await import("@tauri-apps/api/window");
-      await getCurrentWindow().startDragging();
-    } catch {
-      // Browser preview fallback.
-    }
-  }
-
-  async function toggleAlwaysOnTop(event: MouseEvent<HTMLButtonElement>) {
-    event.stopPropagation();
-
-    const previous = isAlwaysOnTop;
-    const next = !isAlwaysOnTop;
-    setIsAlwaysOnTop(next);
-
-    try {
-      const { getCurrentWindow } = await import("@tauri-apps/api/window");
-      const currentWindow = getCurrentWindow();
-      await currentWindow.setAlwaysOnTop(next);
-      setIsAlwaysOnTop(await currentWindow.isAlwaysOnTop().catch(() => next));
-    } catch {
-      if ("__TAURI_INTERNALS__" in window) {
-        setIsAlwaysOnTop(previous);
-      }
-    }
-  }
-
-  async function closeWindow(event: MouseEvent<HTMLButtonElement>) {
-    event.stopPropagation();
-    try {
-      const { getCurrentWindow } = await import("@tauri-apps/api/window");
-      await getCurrentWindow().close();
-    } catch {
-      window.close();
-    }
-  }
-
-  async function openDesktop(event: MouseEvent<HTMLButtonElement>) {
-    event.stopPropagation();
-    try {
-      const { invoke } = await import("@tauri-apps/api/core");
-      await invoke("show_main_window");
-    } catch {
-      window.opener?.focus?.();
-    }
-  }
-
-  return (
-    <header className="floating-header">
-      <div className="floating-header-actions">
-        <Button
-          aria-label={isAlwaysOnTop ? "取消固定在最前" : "固定在最前"}
-          className={isAlwaysOnTop ? "floating-pin-button is-active" : "floating-pin-button"}
-          icon={<Pin size={16} />}
-          size="small"
-          title={isAlwaysOnTop ? "取消固定在最前" : "固定在最前"}
-          type="text"
-          onClick={toggleAlwaysOnTop}
-        />
-        <Button
-          aria-label="打开桌面"
-          className="floating-desktop-button"
-          icon={<Monitor size={16} />}
-          size="small"
-          title="打开桌面"
-          type="text"
-          onClick={openDesktop}
-        />
-      </div>
-      <button className="floating-drag-handle" type="button" title="拖动卡片" onPointerDown={dragWindow}>
-        <img className="floating-logo" src={todoDeskLogo} alt="小柴记" />
-      </button>
-      <Button aria-label="关闭" icon={<X size={16} />} size="small" title="关闭" type="text" onClick={closeWindow} />
-    </header>
-  );
-}
-
 export function FloatingCard() {
   const [tasks, setTasks] = useState<ApiTask[]>([]);
   const [tags, setTags] = useState<ApiTag[]>([]);
   const [showCompletedTasks, setShowCompletedTasks] = useState(defaultThemePreference.showCompletedTasks);
   const [taskCardDisplayMode, setTaskCardDisplayMode] = useState<TaskCardDisplayMode>(defaultThemePreference.taskCardDisplayMode);
+  const [floatingCardThemeId, setFloatingCardThemeId] = useState<FloatingCardThemeId>(() => normalizeFloatingCardThemeId(localStorage.getItem("tododesk.floatingCardThemeId")));
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [savingTaskId, setSavingTaskId] = useState<string | null>(null);
@@ -209,12 +104,16 @@ export function FloatingCard() {
   const openTaskCount = useMemo(() => tasks.filter((task) => task.status !== "COMPLETED").length, [tasks]);
   const formTitle = formMode === "edit" ? "编辑待办" : "新增待办";
   const showCompletedAction = showCompletedTasks ? "隐藏已完成待办" : "显示已完成待办";
+  const floatingCardStyle = useMemo(() => getFloatingCardThemeStyle(floatingCardThemeId) as CSSProperties, [floatingCardThemeId]);
 
   function applyThemePreference(preference: ApiThemePreference) {
+    const nextFloatingCardThemeId = normalizeFloatingCardThemeId(preference.floatingCardThemeId);
     setShowCompletedTasks(preference.showCompletedTasks);
     setTaskCardDisplayMode(preference.taskCardDisplayMode);
+    setFloatingCardThemeId(nextFloatingCardThemeId);
     localStorage.setItem("tododesk.theme", preference.themeId);
     localStorage.setItem("tododesk.displaySize", preference.displaySize);
+    localStorage.setItem("tododesk.floatingCardThemeId", nextFloatingCardThemeId);
     localStorage.setItem("tododesk.fontFamily", preference.fontFamily);
     applyTheme(preference.themeId);
     applyDisplaySize(preference.displaySize);
@@ -386,8 +285,8 @@ export function FloatingCard() {
   }
 
   return (
-    <div className="floating-card">
-      <FloatingHeader />
+    <div className="floating-card" style={floatingCardStyle}>
+      <FloatingWindowHeader />
       <div className="floating-toolbar">
         <Button className="floating-toolbar-primary" icon={<Plus size={15} />} size="small" type="default" onClick={beginCreate}>
           新增

@@ -75,6 +75,23 @@ export const habitColorValues = ["mint", "blue", "yellow", "orange", "rose", "pu
 export const themeIdValues = ["default", "shinchan", "labubu", "doraemon"] as const;
 export const taskViewModeValues = ["list", "quadrant"] as const;
 export const taskCardDisplayModeValues = ["full", "title"] as const;
+export const floatingCardThemeIdValues = [
+  "warm-paper",
+  "white-ink",
+  "black-snow",
+  "cream",
+  "blush",
+  "peach",
+  "lemon",
+  "mint",
+  "sage",
+  "sky",
+  "aqua",
+  "lavender",
+  "coral",
+  "teal",
+  "navy"
+] as const;
 export const appCloseBehaviorValues = ["hide", "quit"] as const;
 export const displaySizeValues = ["small", "default", "large"] as const;
 export const sidebarModuleValues = ["tasks", "memos", "anniversaries", "habits", "calendar", "pomodoro"] as const;
@@ -365,6 +382,7 @@ export const updateThemePreferenceRequestSchema = z
     showCompletedTasks: z.boolean().optional(),
     taskViewMode: z.enum(taskViewModeValues).optional(),
     taskCardDisplayMode: z.enum(taskCardDisplayModeValues).optional(),
+    floatingCardThemeId: z.enum(floatingCardThemeIdValues).optional(),
     appCloseBehavior: z.enum(appCloseBehaviorValues).optional(),
     displaySize: z.enum(displaySizeValues).optional(),
     visibleSidebarModules: z.array(z.enum(sidebarModuleValues)).optional(),
@@ -379,6 +397,7 @@ export const updateThemePreferenceRequestSchema = z
     value.showCompletedTasks !== undefined ||
     value.taskViewMode ||
     value.taskCardDisplayMode ||
+    value.floatingCardThemeId ||
     value.appCloseBehavior ||
     value.displaySize ||
     value.visibleSidebarModules !== undefined ||
@@ -473,6 +492,7 @@ export type TaskStatus = (typeof taskStatusValues)[number];
 export type TaskPriority = (typeof taskPriorityValues)[number];
 export type TaskViewMode = (typeof taskViewModeValues)[number];
 export type TaskCardDisplayMode = (typeof taskCardDisplayModeValues)[number];
+export type FloatingCardThemeId = (typeof floatingCardThemeIdValues)[number];
 export type AppCloseBehavior = (typeof appCloseBehaviorValues)[number];
 export type DisplaySize = (typeof displaySizeValues)[number];
 export type SidebarModule = (typeof sidebarModuleValues)[number];
@@ -494,6 +514,7 @@ export interface ApiThemePreference {
   showCompletedTasks: boolean;
   taskViewMode: TaskViewMode;
   taskCardDisplayMode: TaskCardDisplayMode;
+  floatingCardThemeId: FloatingCardThemeId;
   appCloseBehavior: AppCloseBehavior;
   displaySize: DisplaySize;
   visibleSidebarModules: SidebarModule[];

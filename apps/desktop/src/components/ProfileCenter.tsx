@@ -2,7 +2,7 @@ import { ChangeEvent, FormEvent, PointerEvent, useEffect, useMemo, useRef, useSt
 import { closestCenter, DndContext, KeyboardSensor, PointerSensor, type DragEndEvent, type DragStartEvent, useSensor, useSensors } from "@dnd-kit/core";
 import { arrayMove, rectSortingStrategy, SortableContext, sortableKeyboardCoordinates, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { appCloseBehaviorValues, displaySizeValues, fontFamilyValues, sidebarModuleValues, taskCardDisplayModeValues, titleColorValues, type ApiUser, type AppBootstrapResponse, type AppCloseBehavior, type DisplaySize, type FontFamily, type FooterType as AppFooterType, type SidebarModule, type TaskCardDisplayMode, type ThemeId, type TitleColor, type UserGender } from "@todo/shared";
+import { appCloseBehaviorValues, displaySizeValues, fontFamilyValues, sidebarModuleValues, taskCardDisplayModeValues, titleColorValues, type ApiUser, type AppBootstrapResponse, type AppCloseBehavior, type DisplaySize, type FloatingCardThemeId, type FontFamily, type FooterType as AppFooterType, type SidebarModule, type TaskCardDisplayMode, type ThemeId, type TitleColor, type UserGender } from "@todo/shared";
 import { Button, Card, Divider, Input, Modal, Radio, Select, Tabs, Title } from "animal-island-ui";
 import { Camera, Check, Download, GripVertical, KeyRound, Mail, RefreshCw, RotateCw, Save } from "lucide-react";
 import { api } from "../api/client";
@@ -14,6 +14,7 @@ import {
   getAvatarLayout
 } from "../lib/avatarCrop";
 import type { AppUpdaterController } from "../lib/useAppUpdater";
+import { floatingCardThemeOptions } from "../lib/floatingCardThemes";
 import { fontRegistry } from "../lib/fonts";
 import { ThemeSettings } from "./ThemeSettings";
 
@@ -22,6 +23,7 @@ interface ProfileCenterProps {
   appBootstrap: AppBootstrapResponse | null;
   appCloseBehavior: AppCloseBehavior;
   displaySize: DisplaySize;
+  floatingCardThemeId: FloatingCardThemeId;
   footerVisible: boolean;
   footerType: AppFooterType;
   fontFamily: FontFamily;
@@ -33,6 +35,7 @@ interface ProfileCenterProps {
   onAppCloseBehaviorChanged(appCloseBehavior: AppCloseBehavior): void;
   onFooterVisibleChanged(visible: boolean): void;
   onFooterTypeChanged(footerType: AppFooterType): void;
+  onFloatingCardThemeChanged(floatingCardThemeId: FloatingCardThemeId): void;
   onFontFamilyChanged(fontFamily: FontFamily): void;
   onDisplaySizeChanged(displaySize: DisplaySize): void;
   onPasswordChanged(): void;
@@ -256,6 +259,7 @@ export function ProfileCenter({
   appBootstrap,
   appCloseBehavior,
   displaySize,
+  floatingCardThemeId,
   footerVisible,
   footerType,
   fontFamily,
@@ -267,6 +271,7 @@ export function ProfileCenter({
   onAppCloseBehaviorChanged,
   onFooterVisibleChanged,
   onFooterTypeChanged,
+  onFloatingCardThemeChanged,
   onFontFamilyChanged,
   onDisplaySizeChanged,
   onPasswordChanged,
@@ -797,6 +802,31 @@ export function ProfileCenter({
                   onClick={() => onTitleColorChanged(color)}
                 >
                   {titleColor === color ? <Check size={15} /> : null}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="floating-card-theme-config">
+            <span className="floating-card-theme-label">固定卡片主题</span>
+            <div className="floating-card-theme-grid" aria-label="固定卡片主题">
+              {floatingCardThemeOptions.map((theme) => (
+                <button
+                  aria-label={`固定卡片主题 ${theme.label}`}
+                  className={floatingCardThemeId === theme.id ? "floating-card-theme-option is-active" : "floating-card-theme-option"}
+                  data-floating-card-theme={theme.id}
+                  key={theme.id}
+                  style={{
+                    background: theme.background,
+                    borderColor: theme.border,
+                    color: theme.text
+                  }}
+                  title={theme.label}
+                  type="button"
+                  onClick={() => onFloatingCardThemeChanged(theme.id)}
+                >
+                  <span className="floating-card-theme-sample" style={{ background: theme.surface, borderColor: theme.border }} />
+                  <strong>{theme.label}</strong>
+                  {floatingCardThemeId === theme.id ? <Check size={15} /> : null}
                 </button>
               ))}
             </div>

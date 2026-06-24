@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CSSProperties, PointerEvent } from "react";
-import { defaultAppFeatureFlags, defaultVisibleSidebarModules, type ApiTag, type ApiTask, type ApiThemePreference, type ApiUser, type AppBootstrapResponse, type AppCloseBehavior, type AppFeatureFlags, type DisplaySize, type FontFamily, type FooterType as AppFooterType, type SidebarModule, type TaskCardDisplayMode, type TaskViewMode, type ThemeId, type TitleColor } from "@todo/shared";
+import { defaultAppFeatureFlags, defaultVisibleSidebarModules, type ApiTag, type ApiTask, type ApiThemePreference, type ApiUser, type AppBootstrapResponse, type AppCloseBehavior, type AppFeatureFlags, type DisplaySize, type FloatingCardThemeId, type FontFamily, type FooterType as AppFooterType, type SidebarModule, type TaskCardDisplayMode, type TaskViewMode, type ThemeId, type TitleColor } from "@todo/shared";
 import { Button, Footer, Loading, Select, Title, Tooltip } from "animal-island-ui";
-import type { TitleSize } from "animal-island-ui";
 import { Bell, CalendarDays, CheckSquare2, Clock3, Eye, EyeOff, Flame, Hourglass, LayoutGrid, ListTodo, LogOut, NotebookPen, PanelLeftOpen, Pin, Plus, Tags, UserRound } from "lucide-react";
 import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { api, ApiError, authSessionExpiredEvent } from "./api/client";
@@ -18,11 +17,13 @@ import { ResetPasswordView } from "./components/ResetPasswordView";
 import { TaskPanel } from "./components/TaskPanel";
 import todoDeskLogo from "./assets/tododesk-logo.png";
 import { applyDisplaySize, normalizeDisplaySize } from "./lib/displaySize";
+import { defaultFloatingCardThemeId } from "./lib/floatingCardThemes";
 import { applyFontFamily, normalizeFontFamily } from "./lib/fonts";
 import { applyTheme } from "./lib/themes";
 import { clearSession, getSavedUser, saveUser } from "./lib/authStorage";
 import { useAppUpdater } from "./lib/useAppUpdater";
 import { compareVersions } from "./lib/version";
+import { getViewTitleSize } from "./lib/viewTitleSize";
 
 type View = SidebarModule | "profile";
 
@@ -45,12 +46,6 @@ const navItems: Array<{ id: SidebarModule; label: string; icon: typeof CheckSqua
   { id: "pomodoro", label: "番茄时钟", icon: Clock3 }
 ];
 
-const viewTitleSizes: Record<DisplaySize, TitleSize> = {
-  small: "small",
-  default: "middle",
-  large: "large"
-};
-
 const defaultThemePreference: ApiThemePreference = {
   themeId: "default",
   titleColor: "app-teal",
@@ -59,6 +54,7 @@ const defaultThemePreference: ApiThemePreference = {
   showCompletedTasks: true,
   taskViewMode: "list",
   taskCardDisplayMode: "full",
+  floatingCardThemeId: defaultFloatingCardThemeId,
   appCloseBehavior: "hide",
   displaySize: "default",
   visibleSidebarModules: defaultVisibleSidebarModules,
@@ -158,6 +154,7 @@ export function App() {
   const [footerType, setFooterType] = useState<AppFooterType>("sea");
   const [showCompletedTasks, setShowCompletedTasks] = useState(true);
   const [taskCardDisplayMode, setTaskCardDisplayMode] = useState<TaskCardDisplayMode>("full");
+  const [floatingCardThemeId, setFloatingCardThemeId] = useState<FloatingCardThemeId>(defaultFloatingCardThemeId);
   const [appCloseBehavior, setAppCloseBehavior] = useState<AppCloseBehavior>("hide");
   const [displaySize, setDisplaySize] = useState<DisplaySize>(() => normalizeDisplaySize(localStorage.getItem("tododesk.displaySize")));
   const [visibleSidebarModules, setVisibleSidebarModules] = useState<SidebarModule[]>(defaultVisibleSidebarModules);
@@ -205,7 +202,7 @@ export function App() {
             : activeView === "calendar"
               ? "日历模式"
               : activeView === "pomodoro" ? "番茄时钟" : "个人中心";
-  const viewTitleSize = viewTitleSizes[displaySize];
+  const viewTitleSize = getViewTitleSize(displaySize);
   const workspaceStyle = {
     "--workspace-footer-height": footerVisible ? (footerType === "sea" ? "var(--app-footer-height-sea)" : "var(--app-footer-height-tree)") : "0px",
     "--workspace-footer-gap": footerVisible ? "var(--app-footer-gap)" : "0px"
@@ -234,6 +231,7 @@ export function App() {
     setShowCompletedTasks(preference.showCompletedTasks);
     setTaskViewMode(preference.taskViewMode);
     setTaskCardDisplayMode(preference.taskCardDisplayMode);
+    setFloatingCardThemeId(preference.floatingCardThemeId);
     setAppCloseBehavior(preference.appCloseBehavior);
     setDisplaySize(nextDisplaySize);
     setVisibleSidebarModules(preference.visibleSidebarModules ?? defaultVisibleSidebarModules);
@@ -508,6 +506,15 @@ export function App() {
     void api.setThemePreference({ taskCardDisplayMode: next }).catch((error) => {
       setTaskCardDisplayMode(previous);
       setMessage(error instanceof Error ? error.message : "待办事项卡片显示配置保存失败");
+    });
+  }
+
+  function handleFloatingCardThemeChanged(next: FloatingCardThemeId) {
+    const previous = floatingCardThemeId;
+    setFloatingCardThemeId(next);
+    void api.setThemePreference({ floatingCardThemeId: next }).catch((error) => {
+      setFloatingCardThemeId(previous);
+      setMessage(error instanceof Error ? error.message : "固定卡片主题保存失败");
     });
   }
 
@@ -829,6 +836,7 @@ export function App() {
                 user={user}
                 footerType={footerType}
                 footerVisible={footerVisible}
+                floatingCardThemeId={floatingCardThemeId}
                 appCloseBehavior={appCloseBehavior}
                 displaySize={displaySize}
                 fontFamily={fontFamily}
@@ -840,6 +848,7 @@ export function App() {
                 onFontFamilyChanged={handleFontFamilyChanged}
                 onFooterTypeChanged={handleFooterTypeChanged}
                 onFooterVisibleChanged={handleFooterVisibleChanged}
+                onFloatingCardThemeChanged={handleFloatingCardThemeChanged}
                 onAppCloseBehaviorChanged={handleAppCloseBehaviorChanged}
                 onPasswordChanged={handlePasswordChanged}
                 onTaskCardDisplayModeChanged={handleTaskCardDisplayModeChanged}

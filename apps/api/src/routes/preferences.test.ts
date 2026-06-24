@@ -28,6 +28,7 @@ const currentPreference = {
   showCompletedTasks: 1,
   taskViewMode: "list",
   taskCardDisplayMode: "full",
+  floatingCardThemeId: "warm-paper",
   appCloseBehavior: "hide",
   displaySize: "default",
   visibleSidebarModules: "tasks,memos,anniversaries,habits,calendar,pomodoro",
@@ -63,6 +64,7 @@ describe("preference routes", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
       taskCardDisplayMode: "full",
+      floatingCardThemeId: "warm-paper",
       appCloseBehavior: "hide",
       visibleSidebarModules: ["tasks", "memos", "anniversaries", "habits", "calendar", "pomodoro"],
       sidebarCollapsed: false
@@ -87,6 +89,7 @@ describe("preference routes", () => {
       true,
       "list",
       "title",
+      "warm-paper",
       "hide",
       "default",
       "tasks,memos,anniversaries,habits,calendar,pomodoro",
@@ -103,6 +106,44 @@ describe("preference routes", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
       taskCardDisplayMode: "full"
+    });
+  });
+
+  it("saves selected floating card theme", async () => {
+    db.queryOne.mockResolvedValue(currentPreference);
+
+    const response = await injectPreference("PUT", { floatingCardThemeId: "black-snow" });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      floatingCardThemeId: "black-snow"
+    });
+    expect(db.execute).toHaveBeenLastCalledWith(expect.stringContaining("floatingCardThemeId"), [
+      "user-1",
+      "shinchan",
+      "app-teal",
+      true,
+      "sea",
+      true,
+      "list",
+      "full",
+      "black-snow",
+      "hide",
+      "default",
+      "tasks,memos,anniversaries,habits,calendar,pomodoro",
+      false,
+      "system"
+    ]);
+  });
+
+  it("falls back to warm paper floating card theme for invalid stored values", async () => {
+    db.queryOne.mockResolvedValue({ ...currentPreference, floatingCardThemeId: "custom" });
+
+    const response = await injectPreference("GET");
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      floatingCardThemeId: "warm-paper"
     });
   });
 
@@ -124,6 +165,7 @@ describe("preference routes", () => {
       true,
       "list",
       "full",
+      "warm-paper",
       "hide",
       "default",
       "tasks,memos,anniversaries,habits,calendar,pomodoro",
@@ -161,6 +203,7 @@ describe("preference routes", () => {
       true,
       "list",
       "full",
+      "warm-paper",
       "quit",
       "default",
       "tasks,memos,anniversaries,habits,calendar,pomodoro",
@@ -198,6 +241,7 @@ describe("preference routes", () => {
       true,
       "list",
       "full",
+      "warm-paper",
       "hide",
       "default",
       "tasks,memos,anniversaries,habits,calendar,pomodoro",
@@ -224,6 +268,7 @@ describe("preference routes", () => {
       true,
       "list",
       "full",
+      "warm-paper",
       "hide",
       "default",
       "memos,tasks",
@@ -250,6 +295,7 @@ describe("preference routes", () => {
       true,
       "list",
       "full",
+      "warm-paper",
       "hide",
       "default",
       "",

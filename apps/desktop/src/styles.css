@@ -261,7 +261,7 @@ textarea:focus-visible,
 }
 
 .sidebar-brand-logo {
-  width: calc(156px * var(--app-ui-scale));
+  width: calc(106px * var(--app-ui-scale));
   filter: drop-shadow(0 5px 0 rgba(114, 93, 66, 0.1)) drop-shadow(0 12px 18px rgba(61, 52, 40, 0.12));
   transition: width 180ms ease, opacity 160ms ease, transform 180ms ease;
 }
@@ -487,7 +487,7 @@ textarea:focus-visible,
   display: flex !important;
   justify-content: flex-start !important;
   align-items: center !important;
-  height: calc(40px * var(--app-ui-scale)) !important;
+  height: calc(45px * var(--app-ui-scale)) !important;
   min-height: calc(40px * var(--app-ui-scale));
   padding: 0 calc(10px * var(--app-ui-scale)) 0 calc(7px * var(--app-ui-scale)) !important;
   border: 1px solid transparent !important;
@@ -554,8 +554,6 @@ textarea:focus-visible,
 }
 
 .nav-button:hover {
-  border-color: color-mix(in srgb, var(--color-primary) 28%, transparent) !important;
-  background: rgba(255, 253, 241, 0.72) !important;
   color: color-mix(in srgb, var(--color-primary) 45%, var(--color-text)) !important;
   transform: translateX(2px);
 }
@@ -568,22 +566,13 @@ textarea:focus-visible,
 }
 
 .nav-button.is-active {
-  border-color: color-mix(in srgb, var(--color-primary) 38%, #fff8dc) !important;
-  background:
-    linear-gradient(90deg, rgba(25, 200, 185, 0.18), rgba(255, 253, 241, 0.86) 62%),
-    var(--color-surface) !important;
-  box-shadow: 0 4px 0 color-mix(in srgb, var(--color-primary) 42%, #b98a68), 0 9px 18px rgba(114, 93, 66, 0.08) !important;
-  color: var(--island-ink) !important;
+  color: var(--color-primary)  !important;
 }
 
 .app-shell.is-sidebar-collapsed .nav-button.is-active {
   border-color: transparent !important;
   background: transparent !important;
   box-shadow: none !important;
-}
-
-.nav-button.is-active::before {
-  background: var(--color-primary);
 }
 
 .app-shell.is-sidebar-collapsed .nav-button.is-active::before {
@@ -1969,6 +1958,18 @@ textarea::placeholder {
   width: max-content;
   max-width: min(420px, calc(100vw - 48px)) !important;
   visibility: hidden;
+  color: var(--floating-card-tooltip-text, var(--floating-card-text, var(--color-text))) !important;
+}
+
+.floating-task-tooltip [role="tooltip"]:not([class*="animal-island"]) {
+  border: 2px solid var(--floating-card-tooltip-border, var(--floating-card-border, var(--color-border))) !important;
+  background: var(--floating-card-tooltip-background, var(--floating-card-surface, var(--color-surface))) !important;
+  box-shadow: 0 8px 18px var(--floating-card-tooltip-shadow, rgba(61, 52, 40, 0.14)) !important;
+}
+
+.floating-task-tooltip [role="tooltip"]:not([class*="animal-island"])::after {
+  border-color: var(--floating-card-tooltip-border, var(--floating-card-border, var(--color-border))) !important;
+  background: var(--floating-card-tooltip-background, var(--floating-card-surface, var(--color-surface))) !important;
 }
 
 .task-card-tooltip [role="tooltip"][class*="animal-visible"],
@@ -1995,6 +1996,25 @@ textarea::placeholder {
   max-width: min(420px, calc(100vw - 48px)) !important;
 }
 
+.floating-task-tooltip [class*="animal-islandBody"] {
+  filter: drop-shadow(0 8px 18px var(--floating-card-tooltip-shadow, rgba(61, 52, 40, 0.14))) !important;
+}
+
+.floating-task-tooltip [class*="animal-islandSvg"] path {
+  fill: var(--floating-card-tooltip-background, var(--floating-card-surface, var(--color-surface))) !important;
+  stroke: var(--floating-card-tooltip-border, var(--floating-card-border, var(--color-border))) !important;
+}
+
+.floating-task-tooltip [class*="animal-islandContent"] {
+  background: var(--floating-card-tooltip-background, var(--floating-card-surface, var(--color-surface))) !important;
+  color: var(--floating-card-tooltip-text, var(--floating-card-text, var(--color-text))) !important;
+}
+
+.floating-task-tooltip [class*="animal-tail"] {
+  border-color: var(--floating-card-tooltip-border, var(--floating-card-border, var(--color-border))) !important;
+  background: var(--floating-card-tooltip-background, var(--floating-card-surface, var(--color-surface))) !important;
+}
+
 .task-card-tooltip [class*="animal-islandContent"],
 .floating-task-tooltip [class*="animal-islandContent"] {
   max-height: min(360px, calc(100vh - 96px));
@@ -2004,6 +2024,7 @@ textarea::placeholder {
 .task-card-tooltip [class*="animal-content"],
 .floating-task-tooltip [class*="animal-content"] {
   text-align: left;
+  color: var(--floating-card-tooltip-text, var(--floating-card-text, var(--color-text))) !important;
 }
 
 .task-card-tooltip-content,
@@ -2011,6 +2032,10 @@ textarea::placeholder {
   display: grid;
   gap: calc(8px * var(--app-ui-scale));
   color: var(--color-text);
+}
+
+.floating-task-tooltip-content {
+  color: var(--floating-card-tooltip-text, var(--floating-card-text, var(--color-text)));
 }
 
 .task-card-tooltip-content strong,
@@ -2029,6 +2054,10 @@ textarea::placeholder {
   overflow-wrap: anywhere;
 }
 
+.floating-task-tooltip-content p {
+  color: var(--floating-card-tooltip-muted, var(--floating-card-muted, var(--color-muted)));
+}
+
 .task-card-tooltip-meta,
 .floating-task-tooltip-meta {
   display: flex;
@@ -2044,6 +2073,11 @@ textarea::placeholder {
   color: var(--color-muted);
   font-size: calc(11px * var(--app-ui-scale));
   font-weight: 800;
+}
+
+.floating-task-tooltip-meta span {
+  background: var(--floating-card-tooltip-pill-background, color-mix(in srgb, var(--floating-card-surface-strong, var(--color-surface-strong)) 84%, var(--floating-card-surface, #fff)));
+  color: var(--floating-card-tooltip-pill-text, var(--floating-card-muted, var(--color-muted)));
 }
 
 .task-detail-content {
@@ -2196,26 +2230,38 @@ textarea::placeholder {
   height: calc(24px * var(--app-ui-scale)) !important;
   min-height: calc(24px * var(--app-ui-scale)) !important;
   padding: 0 !important;
-  border: 0 !important;
+  border: 1px solid color-mix(in srgb, var(--floating-card-border, var(--color-border)) 44%, transparent) !important;
   border-radius: 7px !important;
-  background: transparent !important;
-  box-shadow: none !important;
-  color: color-mix(in srgb, var(--color-muted) 82%, var(--color-text)) !important;
+  background: color-mix(in srgb, var(--floating-card-surface, var(--color-surface)) 62%, transparent) !important;
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--floating-card-shadow, rgba(86, 94, 101, 0.12)) 56%, transparent) !important;
+  color: color-mix(in srgb, var(--floating-card-muted, var(--color-muted)) 82%, var(--floating-card-text, var(--color-text))) !important;
   font-size: calc(14px * var(--app-ui-scale)) !important;
   line-height: 1 !important;
   transform: none !important;
-  transition: background 140ms ease, color 140ms ease, opacity 140ms ease, transform 140ms ease;
+  transition: border-color 140ms ease, background 140ms ease, color 140ms ease, opacity 140ms ease, transform 140ms ease, box-shadow 140ms ease;
 }
 
 .floating-task button:hover:not(:disabled),
 .floating-task button:focus-visible {
-  background: color-mix(in srgb, var(--color-primary) 12%, transparent) !important;
-  color: color-mix(in srgb, var(--color-primary) 65%, var(--color-text)) !important;
+  border-color: color-mix(in srgb, var(--floating-card-accent, var(--color-primary)) 42%, var(--floating-card-border, var(--color-border))) !important;
+  background: color-mix(in srgb, var(--floating-card-accent, var(--color-primary)) 14%, var(--floating-card-surface, transparent)) !important;
+  box-shadow: 0 2px 0 color-mix(in srgb, var(--floating-card-shadow, rgba(86, 94, 101, 0.12)) 68%, transparent) !important;
+  color: color-mix(in srgb, var(--floating-card-accent, var(--color-primary)) 65%, var(--floating-card-text, var(--color-text))) !important;
   outline: none;
 }
 
 .floating-task button:active:not(:disabled) {
   transform: translateY(1px) !important;
+}
+
+.floating-card button [class*="animal-btn-icon"],
+.floating-card button svg {
+  color: inherit !important;
+  stroke: currentColor !important;
+}
+
+.floating-card button svg [stroke]:not([stroke="none"]) {
+  stroke: currentColor !important;
 }
 
 .floating-task button svg,
@@ -3771,6 +3817,7 @@ textarea::placeholder {
 }
 
 .title-color-label,
+.floating-card-theme-label,
 .display-size-config-label,
 .module-display-config-label,
 .font-family-config-label {
@@ -3816,6 +3863,67 @@ textarea::placeholder {
 .title-color-swatch[data-title-color="yellow-green"],
 .title-color-swatch[data-title-color="lime-green"] {
   color: var(--color-text);
+}
+
+.floating-card-theme-config {
+  display: grid;
+  gap: calc(11px * var(--app-ui-scale));
+  padding-top: calc(2px * var(--app-ui-scale));
+}
+
+.floating-card-theme-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(calc(126px * var(--app-ui-scale)), 1fr));
+  gap: calc(8px * var(--app-ui-scale));
+}
+
+.floating-card-theme-option {
+  position: relative;
+  display: grid;
+  grid-template-columns: calc(20px * var(--app-ui-scale)) minmax(0, 1fr) calc(18px * var(--app-ui-scale));
+  align-items: center;
+  min-height: calc(46px * var(--app-ui-scale));
+  gap: calc(8px * var(--app-ui-scale));
+  border: 2px solid;
+  border-radius: 13px 12px 15px 12px;
+  box-shadow: 0 2px 0 rgba(114, 93, 66, 0.1);
+  padding: calc(8px * var(--app-ui-scale)) calc(9px * var(--app-ui-scale));
+  text-align: left;
+  transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+}
+
+.floating-card-theme-option:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 0 rgba(114, 93, 66, 0.13);
+}
+
+.floating-card-theme-option:active {
+  transform: translateY(1px);
+  box-shadow: 0 2px 0 rgba(114, 93, 66, 0.12);
+}
+
+.floating-card-theme-option.is-active {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 22%, transparent), 0 3px 0 rgba(114, 93, 66, 0.12);
+}
+
+.floating-card-theme-option strong {
+  overflow: hidden;
+  font-size: calc(13px * var(--app-ui-scale));
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.floating-card-theme-option svg {
+  justify-self: end;
+}
+
+.floating-card-theme-sample {
+  width: calc(20px * var(--app-ui-scale));
+  height: calc(20px * var(--app-ui-scale));
+  border: 2px solid;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, currentColor 12%, transparent);
 }
 
 .display-size-config {
@@ -5390,15 +5498,55 @@ textarea::placeholder {
 }
 
 .floating-card {
+  --floating-card-background: #fffdf1;
+  --floating-card-surface: #fffdf1;
+  --floating-card-surface-strong: #f0e8d8;
+  --floating-card-text: #725d42;
+  --floating-card-muted: #9f927d;
+  --floating-card-border: #c4b89e;
+  --floating-card-accent: #19c8b9;
+  --floating-card-check: #ffffff;
+  --floating-card-shadow: rgba(114, 93, 66, 0.13);
+  --floating-card-dots: rgba(114, 93, 66, 0.08);
+  --floating-card-button-background: color-mix(in srgb, var(--floating-card-surface) 82%, var(--floating-card-background));
+  --floating-card-button-background-hover: color-mix(in srgb, var(--floating-card-accent) 14%, var(--floating-card-surface));
+  --floating-card-button-background-active: color-mix(in srgb, var(--floating-card-surface-strong) 68%, var(--floating-card-accent));
+  --floating-card-button-primary-background: color-mix(in srgb, var(--floating-card-surface-strong) 76%, var(--floating-card-accent));
+  --floating-card-button-primary-background-hover: color-mix(in srgb, var(--floating-card-accent) 34%, var(--floating-card-surface-strong));
+  --floating-card-button-text: var(--floating-card-text);
+  --floating-card-button-primary-text: var(--floating-card-text);
+  --floating-card-button-border: color-mix(in srgb, var(--floating-card-border) 72%, transparent);
+  --floating-card-button-border-hover: color-mix(in srgb, var(--floating-card-accent) 58%, var(--floating-card-border));
+  --floating-card-tooltip-background: color-mix(in srgb, var(--floating-card-surface) 90%, var(--floating-card-background));
+  --floating-card-tooltip-text: var(--floating-card-text);
+  --floating-card-tooltip-muted: color-mix(in srgb, var(--floating-card-muted) 92%, var(--floating-card-text));
+  --floating-card-tooltip-border: color-mix(in srgb, var(--floating-card-border) 82%, var(--floating-card-accent));
+  --floating-card-tooltip-shadow: color-mix(in srgb, var(--floating-card-shadow) 86%, transparent);
+  --floating-card-tooltip-pill-background: color-mix(in srgb, var(--floating-card-surface-strong) 84%, var(--floating-card-background));
+  --floating-card-tooltip-pill-text: var(--floating-card-muted);
+  --floating-card-form-background: color-mix(in srgb, var(--floating-card-surface) 78%, transparent);
+  --floating-card-form-border: color-mix(in srgb, var(--floating-card-border) 76%, transparent);
+  --floating-card-form-label: color-mix(in srgb, var(--floating-card-muted) 86%, var(--floating-card-text));
+  --floating-card-control-background: color-mix(in srgb, var(--floating-card-surface) 72%, var(--floating-card-background));
+  --floating-card-control-background-hover: color-mix(in srgb, var(--floating-card-surface-strong) 54%, var(--floating-card-surface));
+  --floating-card-control-background-focus: color-mix(in srgb, var(--floating-card-accent) 10%, var(--floating-card-surface));
+  --floating-card-control-text: var(--floating-card-text);
+  --floating-card-control-muted: color-mix(in srgb, var(--floating-card-muted) 88%, var(--floating-card-text));
+  --floating-card-control-border: color-mix(in srgb, var(--floating-card-border) 82%, transparent);
+  --floating-card-control-border-focus: color-mix(in srgb, var(--floating-card-accent) 62%, var(--floating-card-border));
+  --floating-card-control-shadow: color-mix(in srgb, var(--floating-card-shadow) 88%, transparent);
+  --floating-card-control-focus-ring: color-mix(in srgb, var(--floating-card-accent) 30%, transparent);
+  --floating-card-control-color-scheme: light;
+  --floating-card-control-icon-filter: none;
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr);
   height: 100vh;
   min-height: 100vh;
   overflow: hidden;
   background:
-    linear-gradient(180deg, rgba(255, 253, 241, 0.95), rgba(240, 232, 216, 0.9)),
-    var(--island-paper-dots) 0 0 / 16px 16px;
-  color: var(--color-text);
+    linear-gradient(180deg, var(--floating-card-background), color-mix(in srgb, var(--floating-card-background) 82%, var(--floating-card-surface-strong))),
+    radial-gradient(circle, var(--floating-card-dots) 1px, transparent 1.6px) 0 0 / 16px 16px;
+  color: var(--floating-card-text);
 }
 
 .floating-header {
@@ -5409,8 +5557,8 @@ textarea::placeholder {
   gap: calc(8px * var(--app-ui-scale));
   min-height: calc(50px * var(--app-ui-scale));
   padding: calc(7px * var(--app-ui-scale)) calc(10px * var(--app-ui-scale));
-  border-bottom: 2px dashed color-mix(in srgb, var(--color-border) 72%, transparent);
-  background: var(--color-surface);
+  border-bottom: 2px dashed color-mix(in srgb, var(--floating-card-border) 72%, transparent);
+  background: color-mix(in srgb, var(--floating-card-surface) 92%, var(--floating-card-background));
   user-select: none;
 }
 
@@ -5434,8 +5582,43 @@ textarea::placeholder {
   border-radius: 999px !important;
 }
 
+.floating-header > button:not(.floating-drag-handle),
+.floating-header-actions button,
+.floating-toolbar button,
+.floating-task-form button {
+  border: 2px solid var(--floating-card-button-border) !important;
+  background: var(--floating-card-button-background) !important;
+  box-shadow: 0 3px 0 var(--floating-card-shadow) !important;
+  color: var(--floating-card-button-text) !important;
+  transition: border-color 140ms ease, background 140ms ease, color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
+}
+
+.floating-header > button:not(.floating-drag-handle):hover:not(:disabled),
+.floating-header > button:not(.floating-drag-handle):focus-visible,
+.floating-header-actions button:hover:not(:disabled),
+.floating-header-actions button:focus-visible,
+.floating-toolbar button:hover:not(:disabled),
+.floating-toolbar button:focus-visible,
+.floating-task-form button:hover:not(:disabled),
+.floating-task-form button:focus-visible {
+  border-color: var(--floating-card-button-border-hover) !important;
+  background: var(--floating-card-button-background-hover) !important;
+  box-shadow: 0 4px 0 color-mix(in srgb, var(--floating-card-shadow) 84%, transparent) !important;
+  color: var(--floating-card-button-text) !important;
+  outline: none;
+}
+
+.floating-header > button:not(.floating-drag-handle):active:not(:disabled),
+.floating-header-actions button:active:not(:disabled),
+.floating-toolbar button:active:not(:disabled),
+.floating-task-form button:active:not(:disabled) {
+  background: var(--floating-card-button-background-active) !important;
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--floating-card-shadow) 76%, transparent) !important;
+  transform: translateY(1px) !important;
+}
+
 .floating-pin-button {
-  color: var(--color-text) !important;
+  color: var(--floating-card-text) !important;
 }
 
 .floating-pin-button svg {
@@ -5444,9 +5627,10 @@ textarea::placeholder {
 }
 
 .floating-pin-button.is-active {
-  background: color-mix(in srgb, var(--color-primary) 15%, #ffffff) !important;
-  color: var(--color-primary-strong, var(--color-primary)) !important;
-  box-shadow: 0 3px 0 rgba(114, 93, 66, 0.12) !important;
+  border-color: var(--floating-card-button-border-hover) !important;
+  background: var(--floating-card-button-primary-background) !important;
+  color: var(--floating-card-button-primary-text) !important;
+  box-shadow: 0 3px 0 var(--floating-card-shadow) !important;
 }
 
 .floating-pin-button.is-active svg {
@@ -5475,7 +5659,7 @@ textarea::placeholder {
   display: block;
   width: min(calc(40px * var(--app-ui-scale)), 22vw);
   height: auto;
-  filter: drop-shadow(0 2px 0 rgba(114, 93, 66, 0.12));
+  filter: drop-shadow(0 2px 0 var(--floating-card-shadow));
 }
 
 .floating-header strong {
@@ -5494,6 +5678,13 @@ textarea::placeholder {
   padding: calc(10px * var(--app-ui-scale));
 }
 
+.memo-floating-card .memo-floating-main {
+  display: flex;
+  flex-direction: column;
+  gap: calc(10px * var(--app-ui-scale));
+  overflow: hidden;
+}
+
 .floating-toolbar {
   z-index: 20;
   display: grid;
@@ -5501,11 +5692,103 @@ textarea::placeholder {
   gap: calc(8px * var(--app-ui-scale));
   align-items: center;
   padding: calc(10px * var(--app-ui-scale)) calc(10px * var(--app-ui-scale)) calc(8px * var(--app-ui-scale));
-  border-bottom: 1px dashed color-mix(in srgb, var(--color-border) 58%, transparent);
+  border-bottom: 1px dashed color-mix(in srgb, var(--floating-card-border) 58%, transparent);
   background:
-    linear-gradient(180deg, rgba(255, 253, 241, 0.98), rgba(255, 253, 241, 0.94)),
-    var(--island-paper-dots) 0 0 / 16px 16px;
-  box-shadow: 0 5px 10px rgba(114, 93, 66, 0.05);
+    linear-gradient(180deg, color-mix(in srgb, var(--floating-card-surface) 94%, transparent), color-mix(in srgb, var(--floating-card-surface) 84%, var(--floating-card-background))),
+    radial-gradient(circle, var(--floating-card-dots) 1px, transparent 1.6px) 0 0 / 16px 16px;
+  box-shadow: 0 5px 10px color-mix(in srgb, var(--floating-card-shadow) 46%, transparent);
+}
+
+.memo-floating-toolbar {
+  grid-template-columns: minmax(0, 1fr) calc(38px * var(--app-ui-scale));
+}
+
+.memo-floating-save-state {
+  overflow: hidden;
+  align-self: center;
+  color: var(--floating-card-muted);
+  font-size: calc(12px * var(--app-ui-scale));
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.memo-floating-save-state-saving {
+  color: color-mix(in srgb, var(--floating-card-accent) 82%, var(--floating-card-text));
+}
+
+.memo-floating-save-state-error {
+  color: #d75b56;
+}
+
+.memo-floating-title-input {
+  width: 100%;
+  min-width: 0;
+  padding: calc(10px * var(--app-ui-scale)) calc(12px * var(--app-ui-scale));
+  border: 2px solid color-mix(in srgb, var(--floating-card-border) 72%, transparent);
+  border-radius: calc(16px * var(--app-ui-scale));
+  background: color-mix(in srgb, var(--floating-card-surface) 86%, transparent);
+  box-shadow: 0 2px 0 color-mix(in srgb, var(--floating-card-shadow) 62%, transparent);
+  color: var(--floating-card-text);
+  font-size: calc(18px * var(--app-ui-scale));
+  font-weight: 900;
+  line-height: 1.22;
+}
+
+.memo-floating-title-input:focus-visible {
+  border-color: color-mix(in srgb, var(--floating-card-accent) 68%, var(--floating-card-border));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--floating-card-accent) 22%, transparent);
+  outline: 0;
+}
+
+.memo-floating-editor {
+  flex: 1 1 auto;
+  border-color: color-mix(in srgb, var(--floating-card-border) 72%, transparent);
+  background: color-mix(in srgb, var(--floating-card-surface) 90%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--floating-card-surface-strong) 36%, transparent), 0 2px 0 color-mix(in srgb, var(--floating-card-shadow) 58%, transparent);
+  color: var(--floating-card-text);
+}
+
+.memo-floating-editor:focus-visible {
+  border-color: color-mix(in srgb, var(--floating-card-accent) 68%, var(--floating-card-border));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--floating-card-accent) 20%, transparent);
+}
+
+.memo-floating-editor[data-empty="true"]::before {
+  color: color-mix(in srgb, var(--floating-card-muted) 78%, transparent);
+}
+
+.memo-floating-editor h1,
+.memo-floating-editor h2,
+.memo-floating-editor h3,
+.memo-floating-editor h4,
+.memo-floating-editor h5,
+.memo-floating-editor h6 {
+  color: var(--floating-card-text);
+}
+
+.memo-floating-editor blockquote {
+  border-left-color: var(--floating-card-accent);
+  background: color-mix(in srgb, var(--floating-card-accent) 10%, var(--floating-card-surface));
+  color: var(--floating-card-muted);
+}
+
+.memo-floating-editor th {
+  background: color-mix(in srgb, var(--floating-card-accent) 12%, var(--floating-card-surface));
+}
+
+.memo-floating-editor th,
+.memo-floating-editor td {
+  border-color: color-mix(in srgb, var(--floating-card-border) 78%, transparent);
+}
+
+.memo-floating-editor code,
+.memo-floating-editor pre {
+  background: color-mix(in srgb, var(--floating-card-surface-strong) 76%, var(--floating-card-surface));
+}
+
+.memo-floating-empty {
+  color: var(--floating-card-muted);
 }
 
 .floating-toolbar button,
@@ -5527,6 +5810,21 @@ textarea::placeholder {
   padding: 0 calc(13px * var(--app-ui-scale)) !important;
 }
 
+.floating-toolbar-primary,
+.floating-task-form > button:last-child {
+  border-color: var(--floating-card-button-border-hover) !important;
+  background: var(--floating-card-button-primary-background) !important;
+  color: var(--floating-card-button-primary-text) !important;
+}
+
+.floating-toolbar-primary:hover:not(:disabled),
+.floating-toolbar-primary:focus-visible,
+.floating-task-form > button:last-child:hover:not(:disabled),
+.floating-task-form > button:last-child:focus-visible {
+  background: var(--floating-card-button-primary-background-hover) !important;
+  color: var(--floating-card-button-primary-text) !important;
+}
+
 .floating-summary {
   display: flex;
   flex-wrap: wrap;
@@ -5536,21 +5834,24 @@ textarea::placeholder {
 
 .floating-summary span {
   padding: calc(5px * var(--app-ui-scale)) calc(10px * var(--app-ui-scale));
-  border: 1px solid color-mix(in srgb, var(--color-border) 78%, transparent);
+  border: 1px solid color-mix(in srgb, var(--floating-card-border) 78%, transparent);
   border-radius: 999px;
-  background: var(--color-surface);
-  color: var(--color-muted);
+  background: var(--floating-card-surface);
+  color: var(--floating-card-muted);
   font-size: calc(12px * var(--app-ui-scale));
   font-weight: 900;
 }
 
 .floating-task-form {
-  gap: calc(10px * var(--app-ui-scale));
+  gap: calc(9px * var(--app-ui-scale));
   padding: calc(12px * var(--app-ui-scale));
-  border: 2px solid color-mix(in srgb, var(--color-border) 72%, transparent);
-  border-radius: calc(20px * var(--app-ui-scale));
-  background: var(--color-surface);
-  box-shadow: 0 4px 0 rgba(114, 93, 66, 0.12);
+  border: 2px solid var(--floating-card-form-border);
+  border-radius: calc(22px * var(--app-ui-scale));
+  background:
+    linear-gradient(180deg, var(--floating-card-form-background), color-mix(in srgb, var(--floating-card-form-background) 72%, var(--floating-card-background))),
+    radial-gradient(circle, color-mix(in srgb, var(--floating-card-dots) 58%, transparent) 1px, transparent 1.6px) 0 0 / 16px 16px;
+  color: var(--floating-card-text);
+  box-shadow: 0 5px 0 color-mix(in srgb, var(--floating-card-shadow) 84%, transparent);
 }
 
 .floating-task-form header {
@@ -5562,7 +5863,7 @@ textarea::placeholder {
 
 .floating-task-form header strong {
   overflow: hidden;
-  color: var(--color-text);
+  color: var(--floating-card-text);
   font-size: calc(15px * var(--app-ui-scale));
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -5576,13 +5877,127 @@ textarea::placeholder {
 
 .floating-task-form label {
   gap: calc(5px * var(--app-ui-scale));
+  color: var(--floating-card-form-label);
   font-size: calc(12px * var(--app-ui-scale));
+  line-height: 1.2;
+}
+
+.floating-task-form label > span {
+  padding-left: calc(2px * var(--app-ui-scale));
+  color: inherit;
+  letter-spacing: 0;
+}
+
+.floating-task-form label > [class*="animal-wrapper-IRrhj"],
+.floating-task-form [class*="animal-trigger-2-Ahh"],
+.floating-task-form textarea {
+  width: 100%;
+  min-width: 0;
+  border: 2px solid var(--floating-card-control-border) !important;
+  background: var(--floating-card-control-background) !important;
+  box-shadow: 0 3px 0 var(--floating-card-control-shadow) !important;
+  color: var(--floating-card-control-text) !important;
+  transition: border-color 140ms ease, background 140ms ease, box-shadow 140ms ease, color 140ms ease, transform 140ms ease;
+}
+
+.floating-task-form label > [class*="animal-wrapper-IRrhj"]:hover,
+.floating-task-form [class*="animal-trigger-2-Ahh"]:hover,
+.floating-task-form textarea:hover {
+  border-color: color-mix(in srgb, var(--floating-card-control-border-focus) 58%, var(--floating-card-control-border)) !important;
+  background: var(--floating-card-control-background-hover) !important;
+}
+
+.floating-task-form label > [class*="animal-wrapper-IRrhj"]:focus-within,
+.floating-task-form [class*="animal-trigger-2-Ahh"][class*="animal-open"],
+.floating-task-form textarea:focus-visible {
+  border-color: var(--floating-card-control-border-focus) !important;
+  background: var(--floating-card-control-background-focus) !important;
+  box-shadow: 0 3px 0 var(--floating-card-control-shadow), 0 0 0 3px var(--floating-card-control-focus-ring) !important;
+  outline: none;
+}
+
+.floating-task-form label > [class*="animal-wrapper-IRrhj"] {
+  height: calc(40px * var(--app-ui-scale));
+  min-height: calc(40px * var(--app-ui-scale));
+  padding: 0 calc(13px * var(--app-ui-scale));
+  border-radius: calc(22px * var(--app-ui-scale));
+}
+
+.floating-task-form [class*="animal-input"],
+.floating-task-form [class*="animal-value"],
+.floating-task-form [class*="animal-placeholder"] {
+  color: var(--floating-card-control-text) !important;
+  font-size: calc(13px * var(--app-ui-scale));
+  font-weight: 800;
+}
+
+.floating-task-form [class*="animal-placeholder"],
+.floating-task-form input::placeholder,
+.floating-task-form textarea::placeholder {
+  color: var(--floating-card-control-muted) !important;
+}
+
+.floating-task-form [class*="animal-prefix"],
+.floating-task-form [class*="animal-suffix"],
+.floating-task-form [class*="animal-clear"],
+.floating-task-form [class*="animal-arrow"] {
+  color: var(--floating-card-control-muted) !important;
+}
+
+.floating-task-form input[type="datetime-local"] {
+  color-scheme: var(--floating-card-control-color-scheme);
+}
+
+.floating-task-form input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  filter: var(--floating-card-control-icon-filter);
+  opacity: 0.88;
+}
+
+.floating-task-form [class*="animal-trigger-2-Ahh"] {
+  min-height: calc(40px * var(--app-ui-scale));
+  padding: 0 calc(13px * var(--app-ui-scale));
+  border-radius: calc(22px * var(--app-ui-scale));
+}
+
+.floating-task-form [class*="animal-dropdown-"] {
+  overflow: hidden;
+  border: 2px solid var(--floating-card-control-border) !important;
+  border-radius: calc(18px * var(--app-ui-scale));
+  background: var(--floating-card-control-background) !important;
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--floating-card-shadow) 92%, transparent) !important;
+  color: var(--floating-card-control-text) !important;
+}
+
+.floating-task-form [class*="animal-option-"] {
+  color: var(--floating-card-control-text) !important;
+  font-weight: 800;
+}
+
+.floating-task-form [class*="animal-option-"][class*="animal-hovered"],
+.floating-task-form [class*="animal-option-"]:hover {
+  background: color-mix(in srgb, var(--floating-card-accent) 12%, var(--floating-card-control-background)) !important;
+}
+
+.floating-task-form [class*="animal-option-"][class*="animal-active"] {
+  color: var(--floating-card-control-text) !important;
+  background: color-mix(in srgb, var(--floating-card-accent) 20%, var(--floating-card-control-background)) !important;
+}
+
+.floating-task-form [class*="animal-optionDot"] {
+  background: var(--floating-card-control-border-focus) !important;
+}
+
+.floating-task-form [class*="animal-pillBar"] {
+  background: var(--floating-card-control-border-focus) !important;
 }
 
 .floating-task-form textarea {
-  min-height: calc(74px * var(--app-ui-scale));
+  min-height: calc(70px * var(--app-ui-scale));
   border-radius: calc(18px * var(--app-ui-scale));
   padding: calc(10px * var(--app-ui-scale)) calc(12px * var(--app-ui-scale));
+  font-size: calc(13px * var(--app-ui-scale));
+  font-weight: 800;
 }
 
 .floating-form-grid {
@@ -5602,9 +6017,11 @@ textarea::placeholder {
   align-items: start;
   gap: calc(8px * var(--app-ui-scale));
   padding: calc(9px * var(--app-ui-scale)) calc(10px * var(--app-ui-scale)) calc(9px * var(--app-ui-scale)) calc(8px * var(--app-ui-scale)) !important;
-  border: 1px solid color-mix(in srgb, var(--color-border) 74%, transparent) !important;
+  border: 1px solid color-mix(in srgb, var(--floating-card-border) 74%, transparent) !important;
   border-radius: 14px 13px 15px 13px !important;
-  box-shadow: 0 2px 0 rgba(114, 93, 66, 0.08);
+  background: color-mix(in srgb, var(--floating-card-surface) 88%, transparent) !important;
+  color: var(--floating-card-text);
+  box-shadow: 0 2px 0 color-mix(in srgb, var(--floating-card-shadow) 70%, transparent);
 }
 
 .floating-task-checkbox,
@@ -5618,10 +6035,10 @@ textarea::placeholder {
   margin-top: calc(1px * var(--app-ui-scale));
   padding: 0 !important;
   place-items: center;
-  border: 2px solid color-mix(in srgb, var(--color-border) 72%, var(--color-muted)) !important;
+  border: 2px solid color-mix(in srgb, var(--floating-card-border) 72%, var(--floating-card-muted)) !important;
   border-radius: calc(5px * var(--app-ui-scale)) !important;
-  background: color-mix(in srgb, var(--color-surface) 86%, #fff) !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.78), 0 1px 0 rgba(114, 93, 66, 0.08) !important;
+  background: color-mix(in srgb, var(--floating-card-surface) 86%, #fff) !important;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--floating-card-surface) 78%, #fff), 0 1px 0 color-mix(in srgb, var(--floating-card-shadow) 58%, transparent) !important;
   color: transparent !important;
   cursor: pointer;
   line-height: 1 !important;
@@ -5631,16 +6048,16 @@ textarea::placeholder {
 
 .floating-task-checkbox[aria-checked="true"],
 .floating-task .floating-task-checkbox[aria-checked="true"] {
-  border-color: color-mix(in srgb, var(--color-primary) 58%, var(--color-border)) !important;
-  background: color-mix(in srgb, var(--color-primary) 72%, #ffffff) !important;
-  color: #fffdf1 !important;
-  box-shadow: 0 2px 0 color-mix(in srgb, var(--color-primary) 42%, #8b6f4c) !important;
+  border-color: color-mix(in srgb, var(--floating-card-accent) 58%, var(--floating-card-border)) !important;
+  background: color-mix(in srgb, var(--floating-card-accent) 72%, var(--floating-card-surface)) !important;
+  color: var(--floating-card-check) !important;
+  box-shadow: 0 2px 0 color-mix(in srgb, var(--floating-card-accent) 42%, var(--floating-card-border)) !important;
 }
 
 .floating-task-checkbox:hover:not(:disabled),
 .floating-task-checkbox:focus-visible {
-  border-color: color-mix(in srgb, var(--color-primary) 62%, var(--color-border)) !important;
-  background: color-mix(in srgb, var(--color-primary) 14%, var(--color-surface)) !important;
+  border-color: color-mix(in srgb, var(--floating-card-accent) 62%, var(--floating-card-border)) !important;
+  background: color-mix(in srgb, var(--floating-card-accent) 14%, var(--floating-card-surface)) !important;
   outline: none;
 }
 
@@ -5678,7 +6095,7 @@ textarea::placeholder {
 }
 
 .floating-task-title {
-  color: var(--color-text);
+  color: var(--floating-card-text);
   font-size: calc(14px * var(--app-ui-scale));
   line-height: 1.25;
 }
@@ -5694,8 +6111,8 @@ textarea::placeholder {
   max-width: 100%;
   padding: calc(4px * var(--app-ui-scale)) calc(8px * var(--app-ui-scale));
   border-radius: 999px;
-  background: color-mix(in srgb, var(--color-surface-strong) 84%, #fff);
-  color: var(--color-muted);
+  background: color-mix(in srgb, var(--floating-card-surface-strong) 84%, var(--floating-card-surface));
+  color: var(--floating-card-muted);
   font-size: calc(11px * var(--app-ui-scale));
   font-weight: 800;
 }
@@ -5704,7 +6121,7 @@ textarea::placeholder {
   display: -webkit-box;
   overflow: hidden;
   margin: 0;
-  color: var(--color-muted);
+  color: var(--floating-card-muted);
   font-size: calc(12px * var(--app-ui-scale));
   font-weight: 700;
   line-height: 1.45;
@@ -5734,9 +6151,9 @@ textarea::placeholder {
 .floating-task.is-title-only {
   align-items: center;
   min-height: calc(36px * var(--app-ui-scale));
-  border-color: color-mix(in srgb, var(--color-border) 42%, transparent) !important;
-  background: color-mix(in srgb, var(--color-surface) 74%, transparent) !important;
-  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--color-border) 38%, transparent);
+  border-color: color-mix(in srgb, var(--floating-card-border) 42%, transparent) !important;
+  background: color-mix(in srgb, var(--floating-card-surface) 74%, transparent) !important;
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--floating-card-border) 38%, transparent);
   padding-top: calc(5px * var(--app-ui-scale)) !important;
   padding-bottom: calc(5px * var(--app-ui-scale)) !important;
 }
@@ -5770,16 +6187,16 @@ textarea::placeholder {
   border-radius: 7px !important;
   background: transparent !important;
   box-shadow: none !important;
-  color: color-mix(in srgb, var(--color-muted) 82%, var(--color-text)) !important;
+  color: color-mix(in srgb, var(--floating-card-muted) 82%, var(--floating-card-text)) !important;
   transform: none !important;
 }
 
 .floating-task.is-title-only .floating-task-actions button:hover:not(:disabled),
 .floating-task.is-title-only .floating-task-actions button:focus-visible {
   border: 0 !important;
-  background: color-mix(in srgb, var(--color-primary) 12%, transparent) !important;
+  background: color-mix(in srgb, var(--floating-card-accent) 12%, transparent) !important;
   box-shadow: none !important;
-  color: color-mix(in srgb, var(--color-primary) 65%, var(--color-text)) !important;
+  color: color-mix(in srgb, var(--floating-card-accent) 65%, var(--floating-card-text)) !important;
   transform: none !important;
   outline: none;
 }
@@ -5795,45 +6212,45 @@ textarea::placeholder {
 
 .floating-task.is-completed .floating-task-title,
 .floating-task.is-completed .floating-task-notes {
-  color: color-mix(in srgb, var(--color-muted) 86%, var(--color-text));
+  color: color-mix(in srgb, var(--floating-card-muted) 86%, var(--floating-card-text));
   text-decoration: line-through;
   text-decoration-thickness: 2px;
-  text-decoration-color: color-mix(in srgb, var(--color-muted) 78%, var(--color-text));
+  text-decoration-color: color-mix(in srgb, var(--floating-card-muted) 78%, var(--floating-card-text));
 }
 
 .floating-task.is-completed {
-  border-color: color-mix(in srgb, var(--color-border) 36%, #aeb5bb) !important;
+  border-color: color-mix(in srgb, var(--floating-card-border) 48%, transparent) !important;
   background:
-    radial-gradient(circle, rgba(86, 94, 101, 0.09) 1px, transparent 1.6px) 0 0 / 16px 16px,
+    radial-gradient(circle, color-mix(in srgb, var(--floating-card-dots) 78%, transparent) 1px, transparent 1.6px) 0 0 / 16px 16px,
     linear-gradient(
       180deg,
-      color-mix(in srgb, var(--color-surface) 64%, #e2e5e8),
-      color-mix(in srgb, var(--color-surface-strong) 52%, #d8dcdf)
+      color-mix(in srgb, var(--floating-card-surface) 64%, var(--floating-card-surface-strong)),
+      color-mix(in srgb, var(--floating-card-surface-strong) 52%, var(--floating-card-background))
     ) !important;
-  box-shadow: 0 4px 0 rgba(86, 94, 101, 0.09);
+  box-shadow: 0 4px 0 color-mix(in srgb, var(--floating-card-shadow) 58%, transparent);
 }
 
 .floating-task.is-completed .floating-task-meta span {
-  background: color-mix(in srgb, var(--color-surface-strong) 48%, #e3e6e8);
-  color: color-mix(in srgb, var(--color-muted) 70%, #5f6870);
+  background: color-mix(in srgb, var(--floating-card-surface-strong) 48%, var(--floating-card-surface));
+  color: color-mix(in srgb, var(--floating-card-muted) 86%, var(--floating-card-text));
 }
 
 .floating-task.is-completed .floating-task-checkbox[aria-checked="true"] {
-  border-color: color-mix(in srgb, var(--color-muted) 54%, #aeb5bb) !important;
-  background: color-mix(in srgb, var(--color-surface-strong) 48%, #cfd4d8) !important;
-  color: color-mix(in srgb, var(--color-muted) 74%, #5f6870) !important;
-  box-shadow: 0 2px 0 rgba(86, 94, 101, 0.08) !important;
+  border-color: color-mix(in srgb, var(--floating-card-muted) 54%, var(--floating-card-border)) !important;
+  background: color-mix(in srgb, var(--floating-card-surface-strong) 48%, var(--floating-card-surface)) !important;
+  color: color-mix(in srgb, var(--floating-card-muted) 74%, var(--floating-card-text)) !important;
+  box-shadow: 0 2px 0 color-mix(in srgb, var(--floating-card-shadow) 54%, transparent) !important;
 }
 
 .floating-task.is-completed:not(.is-title-only) .floating-task-actions button {
-  border-color: color-mix(in srgb, var(--color-border) 38%, #aeb5bb) !important;
-  background: color-mix(in srgb, var(--color-surface-strong) 58%, #e1e5e8) !important;
-  box-shadow: 0 2px 0 rgba(86, 94, 101, 0.08) !important;
-  color: color-mix(in srgb, var(--color-muted) 74%, #5f6870) !important;
+  border-color: color-mix(in srgb, var(--floating-card-border) 38%, transparent) !important;
+  background: color-mix(in srgb, var(--floating-card-surface-strong) 58%, var(--floating-card-surface)) !important;
+  box-shadow: 0 2px 0 color-mix(in srgb, var(--floating-card-shadow) 54%, transparent) !important;
+  color: color-mix(in srgb, var(--floating-card-muted) 74%, var(--floating-card-text)) !important;
 }
 
 .floating-task.is-completed.is-title-only .floating-task-actions button {
-  color: color-mix(in srgb, var(--color-muted) 74%, #5f6870) !important;
+  color: color-mix(in srgb, var(--floating-card-muted) 74%, var(--floating-card-text)) !important;
 }
 
 @media (max-width: 720px) {

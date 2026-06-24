@@ -17,6 +17,7 @@ import {
   Italic,
   List,
   ListOrdered,
+  MonitorUp,
   Pin,
   PinOff,
   Plus,
@@ -27,56 +28,12 @@ import {
   Underline
 } from "lucide-react";
 import { api } from "../api/client";
+import { escapeHtml, isRichContentEmpty, sanitizeRichHtml } from "../lib/memoRichText";
 import { ConfirmDialog } from "./ConfirmDialog";
 
 const autosaveDelayMs = 1200;
 
 type SaveState = "idle" | "saving" | "saved" | "error";
-
-const allowedRichTags = new Set([
-  "a",
-  "b",
-  "blockquote",
-  "br",
-  "code",
-  "div",
-  "em",
-  "figcaption",
-  "figure",
-  "h1",
-  "h2",
-  "h3",
-  "h4",
-  "h5",
-  "h6",
-  "hr",
-  "i",
-  "img",
-  "li",
-  "ol",
-  "p",
-  "pre",
-  "s",
-  "span",
-  "strong",
-  "sub",
-  "sup",
-  "table",
-  "tbody",
-  "td",
-  "th",
-  "thead",
-  "tr",
-  "u",
-  "ul"
-]);
-
-const allowedRichAttributes: Record<string, string[]> = {
-  a: ["href", "rel", "target", "title"],
-  img: ["alt", "height", "src", "title", "width"],
-  td: ["colspan", "rowspan"],
-  th: ["colspan", "rowspan"]
-};
 
 function memoToListItem(memo: ApiMemo): ApiMemoListItem {
   return {
@@ -108,76 +65,6 @@ function saveStateLabel(state: SaveState) {
 
 function imageAltFromFile(file: File) {
   return file.name.replace(/\.[^.]+$/, "") || "图片";
-}
-
-function escapeHtml(value: string) {
-  return value.replace(/[&<>"']/g, (char) => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    "\"": "&quot;",
-    "'": "&#39;"
-  })[char] ?? char);
-}
-
-function isSafeRichUrl(value: string, tagName: string) {
-  try {
-    const url = new URL(value, window.location.href);
-    if (tagName === "img") {
-      return url.protocol === "http:" || url.protocol === "https:";
-    }
-    return url.protocol === "http:" || url.protocol === "https:" || url.protocol === "mailto:";
-  } catch {
-    return false;
-  }
-}
-
-function sanitizeRichHtml(html: string) {
-  const documentFragment = new DOMParser().parseFromString(`<div>${html}</div>`, "text/html");
-
-  function sanitizeElement(element: Element) {
-    for (const child of Array.from(element.children)) {
-      sanitizeElement(child);
-    }
-
-    const tagName = element.tagName.toLowerCase();
-    if (tagName !== "body" && tagName !== "div" && !allowedRichTags.has(tagName)) {
-      element.replaceWith(...Array.from(element.childNodes));
-      return;
-    }
-
-    const allowedAttributes = allowedRichAttributes[tagName] ?? [];
-    for (const attribute of Array.from(element.attributes)) {
-      const attrName = attribute.name.toLowerCase();
-      if (!allowedAttributes.includes(attrName)) {
-        element.removeAttribute(attribute.name);
-        continue;
-      }
-      if ((attrName === "href" || attrName === "src") && !isSafeRichUrl(attribute.value, tagName)) {
-        element.removeAttribute(attribute.name);
-      }
-    }
-
-    if (tagName === "a" && element.getAttribute("href")) {
-      element.setAttribute("rel", "noreferrer");
-      element.setAttribute("target", "_blank");
-    }
-  }
-
-  sanitizeElement(documentFragment.body);
-  return documentFragment.body.firstElementChild?.innerHTML ?? "";
-}
-
-function isRichContentEmpty(html: string) {
-  const hasImage = /<img[\s>]/i.test(html);
-  if (hasImage) {
-    return false;
-  }
-  return html
-    .replace(/<br\s*\/?>/gi, "")
-    .replace(/<[^>]+>/g, "")
-    .replace(/&nbsp;/g, " ")
-    .trim().length === 0;
 }
 
 function IconButtonTooltip({ children, label }: { children: ReactNode; label: string }) {
@@ -502,6 +389,22 @@ export function MemoPanel() {
     }
   }
 
+  async function openMemoFloatingCard() {
+    if (!selectedMemo || !(await saveCurrentMemo())) {
+      return;
+    }
+
+    const memoId = selectedMemo.id;
+    const query = `/?window=memo&memoId=${encodeURIComponent(memoId)}`;
+    try {
+      const { invoke } = await import("@tauri-apps/api/core");
+      await invoke("open_memo_floating_card", { memoId });
+    } catch {
+      const child = window.open(query, `tododesk-memo-${memoId}`, "width=380,height=520");
+      child?.focus?.();
+    }
+  }
+
   function requestDeleteMemo() {
     if (!selectedMemo || deleteBusy) {
       return;
@@ -695,6 +598,15 @@ export function MemoPanel() {
                     size="small"
                     type="default"
                     onClick={() => void toggleArchive()}
+                  />
+                </IconButtonTooltip>
+                <IconButtonTooltip label="固定到桌面">
+                  <Button
+                    aria-label="固定到桌面"
+                    icon={<MonitorUp size={15} />}
+                    size="small"
+                    type="default"
+                    onClick={() => void openMemoFloatingCard()}
                   />
                 </IconButtonTooltip>
                 <IconButtonTooltip label="删除">

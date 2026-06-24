@@ -88,6 +88,7 @@ const titlePreference: ApiThemePreference = {
   showCompletedTasks: true,
   taskViewMode: "list",
   taskCardDisplayMode: "title",
+  floatingCardThemeId: "black-snow",
   appCloseBehavior: "hide",
   displaySize: "default",
   visibleSidebarModules: defaultVisibleSidebarModules,
@@ -118,6 +119,7 @@ describe("FloatingCard", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
     alwaysOnTop = false;
     apiMock.tasks.mockResolvedValue({ tasks: [task] });
     apiMock.tags.mockResolvedValue({ tags: tagOptions });
@@ -143,6 +145,16 @@ describe("FloatingCard", () => {
     expect(screen.getByRole("tooltip")).toHaveTextContent("无截止时间");
     expect(screen.getByRole("tooltip")).toHaveTextContent("1 个番茄");
     expect(screen.getByRole("tooltip")).toHaveTextContent("#财务");
+  });
+
+  it("applies synced floating card theme variables", async () => {
+    const { container } = render(<FloatingCard />);
+
+    await waitFor(() => expect(apiMock.getThemePreference).toHaveBeenCalled());
+
+    const card = container.querySelector(".floating-card");
+    expect(card).toHaveStyle("--floating-card-background: #111827");
+    expect(card).toHaveStyle("--floating-card-text: #ffffff");
   });
 
   it("completes an unfinished floating task from the left checkbox", async () => {
