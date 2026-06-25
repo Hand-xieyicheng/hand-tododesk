@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
-import type { CalendarOccurrence, CalendarView as CalendarViewMode } from "@todo/shared";
-import { Button, Card, Tooltip } from "animal-island-ui";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { createPortal } from "react-dom";
+import type { CalendarHabitCheckIn, CalendarOccurrence, CalendarView as CalendarViewMode } from "@todo/shared";
+import { Button, Card } from "animal-island-ui";
 import { CalendarClock, ChevronLeft, ChevronRight, CheckCircle2 } from "lucide-react";
 import { api } from "../api/client";
+import { getHabitIcon } from "../lib/habitIcons";
 
 interface CalendarViewProps {
   onChanged(): Promise<void>;
@@ -20,6 +22,99 @@ const statusLabels: Record<CalendarOccurrence["status"], string> = {
   COMPLETED: "已完成",
   ARCHIVED: "已归档"
 };
+
+type CalendarTooltipPlacement = "top" | "top-start";
+
+interface CalendarTooltipProps {
+  children: ReactNode;
+  className?: string;
+  placement?: CalendarTooltipPlacement;
+  title: ReactNode;
+}
+
+function CalendarTooltip({ children, className, placement = "top", title }: CalendarTooltipProps) {
+  const triggerRef = useRef<HTMLSpanElement>(null);
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [open, setOpen] = useState(false);
+  const [position, setPosition] = useState<CSSProperties>({ left: 0, top: 0 });
+
+  const updatePosition = useCallback(() => {
+    const trigger = triggerRef.current;
+    if (!trigger) {
+      return;
+    }
+
+    const rect = trigger.getBoundingClientRect();
+    const offset = 10;
+    setPosition({
+      left: placement === "top-start" ? rect.left : rect.left + rect.width / 2,
+      top: rect.top - offset
+    });
+  }, [placement]);
+
+  const show = useCallback(() => {
+    if (hideTimerRef.current) {
+      clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = null;
+    }
+    updatePosition();
+    setOpen(true);
+  }, [updatePosition]);
+
+  const hide = useCallback(() => {
+    if (hideTimerRef.current) {
+      clearTimeout(hideTimerRef.current);
+    }
+    hideTimerRef.current = setTimeout(() => setOpen(false), 100);
+  }, []);
+
+  useEffect(() => () => {
+    if (hideTimerRef.current) {
+      clearTimeout(hideTimerRef.current);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!open) {
+      return undefined;
+    }
+
+    updatePosition();
+    window.addEventListener("scroll", updatePosition, true);
+    window.addEventListener("resize", updatePosition);
+    return () => {
+      window.removeEventListener("scroll", updatePosition, true);
+      window.removeEventListener("resize", updatePosition);
+    };
+  }, [open, updatePosition]);
+
+  return (
+    <>
+      <span
+        className={className}
+        ref={triggerRef}
+        onBlur={hide}
+        onFocus={show}
+        onMouseEnter={show}
+        onMouseLeave={hide}
+      >
+        {children}
+      </span>
+      {open ? createPortal(
+        <div
+          className={`calendar-floating-tooltip is-${placement}`}
+          role="tooltip"
+          style={position}
+          onMouseEnter={show}
+          onMouseLeave={hide}
+        >
+          {title}
+        </div>,
+        document.body
+      ) : null}
+    </>
+  );
+}
 
 function startOfDay(date: Date) {
   const next = new Date(date);
@@ -81,10 +176,11 @@ export function CalendarView({ onChanged }: CalendarViewProps) {
   const [mode, setMode] = useState<CalendarViewMode>("month");
   const [cursor, setCursor] = useState(() => new Date());
   const [occurrences, setOccurrences] = useState<CalendarOccurrence[]>([]);
+  const [habitCheckIns, setHabitCheckIns] = useState<CalendarHabitCheckIn[]>([]);
   const [message, setMessage] = useState("");
 
   const range = useMemo(() => getRange(cursor, mode), [cursor, mode]);
-  const grouped = useMemo(() => {
+  const taskGroups = useMemo(() => {
     const map = new Map<string, CalendarOccurrence[]>();
     for (const occurrence of occurrences) {
       const key = keyOf(occurrence.date);
@@ -92,12 +188,20 @@ export function CalendarView({ onChanged }: CalendarViewProps) {
     }
     return map;
   }, [occurrences]);
+  const habitCheckInGroups = useMemo(() => {
+    const map = new Map<string, CalendarHabitCheckIn[]>();
+    for (const checkIn of habitCheckIns) {
+      map.set(checkIn.date, [...(map.get(checkIn.date) ?? []), checkIn]);
+    }
+    return map;
+  }, [habitCheckIns]);
 
   async function load() {
     setMessage("");
     try {
       const payload = await api.calendar(range.from.toISOString(), range.to.toISOString(), mode);
       setOccurrences(payload.occurrences);
+      setHabitCheckIns(payload.habitCheckIns);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "日历加载失败");
     }
@@ -124,6 +228,18 @@ export function CalendarView({ onChanged }: CalendarViewProps) {
 
   function resetToToday() {
     setCursor(new Date());
+  }
+
+  function renderHabitCheckIn(checkIn: CalendarHabitCheckIn) {
+    const Icon = getHabitIcon(checkIn.icon);
+
+    return (
+      <CalendarTooltip className="calendar-habit-tooltip" key={checkIn.id} placement="top" title={checkIn.title}>
+        <span className={`calendar-habit-icon color-${checkIn.color}`} aria-label={`习惯打卡：${checkIn.title}`} role="img" tabIndex={0} title={checkIn.title}>
+          <Icon size={14} aria-hidden="true" />
+        </span>
+      </CalendarTooltip>
+    );
   }
 
   function renderTaskTooltip(item: CalendarOccurrence) {
@@ -178,22 +294,30 @@ export function CalendarView({ onChanged }: CalendarViewProps) {
       <div className={`calendar-grid calendar-${mode}`}>
         {range.cells.map((cell) => {
           const key = keyOf(cell);
-          const items = grouped.get(key) ?? [];
+          const items = taskGroups.get(key) ?? [];
+          const habitItems = habitCheckInGroups.get(key) ?? [];
+          const hasHabitItems = habitItems.length > 0;
           const isToday = (mode === "month" || mode === "week") && isSameCalendarDate(cell, new Date());
           const cellStyle = mode === "month" && cell.getDate() === 1 ? { gridColumnStart: cell.getDay() + 1 } : undefined;
+          const cellClassName = ["calendar-cell", isToday ? "is-today" : "", hasHabitItems ? "has-habits" : ""].filter(Boolean).join(" ");
           return (
-            <Card className={isToday ? "calendar-cell is-today" : "calendar-cell"} key={key} pattern={items.length > 0 ? "app-yellow" : "default"} style={cellStyle}>
+            <Card className={cellClassName} key={key} pattern={items.length > 0 || hasHabitItems ? "app-yellow" : "default"} style={cellStyle}>
               <header>
                 <span>{cell.toLocaleDateString("zh-CN", { weekday: "short" })}</span>
                 <strong><span className="calendar-date-number">{cell.getDate()}</span></strong>
               </header>
               <div className="calendar-items">
                 {items.map((item) => (
-                  <Tooltip className="calendar-task-tooltip" key={item.id} placement="top-start" title={renderTaskTooltip(item)} trigger="hover" variant="default">
+                  <CalendarTooltip className="calendar-task-tooltip" key={item.id} placement="top-start" title={renderTaskTooltip(item)}>
                     <span className={item.status === "COMPLETED" ? "calendar-task is-done" : "calendar-task"}>{item.title}</span>
-                  </Tooltip>
+                  </CalendarTooltip>
                 ))}
               </div>
+              {hasHabitItems ? (
+                <div className="calendar-habit-strip" aria-label={`${key} 习惯打卡`}>
+                  {habitItems.map(renderHabitCheckIn)}
+                </div>
+              ) : null}
             </Card>
           );
         })}

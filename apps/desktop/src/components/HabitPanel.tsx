@@ -22,12 +22,10 @@ import {
   RotateCcw,
   PenLine,
   Search,
-  Smile,
-  Trash2,
-  icons,
-  type LucideIcon
+  Trash2
 } from "lucide-react";
 import { api } from "../api/client";
+import { allHabitIconNames, getHabitIcon, habitIconOptions, iconSearchText, normalizeHabitIconName, presetHabitIconOptions } from "../lib/habitIcons";
 import { ConfirmDialog } from "./ConfirmDialog";
 
 interface HabitPanelProps {
@@ -49,30 +47,6 @@ interface HabitDraft {
   endDate: string;
 }
 
-const lucideIconMap = icons as unknown as Record<string, LucideIcon>;
-const preferredIconOrder = [
-  "Smile",
-  "BookOpen",
-  "Footprints",
-  "Droplets",
-  "Dumbbell",
-  "Moon",
-  "Book",
-  "Coffee",
-  "Music",
-  "PenLine",
-  "Heart",
-  "Apple",
-  "Bike",
-  "Sparkles",
-  "Code"
-];
-const allHabitIconNames = Object.keys(lucideIconMap).sort((left, right) => left.localeCompare(right));
-const presetHabitIconOptions = preferredIconOrder.filter((icon) => icon in lucideIconMap);
-const habitIconOptions = [
-  ...presetHabitIconOptions,
-  ...allHabitIconNames.filter((icon) => !preferredIconOrder.includes(icon))
-];
 const iconPageSize = 42;
 
 const colorLabels: Record<HabitColor, string> = {
@@ -107,31 +81,6 @@ const weekdayLabels: Record<HabitWeekday, string> = {
   SA: "六",
   SU: "日"
 };
-
-function kebabToPascal(value: string) {
-  return value
-    .split("-")
-    .filter(Boolean)
-    .map((part) => `${part.slice(0, 1).toUpperCase()}${part.slice(1)}`)
-    .join("");
-}
-
-function iconSearchText(icon: string) {
-  return icon.replace(/([a-z0-9])([A-Z])/g, "$1 $2").toLowerCase();
-}
-
-function normalizeHabitIconName(icon: string): HabitIcon {
-  if (icon in lucideIconMap) {
-    return icon;
-  }
-
-  const pascalIcon = kebabToPascal(icon);
-  return pascalIcon in lucideIconMap ? pascalIcon : "Smile";
-}
-
-function getHabitIcon(icon: string) {
-  return lucideIconMap[normalizeHabitIconName(icon)] ?? Smile;
-}
 
 const weekdayFromDate = (dateKey: string): HabitWeekday => {
   const day = new Date(`${dateKey}T00:00:00`).getDay();
@@ -277,7 +226,7 @@ export function HabitPanel({ createOpen, showArchived, onCreateOpenChange }: Hab
   const SelectedIcon = getHabitIcon(normalizedDraftIcon);
   const draftIconInPreset = presetHabitIconOptions.includes(normalizedDraftIcon);
   const MoreIcon = draftIconInPreset ? MoreHorizontal : SelectedIcon;
-  const SelectedHabitCalendarIcon = selectedHabit ? getHabitIcon(selectedHabit.icon) : Smile;
+  const SelectedHabitCalendarIcon = getHabitIcon(selectedHabit?.icon ?? "Smile");
   const selectHabitIcon = useCallback((icon: HabitIcon) => {
     setDraft((current) => ({ ...current, icon }));
     setIconPickerOpen(false);

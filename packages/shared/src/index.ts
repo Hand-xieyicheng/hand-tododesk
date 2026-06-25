@@ -717,6 +717,22 @@ export interface CalendarOccurrence {
   task: ApiTask;
 }
 
+export interface CalendarHabitCheckIn {
+  id: string;
+  habitId: string;
+  date: string;
+  title: string;
+  icon: HabitIcon;
+  color: HabitColor;
+  sortOrder: number;
+}
+
+export interface CalendarResponse {
+  view: CalendarView;
+  occurrences: CalendarOccurrence[];
+  habitCheckIns: CalendarHabitCheckIn[];
+}
+
 export interface PomodoroSession {
   id: string;
   taskId: string;

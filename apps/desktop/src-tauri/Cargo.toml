@@ -1,6 +1,6 @@
 [package]
 name = "tododesk"
-version = "0.2.14"
+version = "0.2.15"
 description = "小柴记 desktop app"
 authors = ["小柴记"]
 edition = "2021"

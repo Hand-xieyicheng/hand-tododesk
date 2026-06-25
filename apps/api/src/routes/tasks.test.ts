@@ -122,3 +122,86 @@ describe("task tag assignment", () => {
     expect(db.transaction).not.toHaveBeenCalled();
   });
 });
+
+describe("calendar route", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    db.execute.mockResolvedValue({ affectedRows: 1 });
+    db.queryOne.mockResolvedValue(null);
+    db.queryRows.mockResolvedValue([]);
+    db.transaction.mockImplementation(async (callback: (connection: { execute: typeof db.execute }) => Promise<unknown>) => callback({ execute: db.execute }));
+  });
+
+  it("returns task occurrences with habit check-ins inside the date range", async () => {
+    const from = "2026-06-01T00:00:00.000Z";
+    const to = "2026-07-01T00:00:00.000Z";
+    db.queryRows
+      .mockResolvedValueOnce([{ ...taskRow, dueAt: new Date("2026-06-25T10:00:00.000Z") }])
+      .mockResolvedValueOnce([
+        {
+          checkInId: "check-active",
+          habitId: "habit-1",
+          date: "2026-06-25",
+          title: "学习日语",
+          icon: "BookOpen",
+          color: "mint",
+          sortOrder: 1000
+        },
+        {
+          checkInId: "check-archived",
+          habitId: "habit-2",
+          date: "2026-06-25",
+          title: "早睡",
+          icon: "Moon",
+          color: "blue",
+          sortOrder: 2000,
+          archivedAt: new Date("2026-06-20T00:00:00.000Z")
+        },
+        {
+          checkInId: "check-boundary",
+          habitId: "habit-3",
+          date: "2026-07-01",
+          title: "边界打卡",
+          icon: "Smile",
+          color: "teal",
+          sortOrder: 3000
+        }
+      ])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+    db.queryOne
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ completedCount: 0, completedMinutes: 0 });
+
+    const response = await injectTask("GET", `/calendar?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&view=month`);
+
+    expect(response.statusCode).toBe(200);
+    expect(db.queryRows).toHaveBeenNthCalledWith(2, expect.stringContaining("hc.`date` < ?"), ["user-1", "2026-06-01", "2026-07-01"]);
+    expect(response.json().occurrences).toHaveLength(1);
+    expect(response.json().occurrences[0]).toMatchObject({
+      taskId: "task-1",
+      title: "整理计划"
+    });
+    expect(response.json().habitCheckIns).toEqual([
+      {
+        id: "check-active",
+        habitId: "habit-1",
+        date: "2026-06-25",
+        title: "学习日语",
+        icon: "BookOpen",
+        color: "mint",
+        sortOrder: 1000
+      },
+      {
+        id: "check-archived",
+        habitId: "habit-2",
+        date: "2026-06-25",
+        title: "早睡",
+        icon: "Moon",
+        color: "blue",
+        sortOrder: 2000
+      }
+    ]);
+  });
+});

@@ -11,7 +11,7 @@ import type {
   ApiThemePreference,
   ApiUser,
   AuthTokens,
-  CalendarOccurrence,
+  CalendarResponse,
   CalendarView,
   ChangeEmailRequest,
   ChangePasswordRequest,
@@ -383,7 +383,7 @@ export const api = {
   },
   async calendar(from: string, to: string, view: CalendarView) {
     const params = new URLSearchParams({ from, to, view });
-    return request<{ view: CalendarView; occurrences: CalendarOccurrence[] }>(`/calendar?${params}`);
+    return request<CalendarResponse>(`/calendar?${params}`);
   },
   async completeOccurrence(taskId: string, date: string) {
     return request<{ ok: true }>(`/tasks/${taskId}/occurrences/${encodeURIComponent(date)}/complete`, {

@@ -1,10 +1,12 @@
 import type { FastifyInstance } from "fastify";
-import type { ApiTag, ApiTask, RecurrenceRuleInput, TaskPriority, TaskStatus } from "@todo/shared";
+import type { ApiTag, ApiTask, CalendarHabitCheckIn, HabitColor, RecurrenceRuleInput, TaskPriority, TaskStatus } from "@todo/shared";
 import {
   calendarQuerySchema,
   createTaskRequestSchema,
+  habitColorValues,
   sortTasksForDisplay,
   taskPriorityValues,
+  toLocalDateKey,
   updateTaskRequestSchema
 } from "@todo/shared";
 import { asDate, execute, id, queryOne, queryRows, toMysqlDate, transaction, type DbRow } from "../db.js";
@@ -38,6 +40,32 @@ type ExceptionRow = DbRow & {
   status: "SKIPPED" | "COMPLETED" | "RESCHEDULED";
   rescheduledDate: Date | string | null;
 };
+
+type CalendarHabitCheckInRow = DbRow & {
+  checkInId: string;
+  habitId: string;
+  date: string;
+  title: string;
+  icon: string;
+  color: string;
+  sortOrder: number | string;
+};
+
+function normalizeHabitColor(value: string | null | undefined): HabitColor {
+  return habitColorValues.includes(value as HabitColor) ? value as HabitColor : "mint";
+}
+
+function serializeCalendarHabitCheckIn(row: CalendarHabitCheckInRow): CalendarHabitCheckIn {
+  return {
+    id: row.checkInId,
+    habitId: row.habitId,
+    date: row.date,
+    title: row.title,
+    icon: row.icon || "Smile",
+    color: normalizeHabitColor(row.color),
+    sortOrder: Number(row.sortOrder ?? 0)
+  };
+}
 
 function parseWeekdays(value: RecurrenceRow["byWeekday"]) {
   if (!value) {
@@ -271,13 +299,36 @@ export async function taskRoutes(app: FastifyInstance) {
     const query = calendarQuerySchema.parse(request.query);
     const from = new Date(query.from);
     const to = new Date(query.to);
-    const rows = await queryRows<TaskRow>(
-      `SELECT t.* FROM \`Task\` t
-       LEFT JOIN \`RecurrenceRule\` rr ON rr.taskId = t.id
-       WHERE t.userId = ? AND t.status <> 'ARCHIVED'
-         AND ((t.dueAt BETWEEN ? AND ?) OR rr.id IS NOT NULL)`,
-      [request.user.id, toMysqlDate(from), toMysqlDate(to)]
-    );
+    const fromKey = toLocalDateKey(from);
+    const toKey = toLocalDateKey(to);
+    const [rows, habitCheckInRows] = await Promise.all([
+      queryRows<TaskRow>(
+        `SELECT t.* FROM \`Task\` t
+         LEFT JOIN \`RecurrenceRule\` rr ON rr.taskId = t.id
+         WHERE t.userId = ? AND t.status <> 'ARCHIVED'
+           AND ((t.dueAt BETWEEN ? AND ?) OR rr.id IS NOT NULL)`,
+        [request.user.id, toMysqlDate(from), toMysqlDate(to)]
+      ),
+      queryRows<CalendarHabitCheckInRow>(
+        `SELECT
+          hc.\`id\` AS \`checkInId\`,
+          hc.\`habitId\`,
+          hc.\`date\`,
+          h.\`title\`,
+          h.\`icon\`,
+          h.\`color\`,
+          h.\`sortOrder\`
+         FROM \`HabitCheckIn\` hc
+         INNER JOIN \`Habit\` h ON h.\`id\` = hc.\`habitId\` AND h.\`userId\` = hc.\`userId\`
+         WHERE hc.\`userId\` = ? AND hc.\`date\` >= ? AND hc.\`date\` < ?
+         ORDER BY hc.\`date\` ASC,
+          CASE WHEN h.\`archivedAt\` IS NULL THEN 0 ELSE 1 END ASC,
+          h.\`sortOrder\` ASC,
+          h.\`createdAt\` ASC,
+          h.\`id\` ASC`,
+        [request.user.id, fromKey, toKey]
+      )
+    ]);
 
     const expandableTasks: Array<ExpandableTask & { source: ApiTask }> = [];
     for (const row of rows) {
@@ -309,7 +360,10 @@ export async function taskRoutes(app: FastifyInstance) {
 
     return {
       view: query.view,
-      occurrences: buildOccurrences(expandableTasks, from, to, (task) => task.source)
+      occurrences: buildOccurrences(expandableTasks, from, to, (task) => task.source),
+      habitCheckIns: habitCheckInRows
+        .filter((row) => row.date >= fromKey && row.date < toKey)
+        .map(serializeCalendarHabitCheckIn)
     };
   });
 
