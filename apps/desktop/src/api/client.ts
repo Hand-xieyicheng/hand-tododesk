@@ -59,20 +59,28 @@ import {
 } from "@todo/shared";
 import { clearSession, getAccessToken, getRefreshToken, saveAccessToken, saveRefreshToken } from "../lib/authStorage";
 
+const productionApiBaseUrl = "http://101.132.96.141/api";
+const localApiBaseUrlPattern = /^https?:\/\/(?:localhost|127\.0\.0\.1)(?::|\/|$)/;
+
 function resolveApiBaseUrl() {
-  if (import.meta.env.VITE_API_BASE_URL) {
-    return import.meta.env.VITE_API_BASE_URL;
+  const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim();
+  if (configuredApiBaseUrl) {
+    return configuredApiBaseUrl.replace(/\/+$/, "");
+  }
+
+  if (import.meta.env.DEV) {
+    return "/api";
   }
 
   if (typeof window !== "undefined" && window.location.hostname) {
     if (window.location.hostname === "tauri.localhost") {
-      return "http://127.0.0.1:4020";
+      return productionApiBaseUrl;
     }
 
-    return `http://${window.location.hostname}:4020`;
+    return "/api";
   }
 
-  return "http://127.0.0.1:4020";
+  return productionApiBaseUrl;
 }
 
 const API_BASE_URL = resolveApiBaseUrl();
@@ -88,7 +96,13 @@ function networkErrorMessage() {
   const appOrigin = typeof window !== "undefined" && window.location.origin !== "null"
     ? window.location.origin
     : "当前前端地址";
-  return `无法连接到本机 API（${API_BASE_URL}）。请确认后端服务已启动，并且后端 APP_ORIGIN/EXTRA_APP_ORIGINS 包含 ${appOrigin} 或 http://tauri.localhost。`;
+  const apiTarget = API_BASE_URL.startsWith("/")
+    ? `${appOrigin}${API_BASE_URL}（开发代理到 http://127.0.0.1:4020）`
+    : API_BASE_URL;
+  if (import.meta.env.DEV || localApiBaseUrlPattern.test(API_BASE_URL)) {
+    return `无法连接到本机 API（${apiTarget}）。请确认后端服务已启动，并且后端 APP_ORIGIN/EXTRA_APP_ORIGINS 包含 ${appOrigin} 或 http://tauri.localhost。`;
+  }
+  return `无法连接到线上 API（${apiTarget}）。请确认网络连接正常，或稍后重试。`;
 }
 
 export class ApiError extends Error {
