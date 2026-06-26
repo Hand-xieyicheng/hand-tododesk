@@ -54,7 +54,8 @@ jobs:
         run: npm ci
 
       - name: Validate desktop API target
-        run: node -e "if (process.env.VITE_API_BASE_URL !== 'http://101.132.96.141/api') throw new Error('Unexpected VITE_API_BASE_URL: ' + process.env.VITE_API_BASE_URL)"
+        run: |
+          node -e "if (process.env.VITE_API_BASE_URL !== 'http://101.132.96.141/api') throw new Error('Unexpected VITE_API_BASE_URL: ' + process.env.VITE_API_BASE_URL)"
 
       - name: Build shared package
         run: npm run build -w @todo/shared
