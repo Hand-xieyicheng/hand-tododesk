@@ -59,7 +59,7 @@ import {
 } from "@todo/shared";
 import { clearSession, getAccessToken, getRefreshToken, saveAccessToken, saveRefreshToken } from "../lib/authStorage";
 
-const productionApiBaseUrl = "http://101.132.96.141/api";
+const productionApiBaseUrl = "https://api.handjp.com";
 const localApiBaseUrlPattern = /^https?:\/\/(?:localhost|127\.0\.0\.1)(?::|\/|$)/;
 
 function resolveApiBaseUrl() {
