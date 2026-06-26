@@ -72,6 +72,10 @@ function resolveApiBaseUrl() {
     return "/api";
   }
 
+  if (import.meta.env.DEV) {
+    return "/api";
+  }
+
   if (typeof window !== "undefined" && window.location.hostname) {
     if (window.location.hostname === "tauri.localhost") {
       return productionApiBaseUrl;
@@ -99,10 +103,7 @@ function networkErrorMessage() {
   const apiTarget = API_BASE_URL.startsWith("/")
     ? `${appOrigin}${API_BASE_URL}（开发代理到 http://127.0.0.1:4020）`
     : API_BASE_URL;
-  if (import.meta.env.DEV || localApiBaseUrlPattern.test(API_BASE_URL)) {
-    return `无法连接到本机 API（${apiTarget}）。请确认后端服务已启动，并且后端 APP_ORIGIN/EXTRA_APP_ORIGINS 包含 ${appOrigin} 或 http://tauri.localhost。`;
-  }
-  return `无法连接到线上 API（${apiTarget}）。请确认网络连接正常，或稍后重试。`;
+  return `无法连接到本机 API（${apiTarget}）。请确认后端服务已启动，并且后端 APP_ORIGIN/EXTRA_APP_ORIGINS 包含 ${appOrigin} 或 http://tauri.localhost。`;
 }
 
 export class ApiError extends Error {

@@ -821,6 +821,7 @@ export function App() {
                 viewMode={effectiveTaskViewMode}
                 onChanged={loadAppData}
                 onCreateOpenChange={setTaskCreateOpen}
+                onPanelMessageChange={setMessage}
                 onTagMaintenanceOpenChange={setTaskTagMaintenanceOpen}
               />
             )}

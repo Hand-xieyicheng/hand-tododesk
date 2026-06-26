@@ -6,7 +6,14 @@ export default defineConfig({
   clearScreen: false,
   server: {
     port: 8090,
-    strictPort: true
+    strictPort: true,
+    proxy: {
+      "/api": {
+        target: "http://127.0.0.1:4020",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, "")
+      }
+    }
   },
   test: {
     environment: "jsdom",

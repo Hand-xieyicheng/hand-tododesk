@@ -2625,6 +2625,44 @@ textarea::placeholder {
   pointer-events: none;
 }
 
+.kanban-task-draggable {
+  min-width: 0;
+  cursor: grab;
+  touch-action: manipulation;
+  transition: opacity 140ms ease, filter 140ms ease;
+}
+
+.kanban-task-draggable > .task-item {
+  width: 100%;
+}
+
+.kanban-task-draggable.is-dragging {
+  position: relative;
+  z-index: 60;
+  cursor: grabbing;
+  opacity: 0.36;
+}
+
+.kanban-drag-overlay {
+  width: clamp(calc(250px * var(--app-ui-scale)), 24vw, calc(340px * var(--app-ui-scale)));
+  max-width: clamp(calc(250px * var(--app-ui-scale)), 24vw, calc(340px * var(--app-ui-scale)));
+  pointer-events: none;
+}
+
+.kanban-drag-overlay > .task-item {
+  width: 100%;
+  cursor: grabbing;
+  box-shadow:
+    0 7px 16px color-mix(in srgb, var(--color-primary) 18%, transparent),
+    0 2px 0 var(--color-soft-shadow);
+}
+
+.kanban-task-draggable.is-updating {
+  pointer-events: none;
+  opacity: 0.56;
+  filter: saturate(0.72);
+}
+
 .kanban-column {
   display: grid;
   width: clamp(calc(250px * var(--app-ui-scale)), 24vw, calc(340px * var(--app-ui-scale)));
@@ -2635,6 +2673,17 @@ textarea::placeholder {
   align-content: stretch;
   gap: calc(8px * var(--app-ui-scale));
   padding: 0 calc(2px * var(--app-ui-scale));
+  border-radius: 12px;
+  transition: background 140ms ease, box-shadow 140ms ease;
+}
+
+.kanban-column.is-drag-active {
+  background: color-mix(in srgb, var(--color-surface) 34%, transparent);
+}
+
+.kanban-column.is-drop-target {
+  background: color-mix(in srgb, var(--color-primary) 10%, var(--color-surface) 22%);
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--color-primary) 42%, transparent);
 }
 
 .kanban-column header {

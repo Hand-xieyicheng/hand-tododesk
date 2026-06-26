@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ApiTask } from "@todo/shared";
 import { getTodayEndDatetimeLocal } from "../lib/datetime";
@@ -14,6 +14,52 @@ const apiMock = vi.hoisted(() => ({
   updateTag: vi.fn(),
   updateTask: vi.fn()
 }));
+
+const dndMock = vi.hoisted(() => ({
+  draggables: new Map<string, { data: unknown; disabled?: boolean }>(),
+  draggableTransform: { x: 24, y: 32, scaleX: 1.4, scaleY: 2 },
+  droppables: new Map<string, { data: unknown }>(),
+  handlers: {} as {
+    onDragCancel?: () => void;
+    onDragEnd?: (event: { active: { id: string; data: { current: unknown } }; over: { id: string; data: { current: unknown } } | null }) => void | Promise<void>;
+    onDragStart?: (event: { active: { id: string; data: { current: unknown } } }) => void;
+  }
+}));
+
+vi.mock("@dnd-kit/core", async () => {
+  const React = await import("react");
+  return {
+    DndContext: ({ children, onDragCancel, onDragEnd, onDragStart }: any) => {
+      dndMock.handlers = { onDragCancel, onDragEnd, onDragStart };
+      return React.createElement("div", { "data-testid": "kanban-dnd-context" }, children);
+    },
+    DragOverlay: ({ children }: any) => (
+      children ? React.createElement("div", { "data-testid": "kanban-drag-overlay" }, children) : null
+    ),
+    KeyboardSensor: function KeyboardSensor() {},
+    PointerSensor: function PointerSensor() {},
+    closestCenter: vi.fn(),
+    useDraggable: ({ data, disabled, id }: any) => {
+      dndMock.draggables.set(String(id), { data, disabled });
+      return {
+        attributes: { "data-draggable-id": String(id) },
+        isDragging: false,
+        listeners: {},
+        setNodeRef: vi.fn(),
+        transform: dndMock.draggableTransform
+      };
+    },
+    useDroppable: ({ data, id }: any) => {
+      dndMock.droppables.set(String(id), { data });
+      return {
+        isOver: false,
+        setNodeRef: vi.fn()
+      };
+    },
+    useSensor: vi.fn((sensor, options) => ({ options, sensor })),
+    useSensors: vi.fn((...sensors) => sensors)
+  };
+});
 
 vi.mock("animal-island-ui", () => ({
   Button: ({ children, danger, disabled, htmlType, icon, onClick, title, ...props }: any) => (
@@ -115,7 +161,13 @@ function renderPanel(displayMode: "full" | "title", panelTasks: ApiTask[] = [tas
   );
 }
 
-function renderKanbanPanel(panelTasks: ApiTask[], showCompletedTasks = true, displayMode: "full" | "title" = "title") {
+function renderKanbanPanel(
+  panelTasks: ApiTask[],
+  showCompletedTasks = true,
+  displayMode: "full" | "title" = "title",
+  onChanged = vi.fn(async () => undefined),
+  onPanelMessageChange = vi.fn()
+) {
   return render(
     <TaskPanel
       createOpen={false}
@@ -126,16 +178,41 @@ function renderKanbanPanel(panelTasks: ApiTask[], showCompletedTasks = true, dis
       taskTagFilter="tag-2"
       tasks={panelTasks}
       viewMode="kanban"
-      onChanged={vi.fn(async () => undefined)}
+      onChanged={onChanged}
       onCreateOpenChange={vi.fn()}
+      onPanelMessageChange={onPanelMessageChange}
       onTagMaintenanceOpenChange={vi.fn()}
     />
   );
 }
 
+async function dropKanbanTask(taskId: string, columnId: string | null) {
+  const draggable = dndMock.draggables.get(taskId);
+  const droppable = columnId ? dndMock.droppables.get(`kanban-column:${columnId}`) : null;
+  const active = { id: taskId, data: { current: draggable?.data } };
+
+  dndMock.handlers.onDragStart?.({ active });
+  await dndMock.handlers.onDragEnd?.({
+    active,
+    over: droppable && columnId ? { id: `kanban-column:${columnId}`, data: { current: droppable.data } } : null
+  });
+}
+
+async function startKanbanTaskDrag(taskId: string) {
+  const draggable = dndMock.draggables.get(taskId);
+  const active = { id: taskId, data: { current: draggable?.data } };
+
+  await act(async () => {
+    dndMock.handlers.onDragStart?.({ active });
+  });
+}
+
 describe("TaskPanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    dndMock.draggables.clear();
+    dndMock.droppables.clear();
+    dndMock.handlers = {};
     apiMock.taskQuadrants.mockResolvedValue({ quadrants: emptyQuadrants() });
   });
 
@@ -456,6 +533,92 @@ describe("TaskPanel", () => {
     expect(within(workColumn).getByText("1")).toBeInTheDocument();
     expect(within(workColumn).getByText("看板未完成")).toBeInTheDocument();
     expect(within(workColumn).queryByText("看板已完成")).not.toBeInTheDocument();
+  });
+
+  it("updates a task tag when dropped into another kanban tag column", async () => {
+    apiMock.updateTask.mockResolvedValue({ task: taskWith({ tags: [{ id: "tag-2", name: "生活" }] }) });
+    const onChanged = vi.fn(async () => undefined);
+    const workTask = taskWith({ id: "kanban-work", title: "看板工作", tags: [{ id: "tag-1", name: "工作" }] });
+
+    renderKanbanPanel([workTask], true, "title", onChanged);
+
+    await dropKanbanTask("kanban-work", "tag-2");
+
+    await waitFor(() => expect(apiMock.updateTask).toHaveBeenCalledWith("kanban-work", { tagId: "tag-2" }));
+    await waitFor(() => expect(onChanged).toHaveBeenCalledTimes(1));
+  });
+
+  it("clears a task tag when dropped into the untagged kanban column", async () => {
+    apiMock.updateTask.mockResolvedValue({ task: taskWith({ tags: [] }) });
+    const onChanged = vi.fn(async () => undefined);
+    const workTask = taskWith({ id: "kanban-work", title: "看板工作", tags: [{ id: "tag-1", name: "工作" }] });
+
+    renderKanbanPanel([workTask], true, "title", onChanged);
+
+    await dropKanbanTask("kanban-work", "__untagged__");
+
+    await waitFor(() => expect(apiMock.updateTask).toHaveBeenCalledWith("kanban-work", { tagId: null }));
+    await waitFor(() => expect(onChanged).toHaveBeenCalledTimes(1));
+  });
+
+  it("does not update a task tag when dropped into the same column or outside the kanban board", async () => {
+    const workTask = taskWith({ id: "kanban-work", title: "看板工作", tags: [{ id: "tag-1", name: "工作" }] });
+
+    renderKanbanPanel([workTask]);
+
+    await dropKanbanTask("kanban-work", "tag-1");
+    await dropKanbanTask("kanban-work", null);
+
+    expect(apiMock.updateTask).not.toHaveBeenCalled();
+  });
+
+  it("reports kanban tag update failures to the parent message area instead of the kanban layout", async () => {
+    apiMock.updateTask.mockRejectedValue(new Error("标签更新失败"));
+    const onPanelMessageChange = vi.fn();
+    const workTask = taskWith({ id: "kanban-work", title: "看板工作", tags: [{ id: "tag-1", name: "工作" }] });
+
+    const { container } = renderKanbanPanel([workTask], true, "title", vi.fn(async () => undefined), onPanelMessageChange);
+
+    await dropKanbanTask("kanban-work", "tag-2");
+
+    await waitFor(() => expect(onPanelMessageChange).toHaveBeenCalledWith("标签更新失败"));
+    expect(container.querySelector(".task-layout > .inline-alert")).not.toBeInTheDocument();
+  });
+
+  it("renders the dragged kanban card through the dnd overlay without transforming the source card", async () => {
+    const { container } = renderKanbanPanel([task]);
+    const sourceCard = container.querySelector<HTMLElement>("[data-kanban-task-id='task-1']");
+
+    expect(sourceCard).not.toBeNull();
+    expect(sourceCard!.style.transform).toBe("");
+
+    await startKanbanTaskDrag("task-1");
+
+    const overlay = screen.getByTestId("kanban-drag-overlay");
+    expect(within(overlay).getByText("准备周报")).toBeInTheDocument();
+    expect(sourceCard!.style.transform).toBe("");
+  });
+
+  it("keeps kanban card details, completion, and deletion available while cards are draggable", async () => {
+    apiMock.updateTask.mockResolvedValue({ task: taskWith({ status: "COMPLETED" }) });
+    apiMock.deleteTask.mockResolvedValue(undefined);
+    const onChanged = vi.fn(async () => undefined);
+
+    renderKanbanPanel([task], true, "title", onChanged);
+
+    const workColumn = screen.getByRole("region", { name: "工作看板列" });
+    fireEvent.click(within(workColumn).getByRole("button", { name: "查看准备周报详情" }));
+
+    expect(screen.getByRole("dialog", { name: "待办详情" })).toHaveTextContent("整理本周项目进展和风险");
+
+    fireEvent.click(within(workColumn).getByRole("button", { name: "完成" }));
+
+    await waitFor(() => expect(apiMock.updateTask).toHaveBeenCalledWith("task-1", { status: "COMPLETED" }));
+
+    fireEvent.click(within(workColumn).getByRole("button", { name: "删除" }));
+
+    await waitFor(() => expect(apiMock.deleteTask).toHaveBeenCalledWith("task-1"));
+    expect(onChanged).toHaveBeenCalledTimes(2);
   });
 
   it("keeps vertical wheel movement independent from horizontal kanban scrolling", () => {

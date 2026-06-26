@@ -1,4 +1,5 @@
-import { type FormEvent, type KeyboardEvent, type PointerEvent, type WheelEvent, useEffect, useMemo, useRef, useState } from "react";
+import { type CSSProperties, type FormEvent, type KeyboardEvent, type PointerEvent, type ReactNode, type WheelEvent, useEffect, useMemo, useRef, useState } from "react";
+import { closestCenter, DndContext, DragOverlay, KeyboardSensor, PointerSensor, type DragEndEvent, type DragStartEvent, useDraggable, useDroppable, useSensor, useSensors } from "@dnd-kit/core";
 import { sortTasksForDisplay, type ApiTag, type ApiTask, type CreateTaskRequest, type TaskCardDisplayMode, type TaskPriority, type TaskStatus, type TaskViewMode } from "@todo/shared";
 import { Button, Card, Divider, Input, Modal, Select } from "animal-island-ui";
 import { Check, Pencil, Plus, RotateCcw, Save, Trash2, X } from "lucide-react";
@@ -17,6 +18,7 @@ interface TaskPanelProps {
   viewMode: TaskViewMode;
   onChanged(): Promise<void>;
   onCreateOpenChange(open: boolean): void;
+  onPanelMessageChange?(message: string): void;
   onTagMaintenanceOpenChange(open: boolean): void;
 }
 
@@ -68,6 +70,18 @@ const noTagSelectValue = "__none__";
 const allTagsFilterValue = "__all__";
 const untaggedTagsFilterValue = "__untagged__";
 const kanbanDragThresholdPx = 5;
+const kanbanColumnDropIdPrefix = "kanban-column:";
+
+type KanbanTaskDragData = {
+  type: "kanban-task";
+  taskId: string;
+  sourceTagId: string | null;
+};
+
+type KanbanColumnDropData = {
+  type: "kanban-column";
+  tagId: string | null;
+};
 
 type KanbanDragState = {
   pointerId: number;
@@ -121,7 +135,26 @@ function closestElement(target: EventTarget | null, selector: string) {
 }
 
 function isKanbanDragIgnoredTarget(target: EventTarget | null) {
-  return Boolean(closestElement(target, "button, a, input, textarea, select, [role='button'], .task-item"));
+  return Boolean(closestElement(target, "button, a, input, textarea, select, [role='button'], .task-item, .kanban-task-draggable"));
+}
+
+function getKanbanColumnDropId(columnId: string) {
+  return `${kanbanColumnDropIdPrefix}${columnId}`;
+}
+
+function isKanbanTaskDragData(value: unknown): value is KanbanTaskDragData {
+  return Boolean(value && typeof value === "object" && (value as KanbanTaskDragData).type === "kanban-task" && typeof (value as KanbanTaskDragData).taskId === "string");
+}
+
+function isKanbanColumnDropData(value: unknown): value is KanbanColumnDropData {
+  return Boolean(value && typeof value === "object" && (value as KanbanColumnDropData).type === "kanban-column");
+}
+
+function getKanbanTaskDragWidth(taskId: string) {
+  const element = [...document.querySelectorAll<HTMLElement>(".kanban-task-draggable")]
+    .find((item) => item.dataset.kanbanTaskId === taskId);
+  const width = element?.getBoundingClientRect().width ?? 0;
+  return Number.isFinite(width) && width > 0 ? width : null;
 }
 
 interface KanbanColumn {
@@ -287,6 +320,101 @@ function TaskCard({ task, compact, displayMode, onDelete, onOpenDetails, onSetSt
   );
 }
 
+interface KanbanTaskCardProps {
+  disabled: boolean;
+  displayMode: TaskCardDisplayMode;
+  dragging: boolean;
+  task: ApiTask;
+  updating: boolean;
+  onDelete(task: ApiTask): Promise<void>;
+  onOpenDetails(task: ApiTask): void;
+  onSetStatus(task: ApiTask, status: TaskStatus): Promise<void>;
+}
+
+function KanbanTaskCard({ disabled, displayMode, dragging, task, updating, onDelete, onOpenDetails, onSetStatus }: KanbanTaskCardProps) {
+  const sourceTagId = task.tags[0]?.id ?? null;
+  const {
+    attributes,
+    isDragging,
+    listeners,
+    setNodeRef
+  } = useDraggable({
+    id: task.id,
+    data: {
+      type: "kanban-task",
+      taskId: task.id,
+      sourceTagId
+    } satisfies KanbanTaskDragData,
+    disabled
+  });
+
+  return (
+    <div
+      {...attributes}
+      {...listeners}
+      className={[
+        "kanban-task-draggable",
+        dragging || isDragging ? "is-dragging" : "",
+        updating ? "is-updating" : ""
+      ].filter(Boolean).join(" ")}
+      data-kanban-task-id={task.id}
+      ref={setNodeRef}
+    >
+      <TaskCard compact displayMode={displayMode} task={task} onDelete={onDelete} onOpenDetails={onOpenDetails} onSetStatus={onSetStatus} />
+    </div>
+  );
+}
+
+interface KanbanColumnSectionProps {
+  children: ReactNode;
+  column: KanbanColumn;
+  draggingTaskId: string | null;
+  onCreateTask(tagId: string | null): void;
+}
+
+function KanbanColumnSection({ children, column, draggingTaskId, onCreateTask }: KanbanColumnSectionProps) {
+  const { isOver, setNodeRef } = useDroppable({
+    id: getKanbanColumnDropId(column.id),
+    data: {
+      type: "kanban-column",
+      tagId: column.tagId
+    } satisfies KanbanColumnDropData
+  });
+
+  return (
+    <section
+      className={[
+        "kanban-column",
+        draggingTaskId ? "is-drag-active" : "",
+        isOver ? "is-drop-target" : ""
+      ].filter(Boolean).join(" ")}
+      aria-label={`${column.title}看板列`}
+      ref={setNodeRef}
+    >
+      <header>
+        <div>
+          <h3>{column.title}</h3>
+          <span>{column.tagId ? "标签" : "无标签"}</span>
+        </div>
+        <strong>{column.tasks.length}</strong>
+      </header>
+      <Button
+        className="kanban-add-task"
+        icon={<Plus size={15} />}
+        size="small"
+        type="text"
+        onClick={() => onCreateTask(column.tagId)}
+      >
+        新建任务
+      </Button>
+      <div className="kanban-task-list">
+        {column.tasks.length === 0 ? <div className="empty-state">暂无待办</div> : null}
+        {children}
+      </div>
+    </section>
+  );
+}
+
 interface TagMaintenanceModalProps {
   open: boolean;
   tags: ApiTag[];
@@ -441,8 +569,16 @@ function TagMaintenanceModal({ open, tags, onChanged, onClose }: TagMaintenanceM
   );
 }
 
-export function TaskPanel({ createOpen, showCompletedTasks, tags, taskCardDisplayMode, tagMaintenanceOpen, taskTagFilter, tasks, viewMode, onChanged, onCreateOpenChange, onTagMaintenanceOpenChange }: TaskPanelProps) {
+export function TaskPanel({ createOpen, showCompletedTasks, tags, taskCardDisplayMode, tagMaintenanceOpen, taskTagFilter, tasks, viewMode, onChanged, onCreateOpenChange, onPanelMessageChange = () => undefined, onTagMaintenanceOpenChange }: TaskPanelProps) {
   const kanbanDragState = useRef<KanbanDragState | null>(null);
+  const kanbanTaskSensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: kanbanDragThresholdPx
+      }
+    }),
+    useSensor(KeyboardSensor)
+  );
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
   const [dueAt, setDueAt] = useState(() => getTodayEndDatetimeLocal());
@@ -450,8 +586,10 @@ export function TaskPanel({ createOpen, showCompletedTasks, tags, taskCardDispla
   const [tagId, setTagId] = useState(noTagSelectValue);
   const [repeat, setRepeat] = useState<"NONE" | "DAILY" | "WEEKLY" | "MONTHLY">("NONE");
   const [formMessage, setFormMessage] = useState("");
-  const [panelMessage, setPanelMessage] = useState("");
   const [detailTask, setDetailTask] = useState<ApiTask | null>(null);
+  const [draggingKanbanTaskId, setDraggingKanbanTaskId] = useState<string | null>(null);
+  const [kanbanDragOverlayWidth, setKanbanDragOverlayWidth] = useState<number | null>(null);
+  const [updatingKanbanTaskId, setUpdatingKanbanTaskId] = useState<string | null>(null);
   const [quadrants, setQuadrants] = useState<Record<TaskPriority, ApiTask[]>>(() => emptyQuadrants());
   const tagOptions = useMemo(() => [
     { key: noTagSelectValue, label: "不选择" },
@@ -468,6 +606,15 @@ export function TaskPanel({ createOpen, showCompletedTasks, tags, taskCardDispla
     () => buildKanbanColumns(tasks, tags, showCompletedTasks),
     [showCompletedTasks, tags, tasks]
   );
+  const draggingKanbanTask = useMemo(
+    () => draggingKanbanTaskId ? tasks.find((item) => item.id === draggingKanbanTaskId) ?? null : null,
+    [draggingKanbanTaskId, tasks]
+  );
+  const kanbanDragOverlayStyle: CSSProperties | undefined = kanbanDragOverlayWidth ? { width: kanbanDragOverlayWidth } : undefined;
+
+  function setPanelMessage(message: string) {
+    onPanelMessageChange(message);
+  }
 
   async function loadQuadrants() {
     setPanelMessage("");
@@ -563,6 +710,54 @@ export function TaskPanel({ createOpen, showCompletedTasks, tags, taskCardDispla
     setFormMessage("");
     setTagId(nextTagId ?? noTagSelectValue);
     onCreateOpenChange(true);
+  }
+
+  async function moveKanbanTaskToTag(taskId: string, targetTagId: string | null) {
+    const task = tasks.find((item) => item.id === taskId);
+    if (!task) {
+      return;
+    }
+
+    const sourceTagId = task.tags[0]?.id ?? null;
+    if (sourceTagId === targetTagId || updatingKanbanTaskId) {
+      return;
+    }
+
+    setPanelMessage("");
+    setUpdatingKanbanTaskId(taskId);
+    try {
+      await api.updateTask(task.id, { tagId: targetTagId });
+      await refreshAfterChange();
+    } catch (error) {
+      setPanelMessage(error instanceof Error ? error.message : "标签更新失败");
+    } finally {
+      setUpdatingKanbanTaskId((current) => current === taskId ? null : current);
+    }
+  }
+
+  function handleKanbanTaskDragStart(event: DragStartEvent) {
+    const activeData = event.active.data.current;
+    if (isKanbanTaskDragData(activeData)) {
+      setDraggingKanbanTaskId(activeData.taskId);
+      setKanbanDragOverlayWidth(getKanbanTaskDragWidth(activeData.taskId));
+    }
+  }
+
+  function handleKanbanTaskDragCancel() {
+    setDraggingKanbanTaskId(null);
+    setKanbanDragOverlayWidth(null);
+  }
+
+  function handleKanbanTaskDragEnd(event: DragEndEvent) {
+    setDraggingKanbanTaskId(null);
+    setKanbanDragOverlayWidth(null);
+    const activeData = event.active.data.current;
+    const overData = event.over?.data.current;
+    if (!isKanbanTaskDragData(activeData) || !isKanbanColumnDropData(overData)) {
+      return;
+    }
+
+    void moveKanbanTaskToTag(activeData.taskId, overData.tagId);
   }
 
   function handleKanbanWheel(event: WheelEvent<HTMLElement>) {
@@ -678,8 +873,6 @@ export function TaskPanel({ createOpen, showCompletedTasks, tags, taskCardDispla
       </Modal>
 
       <div className={`task-layout task-layout-${viewMode}`}>
-        {panelMessage ? <div className="inline-alert">{panelMessage}</div> : null}
-
         {viewMode === "list" ? (
           <section className="task-list">
             {visibleTasks.length === 0 ? <Card className="empty-state" type="dashed">暂无待办</Card> : null}
@@ -688,42 +881,53 @@ export function TaskPanel({ createOpen, showCompletedTasks, tags, taskCardDispla
             ))}
           </section>
         ) : viewMode === "kanban" ? (
-          <section
-            className="kanban-board"
-            aria-label="按标签分组的待办看板"
-            onPointerCancel={endKanbanDrag}
-            onPointerDown={beginKanbanDrag}
-            onPointerMove={moveKanbanDrag}
-            onPointerUp={endKanbanDrag}
-            onWheel={handleKanbanWheel}
+          <DndContext
+            collisionDetection={closestCenter}
+            sensors={kanbanTaskSensors}
+            onDragCancel={handleKanbanTaskDragCancel}
+            onDragEnd={handleKanbanTaskDragEnd}
+            onDragStart={handleKanbanTaskDragStart}
           >
-            {kanbanColumns.map((column) => (
-              <section className="kanban-column" key={column.id} aria-label={`${column.title}看板列`}>
-                <header>
-                  <div>
-                    <h3>{column.title}</h3>
-                    <span>{column.tagId ? "标签" : "无标签"}</span>
-                  </div>
-                  <strong>{column.tasks.length}</strong>
-                </header>
-                <Button
-                  className="kanban-add-task"
-                  icon={<Plus size={15} />}
-                  size="small"
-                  type="text"
-                  onClick={() => openCreateForKanbanColumn(column.tagId)}
+            <section
+              className="kanban-board"
+              aria-label="按标签分组的待办看板"
+              onPointerCancel={endKanbanDrag}
+              onPointerDown={beginKanbanDrag}
+              onPointerMove={moveKanbanDrag}
+              onPointerUp={endKanbanDrag}
+              onWheel={handleKanbanWheel}
+            >
+              {kanbanColumns.map((column) => (
+                <KanbanColumnSection
+                  column={column}
+                  draggingTaskId={draggingKanbanTaskId}
+                  key={column.id}
+                  onCreateTask={openCreateForKanbanColumn}
                 >
-                  新建任务
-                </Button>
-                <div className="kanban-task-list">
-                  {column.tasks.length === 0 ? <div className="empty-state">暂无待办</div> : null}
                   {column.tasks.map((task) => (
-                    <TaskCard compact displayMode={taskCardDisplayMode} key={task.id} task={task} onDelete={deleteTask} onOpenDetails={setDetailTask} onSetStatus={setStatus} />
+                    <KanbanTaskCard
+                      disabled={Boolean(updatingKanbanTaskId)}
+                      displayMode={taskCardDisplayMode}
+                      dragging={draggingKanbanTaskId === task.id}
+                      key={task.id}
+                      task={task}
+                      updating={updatingKanbanTaskId === task.id}
+                      onDelete={deleteTask}
+                      onOpenDetails={setDetailTask}
+                      onSetStatus={setStatus}
+                    />
                   ))}
+                </KanbanColumnSection>
+              ))}
+            </section>
+            <DragOverlay dropAnimation={null}>
+              {draggingKanbanTask ? (
+                <div className="kanban-drag-overlay" style={kanbanDragOverlayStyle}>
+                  <TaskCard compact displayMode={taskCardDisplayMode} task={draggingKanbanTask} onDelete={deleteTask} onOpenDetails={setDetailTask} onSetStatus={setStatus} />
                 </div>
-              </section>
-            ))}
-          </section>
+              ) : null}
+            </DragOverlay>
+          </DndContext>
         ) : (
           <section className="quadrant-grid">
             {priorityOrder.map((item) => {

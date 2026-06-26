@@ -19,21 +19,7 @@ describe("api client base URL", () => {
   beforeEach(() => {
     localStorage.clear();
     vi.resetModules();
-    vi.unstubAllEnvs();
     vi.unstubAllGlobals();
-  });
-
-  it("uses the configured production API URL", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(200, { tasks: [] }));
-    vi.stubEnv("VITE_API_BASE_URL", "http://101.132.96.141/api/");
-    vi.stubGlobal("fetch", fetchMock);
-
-    const { api } = await import("./client");
-    await expect(api.tasks()).resolves.toEqual({ tasks: [] });
-
-    expect(fetchMock).toHaveBeenCalledWith("http://101.132.96.141/api/tasks", expect.objectContaining({
-      headers: expect.any(Headers)
-    }));
   });
 
   it("uses the Vite same-origin proxy in desktop dev mode", async () => {

@@ -51,6 +51,12 @@ export async function buildApp() {
   await ensureAvatarDirectory();
   await ensureMemoAssetDirectory();
 
+  app.addHook("onRequest", async (request, reply) => {
+    if (request.headers["access-control-request-private-network"] === "true") {
+      reply.header("Access-Control-Allow-Private-Network", "true");
+    }
+  });
+
   await app.register(cors, {
     origin: appOrigins,
     credentials: true
