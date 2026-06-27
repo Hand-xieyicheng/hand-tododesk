@@ -99,6 +99,11 @@ export const legacyThemeIdMap = {
 } as const satisfies Record<string, ThemeId>;
 export const taskViewModeValues = ["list", "quadrant", "kanban"] as const;
 export const taskCardDisplayModeValues = ["full", "title"] as const;
+export const printTemplateIdValues = ["checklist", "memo", "compact", "decorated"] as const;
+export const printPaperWidthModeValues = ["preset", "custom"] as const;
+export const printFontSizeModeValues = ["small", "normal", "large", "custom"] as const;
+export const printMarginModeValues = ["narrow", "normal", "wide"] as const;
+export const printSourceTypeValues = ["tasks", "memo"] as const;
 export const appCloseBehaviorValues = ["hide", "quit"] as const;
 export const displaySizeValues = ["small", "default", "large"] as const;
 export const sidebarModuleValues = ["tasks", "memos", "anniversaries", "habits", "calendar", "pomodoro"] as const;
@@ -362,6 +367,48 @@ export const updateTaskOrderRequestSchema = z.object({
   path: ["orderedIds"]
 });
 
+export const printShareConfigSchema = z.object({
+  templateId: z.enum(printTemplateIdValues),
+  paperWidthMode: z.enum(printPaperWidthModeValues),
+  paperWidthMm: z.number().int().min(40).max(120),
+  maxHeightMm: z.number().int().min(40).max(1000).optional().nullable(),
+  fontSizeMode: z.enum(printFontSizeModeValues),
+  customFontSizePx: z.number().int().min(8).max(28).optional().nullable(),
+  marginMode: z.enum(printMarginModeValues),
+  expiresInHours: z.number().int().min(1).max(168).default(24)
+}).superRefine((value, ctx) => {
+  if (value.fontSizeMode === "custom" && !value.customFontSizePx) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Custom font size is required",
+      path: ["customFontSizePx"]
+    });
+  }
+});
+
+export const printTasksSourceSchema = z.object({
+  tagFilter: z.string().trim().min(1).max(120),
+  showCompletedTasks: z.boolean(),
+  viewMode: z.enum(taskViewModeValues)
+});
+
+export const printMemoSourceSchema = z.object({
+  memoId: z.string().trim().min(1).max(191)
+});
+
+export const createPrintShareRequestSchema = z.discriminatedUnion("sourceType", [
+  z.object({
+    sourceType: z.literal("tasks"),
+    source: printTasksSourceSchema,
+    config: printShareConfigSchema
+  }),
+  z.object({
+    sourceType: z.literal("memo"),
+    source: printMemoSourceSchema,
+    config: printShareConfigSchema
+  })
+]);
+
 export const tagNameSchema = z.string().trim().min(1).max(40);
 
 export const createTagRequestSchema = z.object({
@@ -393,6 +440,7 @@ export const updateThemePreferenceRequestSchema = z
     titleColor: z.enum(titleColorValues).optional(),
     footerVisible: z.boolean().optional(),
     footerType: z.enum(footerTypeValues).optional(),
+    printButtonEnabled: z.boolean().optional(),
     showCompletedTasks: z.boolean().optional(),
     taskViewMode: z.enum(taskViewModeValues).optional(),
     taskCardDisplayMode: z.enum(taskCardDisplayModeValues).optional(),
@@ -408,6 +456,7 @@ export const updateThemePreferenceRequestSchema = z
     value.titleColor ||
     value.footerVisible !== undefined ||
     value.footerType ||
+    value.printButtonEnabled !== undefined ||
     value.showCompletedTasks !== undefined ||
     value.taskViewMode ||
     value.taskCardDisplayMode ||
@@ -487,6 +536,10 @@ export type HabitDetailQuery = z.infer<typeof habitDetailQuerySchema>;
 export type CreateTaskRequest = z.infer<typeof createTaskRequestSchema>;
 export type UpdateTaskRequest = z.infer<typeof updateTaskRequestSchema>;
 export type UpdateTaskOrderRequest = z.infer<typeof updateTaskOrderRequestSchema>;
+export type CreatePrintShareRequest = z.infer<typeof createPrintShareRequestSchema>;
+export type PrintShareConfig = z.infer<typeof printShareConfigSchema>;
+export type PrintTasksSource = z.infer<typeof printTasksSourceSchema>;
+export type PrintMemoSource = z.infer<typeof printMemoSourceSchema>;
 export type CreateTagRequest = z.infer<typeof createTagRequestSchema>;
 export type UpdateTagRequest = z.infer<typeof updateTagRequestSchema>;
 export type RecurrenceRuleInput = z.infer<typeof recurrenceRuleSchema>;
@@ -507,6 +560,7 @@ export type TaskStatus = (typeof taskStatusValues)[number];
 export type TaskPriority = (typeof taskPriorityValues)[number];
 export type TaskViewMode = (typeof taskViewModeValues)[number];
 export type TaskCardDisplayMode = (typeof taskCardDisplayModeValues)[number];
+export type PrintTemplateId = (typeof printTemplateIdValues)[number];
 export type FloatingCardThemeId = (typeof floatingCardThemeIdValues)[number];
 export type AppCloseBehavior = (typeof appCloseBehaviorValues)[number];
 export type DisplaySize = (typeof displaySizeValues)[number];
@@ -533,6 +587,7 @@ export interface ApiThemePreference {
   titleColor: TitleColor;
   footerVisible: boolean;
   footerType: FooterType;
+  printButtonEnabled: boolean;
   showCompletedTasks: boolean;
   taskViewMode: TaskViewMode;
   taskCardDisplayMode: TaskCardDisplayMode;
@@ -542,6 +597,16 @@ export interface ApiThemePreference {
   visibleSidebarModules: SidebarModule[];
   sidebarCollapsed: boolean;
   fontFamily: FontFamily;
+}
+
+export interface ApiPrintShare {
+  id: string;
+  url: string;
+  expiresAt: string;
+}
+
+export interface ApiPrintShareResponse {
+  printShare: ApiPrintShare;
 }
 
 export interface AuthTokens {

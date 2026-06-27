@@ -12,6 +12,7 @@ import {
   createAnniversaryRequestSchema,
   createHabitRequestSchema,
 	  createMemoRequestSchema,
+  createPrintShareRequestSchema,
 	  createTagRequestSchema,
 	  createTaskRequestSchema,
 	  defaultAppFeatureFlags,
@@ -23,6 +24,10 @@ import {
   habitColorValues,
   habitFrequencyValues,
   habitRecommendedIconValues,
+  printFontSizeModeValues,
+  printMarginModeValues,
+  printPaperWidthModeValues,
+  printTemplateIdValues,
 	  releaseChannelValues,
 	  legacyThemeIdMap,
 	  normalizeThemeId,
@@ -121,6 +126,8 @@ describe("profile schemas", () => {
     expect(updateThemePreferenceRequestSchema.parse({ titleColor: "app-orange" })).toEqual({ titleColor: "app-orange" });
     expect(updateThemePreferenceRequestSchema.parse({ footerVisible: false })).toEqual({ footerVisible: false });
     expect(updateThemePreferenceRequestSchema.parse({ footerType: "tree" })).toEqual({ footerType: "tree" });
+    expect(updateThemePreferenceRequestSchema.parse({ printButtonEnabled: true })).toEqual({ printButtonEnabled: true });
+    expect(updateThemePreferenceRequestSchema.parse({ printButtonEnabled: false })).toEqual({ printButtonEnabled: false });
     expect(updateThemePreferenceRequestSchema.parse({ showCompletedTasks: false })).toEqual({ showCompletedTasks: false });
     expect(updateThemePreferenceRequestSchema.parse({ taskViewMode: "quadrant" })).toEqual({ taskViewMode: "quadrant" });
     expect(updateThemePreferenceRequestSchema.parse({ taskViewMode: "kanban" })).toEqual({ taskViewMode: "kanban" });
@@ -151,6 +158,95 @@ describe("profile schemas", () => {
 	    expect(updateThemePreferenceRequestSchema.safeParse({ themeId: "shinchan" }).success).toBe(false);
 	    expect(updateThemePreferenceRequestSchema.safeParse({}).success).toBe(false);
 	  });
+});
+
+describe("print share schemas", () => {
+  it("accepts supported print templates and printer dimensions", () => {
+    expect(printTemplateIdValues).toEqual(["checklist", "memo", "compact", "decorated"]);
+    expect(printPaperWidthModeValues).toEqual(["preset", "custom"]);
+    expect(printFontSizeModeValues).toEqual(["small", "normal", "large", "custom"]);
+    expect(printMarginModeValues).toEqual(["narrow", "normal", "wide"]);
+
+    expect(createPrintShareRequestSchema.parse({
+      sourceType: "tasks",
+      source: {
+        tagFilter: "__all__",
+        showCompletedTasks: false,
+        viewMode: "kanban"
+      },
+      config: {
+        templateId: "checklist",
+        paperWidthMode: "preset",
+        paperWidthMm: 58,
+        fontSizeMode: "normal",
+        marginMode: "normal",
+        expiresInHours: 24
+      }
+    })).toMatchObject({
+      sourceType: "tasks",
+      source: {
+        tagFilter: "__all__",
+        showCompletedTasks: false,
+        viewMode: "kanban"
+      },
+      config: {
+        templateId: "checklist",
+        paperWidthMm: 58,
+        expiresInHours: 24
+      }
+    });
+
+    expect(createPrintShareRequestSchema.parse({
+      sourceType: "memo",
+      source: { memoId: "memo-1" },
+      config: {
+        templateId: "decorated",
+        paperWidthMode: "custom",
+        paperWidthMm: 62,
+        maxHeightMm: 160,
+        fontSizeMode: "custom",
+        customFontSizePx: 15,
+        marginMode: "wide",
+        expiresInHours: 168
+      }
+    }).config).toMatchObject({
+      paperWidthMode: "custom",
+      paperWidthMm: 62,
+      customFontSizePx: 15
+    });
+  });
+
+  it("rejects invalid print share requests", () => {
+    expect(createPrintShareRequestSchema.safeParse({
+      sourceType: "tasks",
+      source: {
+        tagFilter: "__all__",
+        showCompletedTasks: true,
+        viewMode: "board"
+      },
+      config: {
+        templateId: "checklist",
+        paperWidthMode: "preset",
+        paperWidthMm: 58,
+        fontSizeMode: "normal",
+        marginMode: "normal",
+        expiresInHours: 24
+      }
+    }).success).toBe(false);
+
+    expect(createPrintShareRequestSchema.safeParse({
+      sourceType: "memo",
+      source: { memoId: "memo-1" },
+      config: {
+        templateId: "memo",
+        paperWidthMode: "custom",
+        paperWidthMm: 20,
+        fontSizeMode: "custom",
+        marginMode: "normal",
+        expiresInHours: 999
+      }
+    }).success).toBe(false);
+  });
 });
 
 describe("app bootstrap schema", () => {
