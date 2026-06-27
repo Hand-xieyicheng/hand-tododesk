@@ -34,6 +34,7 @@ type ThemePreferenceRow = DbRow & {
   displaySize: string;
   visibleSidebarModules: string | null;
   sidebarCollapsed: boolean | number;
+  printButtonEnabled: boolean | number;
   fontFamily: string;
 };
 
@@ -48,6 +49,7 @@ const defaultAppCloseBehavior: AppCloseBehavior = "hide";
 const defaultDisplaySize: DisplaySize = "default";
 const defaultFontFamily: FontFamily = "system";
 const defaultSidebarCollapsed = false;
+const defaultPrintButtonEnabled = false;
 const defaultVisibleSidebarModuleValue = defaultVisibleSidebarModules.join(",");
 
 function booleanFromDb(value: boolean | number | null | undefined, fallback: boolean) {
@@ -111,8 +113,8 @@ function sidebarModulesFromDb(value: string | null | undefined) {
 
 async function ensureThemePreference(userId: string) {
   await execute(
-    "INSERT IGNORE INTO `UserThemePreference` (`userId`, `themeId`, `titleColor`, `footerVisible`, `footerType`, `showCompletedTasks`, `taskViewMode`, `taskCardDisplayMode`, `floatingCardThemeId`, `appCloseBehavior`, `displaySize`, `visibleSidebarModules`, `sidebarCollapsed`, `fontFamily`, `updatedAt`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(3))",
-    [userId, defaultThemeId, defaultTitleColor, defaultFooterVisible, defaultFooterType, defaultShowCompletedTasks, defaultTaskViewMode, defaultTaskCardDisplayMode, defaultFloatingCardThemeId, defaultAppCloseBehavior, defaultDisplaySize, defaultVisibleSidebarModuleValue, defaultSidebarCollapsed, defaultFontFamily]
+    "INSERT IGNORE INTO `UserThemePreference` (`userId`, `themeId`, `titleColor`, `footerVisible`, `footerType`, `showCompletedTasks`, `taskViewMode`, `taskCardDisplayMode`, `floatingCardThemeId`, `appCloseBehavior`, `displaySize`, `visibleSidebarModules`, `sidebarCollapsed`, `printButtonEnabled`, `fontFamily`, `updatedAt`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(3))",
+    [userId, defaultThemeId, defaultTitleColor, defaultFooterVisible, defaultFooterType, defaultShowCompletedTasks, defaultTaskViewMode, defaultTaskCardDisplayMode, defaultFloatingCardThemeId, defaultAppCloseBehavior, defaultDisplaySize, defaultVisibleSidebarModuleValue, defaultSidebarCollapsed, defaultPrintButtonEnabled, defaultFontFamily]
   );
 }
 
@@ -120,7 +122,7 @@ export async function preferenceRoutes(app: FastifyInstance) {
   app.get("/preferences/theme", { preHandler: app.authenticate }, async (request) => {
     await ensureThemePreference(request.user.id);
     const preference = await queryOne<ThemePreferenceRow>(
-      "SELECT `themeId`, `titleColor`, `footerVisible`, `footerType`, `showCompletedTasks`, `taskViewMode`, `taskCardDisplayMode`, `floatingCardThemeId`, `appCloseBehavior`, `displaySize`, `visibleSidebarModules`, `sidebarCollapsed`, `fontFamily` FROM `UserThemePreference` WHERE `userId` = ?",
+      "SELECT `themeId`, `titleColor`, `footerVisible`, `footerType`, `showCompletedTasks`, `taskViewMode`, `taskCardDisplayMode`, `floatingCardThemeId`, `appCloseBehavior`, `displaySize`, `visibleSidebarModules`, `sidebarCollapsed`, `printButtonEnabled`, `fontFamily` FROM `UserThemePreference` WHERE `userId` = ?",
       [request.user.id]
     );
     return {
@@ -136,6 +138,7 @@ export async function preferenceRoutes(app: FastifyInstance) {
       displaySize: displaySizeFromDb(preference?.displaySize),
       visibleSidebarModules: sidebarModulesFromDb(preference?.visibleSidebarModules),
       sidebarCollapsed: booleanFromDb(preference?.sidebarCollapsed, defaultSidebarCollapsed),
+      printButtonEnabled: booleanFromDb(preference?.printButtonEnabled, defaultPrintButtonEnabled),
       fontFamily: fontFamilyFromDb(preference?.fontFamily)
     };
   });
@@ -144,7 +147,7 @@ export async function preferenceRoutes(app: FastifyInstance) {
     const body = updateThemePreferenceRequestSchema.parse(request.body);
     await ensureThemePreference(request.user.id);
     const current = await queryOne<ThemePreferenceRow>(
-      "SELECT `themeId`, `titleColor`, `footerVisible`, `footerType`, `showCompletedTasks`, `taskViewMode`, `taskCardDisplayMode`, `floatingCardThemeId`, `appCloseBehavior`, `displaySize`, `visibleSidebarModules`, `sidebarCollapsed`, `fontFamily` FROM `UserThemePreference` WHERE `userId` = ?",
+      "SELECT `themeId`, `titleColor`, `footerVisible`, `footerType`, `showCompletedTasks`, `taskViewMode`, `taskCardDisplayMode`, `floatingCardThemeId`, `appCloseBehavior`, `displaySize`, `visibleSidebarModules`, `sidebarCollapsed`, `printButtonEnabled`, `fontFamily` FROM `UserThemePreference` WHERE `userId` = ?",
       [request.user.id]
     );
     const themeId = body.themeId ?? themeIdFromDb(current?.themeId);
@@ -162,11 +165,12 @@ export async function preferenceRoutes(app: FastifyInstance) {
       : sidebarModulesFromDb(current?.visibleSidebarModules);
     const visibleSidebarModuleValue = visibleSidebarModules.join(",");
     const sidebarCollapsed = body.sidebarCollapsed ?? booleanFromDb(current?.sidebarCollapsed, defaultSidebarCollapsed);
+    const printButtonEnabled = body.printButtonEnabled ?? booleanFromDb(current?.printButtonEnabled, defaultPrintButtonEnabled);
     const fontFamily = body.fontFamily ?? fontFamilyFromDb(current?.fontFamily);
 
     await execute(
-      `INSERT INTO \`UserThemePreference\` (\`userId\`, \`themeId\`, \`titleColor\`, \`footerVisible\`, \`footerType\`, \`showCompletedTasks\`, \`taskViewMode\`, \`taskCardDisplayMode\`, \`floatingCardThemeId\`, \`appCloseBehavior\`, \`displaySize\`, \`visibleSidebarModules\`, \`sidebarCollapsed\`, \`fontFamily\`, \`updatedAt\`)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(3))
+      `INSERT INTO \`UserThemePreference\` (\`userId\`, \`themeId\`, \`titleColor\`, \`footerVisible\`, \`footerType\`, \`showCompletedTasks\`, \`taskViewMode\`, \`taskCardDisplayMode\`, \`floatingCardThemeId\`, \`appCloseBehavior\`, \`displaySize\`, \`visibleSidebarModules\`, \`sidebarCollapsed\`, \`printButtonEnabled\`, \`fontFamily\`, \`updatedAt\`)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(3))
        ON DUPLICATE KEY UPDATE
         \`themeId\` = VALUES(\`themeId\`),
         \`titleColor\` = VALUES(\`titleColor\`),
@@ -180,10 +184,11 @@ export async function preferenceRoutes(app: FastifyInstance) {
         \`displaySize\` = VALUES(\`displaySize\`),
         \`visibleSidebarModules\` = VALUES(\`visibleSidebarModules\`),
         \`sidebarCollapsed\` = VALUES(\`sidebarCollapsed\`),
+        \`printButtonEnabled\` = VALUES(\`printButtonEnabled\`),
         \`fontFamily\` = VALUES(\`fontFamily\`),
         \`updatedAt\` = NOW(3)`,
-      [request.user.id, themeId, titleColor, footerVisible, footerType, showCompletedTasks, taskViewMode, taskCardDisplayMode, floatingCardThemeId, appCloseBehavior, displaySize, visibleSidebarModuleValue, sidebarCollapsed, fontFamily]
+      [request.user.id, themeId, titleColor, footerVisible, footerType, showCompletedTasks, taskViewMode, taskCardDisplayMode, floatingCardThemeId, appCloseBehavior, displaySize, visibleSidebarModuleValue, sidebarCollapsed, printButtonEnabled, fontFamily]
     );
-    return { themeId, titleColor, footerVisible, footerType, showCompletedTasks, taskViewMode, taskCardDisplayMode, floatingCardThemeId, appCloseBehavior, displaySize, visibleSidebarModules, sidebarCollapsed, fontFamily };
+    return { themeId, titleColor, footerVisible, footerType, showCompletedTasks, taskViewMode, taskCardDisplayMode, floatingCardThemeId, appCloseBehavior, displaySize, visibleSidebarModules, sidebarCollapsed, printButtonEnabled, fontFamily };
   });
 }

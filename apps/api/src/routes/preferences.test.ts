@@ -33,6 +33,7 @@ const currentPreference = {
   displaySize: "default",
   visibleSidebarModules: "tasks,memos,anniversaries,habits,calendar,pomodoro",
   sidebarCollapsed: 0,
+  printButtonEnabled: 0,
   fontFamily: "system"
 };
 
@@ -68,7 +69,8 @@ describe("preference routes", () => {
       floatingCardThemeId: "warm-paper",
       appCloseBehavior: "hide",
       visibleSidebarModules: ["tasks", "memos", "anniversaries", "habits", "calendar", "pomodoro"],
-      sidebarCollapsed: false
+      sidebarCollapsed: false,
+      printButtonEnabled: false
     });
   });
 
@@ -115,6 +117,7 @@ describe("preference routes", () => {
       "default",
       "tasks,memos,anniversaries,habits,calendar,pomodoro",
       false,
+      false,
       "system"
     ]);
   });
@@ -141,6 +144,7 @@ describe("preference routes", () => {
       "hide",
       "default",
       "tasks,memos,anniversaries,habits,calendar,pomodoro",
+      false,
       false,
       "system"
     ]);
@@ -180,6 +184,7 @@ describe("preference routes", () => {
       "default",
       "tasks,memos,anniversaries,habits,calendar,pomodoro",
       false,
+      false,
       "system"
     ]);
   });
@@ -218,7 +223,36 @@ describe("preference routes", () => {
       "default",
       "tasks,memos,anniversaries,habits,calendar,pomodoro",
       false,
+      false,
       "lemi-chunxu-wanxing"
+    ]);
+  });
+
+  it("saves print button visibility preference", async () => {
+    db.queryOne.mockResolvedValue(currentPreference);
+
+    const response = await injectPreference("PUT", { printButtonEnabled: true });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      printButtonEnabled: true
+    });
+    expect(db.execute).toHaveBeenLastCalledWith(expect.stringContaining("printButtonEnabled"), [
+      "user-1",
+      "peach",
+      "app-teal",
+      true,
+      "sea",
+      true,
+      "list",
+      "full",
+      "warm-paper",
+      "hide",
+      "default",
+      "tasks,memos,anniversaries,habits,calendar,pomodoro",
+      false,
+      true,
+      "system"
     ]);
   });
 
@@ -255,6 +289,7 @@ describe("preference routes", () => {
       "quit",
       "default",
       "tasks,memos,anniversaries,habits,calendar,pomodoro",
+      false,
       false,
       "system"
     ]);
@@ -294,6 +329,7 @@ describe("preference routes", () => {
       "default",
       "tasks,memos,anniversaries,habits,calendar,pomodoro",
       true,
+      false,
       "system"
     ]);
   });
@@ -321,6 +357,7 @@ describe("preference routes", () => {
       "default",
       "memos,tasks",
       false,
+      false,
       "system"
     ]);
   });
@@ -347,6 +384,7 @@ describe("preference routes", () => {
       "hide",
       "default",
       "",
+      false,
       false,
       "system"
     ]);
