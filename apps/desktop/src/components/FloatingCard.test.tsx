@@ -1,7 +1,9 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { defaultVisibleSidebarModules, type ApiTask, type ApiThemePreference } from "@todo/shared";
+import { desktopSyncBrowserEventName } from "../lib/desktopSync";
 import { getTodayEndDatetimeLocal } from "../lib/datetime";
+import { useTaskBoardStore } from "../stores/taskBoardStore";
 import { FloatingCard } from "./FloatingCard";
 
 const apiMock = vi.hoisted(() => ({
@@ -10,7 +12,15 @@ const apiMock = vi.hoisted(() => ({
   setThemePreference: vi.fn(),
   tags: vi.fn(),
   tasks: vi.fn(),
-  updateTask: vi.fn()
+  updateTask: vi.fn(),
+  updateTaskOrder: vi.fn()
+}));
+
+const dndMock = vi.hoisted(() => ({
+  draggables: new Map<string, { data: unknown; disabled?: boolean }>(),
+  handlers: {} as {
+    onDragEnd?: (event: { active: { id: string; data: { current: unknown } }; over: { id: string; data: { current: unknown } } | null }) => void | Promise<void>;
+  }
 }));
 
 const tauriCoreMock = vi.hoisted(() => ({
@@ -33,6 +43,50 @@ vi.mock("@tauri-apps/api/window", () => ({
 }));
 
 vi.mock("@tauri-apps/api/core", () => tauriCoreMock);
+
+vi.mock("@dnd-kit/core", async () => {
+  const React = await import("react");
+  return {
+    DndContext: ({ children, onDragEnd }: any) => {
+      dndMock.handlers = { onDragEnd };
+      return React.createElement("div", { "data-testid": "floating-dnd-context" }, children);
+    },
+    KeyboardSensor: function KeyboardSensor() {},
+    PointerSensor: function PointerSensor() {},
+    closestCenter: vi.fn(),
+    useSensor: vi.fn((sensor, options) => ({ options, sensor })),
+    useSensors: vi.fn((...sensors) => sensors)
+  };
+});
+
+vi.mock("@dnd-kit/sortable", async () => {
+  const React = await import("react");
+  return {
+    SortableContext: ({ children }: any) => React.createElement("div", { "data-testid": "floating-sortable-context" }, children),
+    sortableKeyboardCoordinates: vi.fn(),
+    verticalListSortingStrategy: vi.fn(),
+    useSortable: ({ data, disabled, id }: any) => {
+      dndMock.draggables.set(String(id), { data, disabled });
+      return {
+        attributes: { "data-sortable-id": String(id) },
+        isDragging: false,
+        listeners: disabled ? {} : { "data-sortable-listener": String(id) },
+        setActivatorNodeRef: vi.fn(),
+        setNodeRef: vi.fn(),
+        transform: null,
+        transition: undefined
+      };
+    }
+  };
+});
+
+vi.mock("@dnd-kit/utilities", () => ({
+  CSS: {
+    Transform: {
+      toString: vi.fn(() => "")
+    }
+  }
+}));
 
 vi.mock("animal-island-ui", () => ({
   Button: ({ children, disabled, htmlType, icon, loading, onClick, title, ...props }: any) => (
@@ -66,6 +120,7 @@ const task: ApiTask = {
   dueAt: null,
   priority: "IMPORTANT_NOT_URGENT",
   status: "TODO",
+  sortOrder: null,
   createdAt: "2026-06-14T00:00:00.000Z",
   updatedAt: "2026-06-14T00:00:00.000Z",
   completedAt: null,
@@ -114,16 +169,31 @@ function createDeferred<T>() {
   return { promise, reject, resolve };
 }
 
+async function dropTaskOnTask(activeId: string, overId: string) {
+  const draggable = dndMock.draggables.get(activeId);
+  const droppable = dndMock.draggables.get(overId);
+  const active = { id: activeId, data: { current: draggable?.data } };
+
+  await dndMock.handlers.onDragEnd?.({
+    active,
+    over: droppable ? { id: overId, data: { current: droppable.data } } : null
+  });
+}
+
 describe("FloatingCard", () => {
   let alwaysOnTop = false;
 
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+    useTaskBoardStore.getState().reset();
+    dndMock.draggables.clear();
+    dndMock.handlers = {};
     alwaysOnTop = false;
     apiMock.tasks.mockResolvedValue({ tasks: [task] });
     apiMock.tags.mockResolvedValue({ tags: tagOptions });
     apiMock.getThemePreference.mockResolvedValue(titlePreference);
+    apiMock.updateTaskOrder.mockResolvedValue({ ok: true });
     windowMock.isAlwaysOnTop.mockImplementation(async () => alwaysOnTop);
     windowMock.setAlwaysOnTop.mockImplementation(async (value: boolean) => {
       alwaysOnTop = value;
@@ -266,7 +336,7 @@ describe("FloatingCard", () => {
     })));
   });
 
-  it("sorts visible tasks with unfinished items first and created date ascending", async () => {
+  it("sorts visible tasks with completed items at the bottom", async () => {
     const completedOld = taskWith({
       id: "done-old",
       title: "卡片早创建已完成",
@@ -296,5 +366,181 @@ describe("FloatingCard", () => {
       "卡片晚创建未完成",
       "卡片早创建已完成"
     ]);
+  });
+
+  it("persists manual order after dragging floating tasks", async () => {
+    const firstTask = taskWith({
+      id: "floating-first",
+      title: "浮窗第一",
+      createdAt: "2026-06-01T00:00:00.000Z"
+    });
+    const secondTask = taskWith({
+      id: "floating-second",
+      title: "浮窗第二",
+      createdAt: "2026-06-02T00:00:00.000Z"
+    });
+    const rawListener = vi.fn();
+    apiMock.tasks.mockResolvedValue({ tasks: [firstTask, secondTask] });
+    window.addEventListener(desktopSyncBrowserEventName, rawListener);
+
+    render(<FloatingCard />);
+
+    await waitFor(() => expect(dndMock.draggables.has("floating-second")).toBe(true));
+    await dropTaskOnTask("floating-first", "floating-second");
+
+    await waitFor(() => expect(apiMock.updateTaskOrder).toHaveBeenCalledWith({
+      orderedIds: ["floating-second", "floating-first"]
+    }));
+    await waitFor(() => expect(rawListener).toHaveBeenCalledWith(expect.objectContaining({
+      detail: expect.objectContaining({
+        type: "task-board:reload-requested"
+      })
+    })));
+
+    window.removeEventListener(desktopSyncBrowserEventName, rawListener);
+  });
+
+  it("uses the whole floating task card as the drag activator", async () => {
+    apiMock.tasks.mockResolvedValue({ tasks: [task] });
+
+    const { container } = render(<FloatingCard />);
+
+    await waitFor(() => expect(container.querySelector(".floating-task-title")).toHaveTextContent("整理票据"));
+
+    const sortableCard = container.querySelector<HTMLElement>("[data-floating-task-id='task-1']");
+    expect(sortableCard).toHaveAttribute("data-sortable-listener", "task-1");
+    expect(screen.queryByRole("button", { name: "拖动排序整理票据" })).not.toBeInTheDocument();
+    expect(container.querySelector("[title='拖动排序']")).not.toBeInTheDocument();
+  });
+
+  it("does not allow completed floating cards to drag or receive dropped tasks", async () => {
+    const openTask = taskWith({
+      id: "floating-open",
+      title: "浮窗未完成",
+      createdAt: "2026-06-01T00:00:00.000Z"
+    });
+    const completedTask = taskWith({
+      id: "floating-done",
+      title: "浮窗已完成",
+      status: "COMPLETED",
+      completedAt: "2026-06-03T00:00:00.000Z",
+      createdAt: "2026-06-02T00:00:00.000Z"
+    });
+    apiMock.tasks.mockResolvedValue({ tasks: [completedTask, openTask] });
+
+    const { container } = render(<FloatingCard />);
+
+    await waitFor(() => expect(container.querySelectorAll(".floating-task-title")).toHaveLength(2));
+
+    const completedSortable = container.querySelector<HTMLElement>("[data-floating-task-id='floating-done']");
+    expect(dndMock.draggables.get("floating-done")?.disabled).toBe(true);
+    expect(completedSortable).not.toHaveAttribute("data-sortable-listener");
+
+    await dropTaskOnTask("floating-open", "floating-done");
+    await dropTaskOnTask("floating-done", "floating-open");
+
+    expect(apiMock.updateTaskOrder).not.toHaveBeenCalled();
+  });
+
+  it("applies external task upsert events without reloading tasks", async () => {
+    render(<FloatingCard />);
+
+    await waitFor(() => expect(screen.getAllByText("整理票据").length).toBeGreaterThan(0));
+    expect(apiMock.tasks).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent(desktopSyncBrowserEventName, {
+        detail: {
+          sourceId: "main-window",
+          task: taskWith({ title: "整理票据更新" }),
+          type: "task:upserted"
+        }
+      }));
+    });
+
+    expect(screen.getAllByText("整理票据更新").length).toBeGreaterThan(0);
+    expect(apiMock.tasks).toHaveBeenCalledTimes(1);
+  });
+
+  it("applies external preference events without waiting for polling", async () => {
+    apiMock.tasks.mockResolvedValue({
+      tasks: [
+        task,
+        taskWith({
+          id: "task-2",
+          title: "已完成旧任务",
+          status: "COMPLETED",
+          completedAt: "2026-06-14T12:00:00.000Z"
+        })
+      ]
+    });
+    render(<FloatingCard />);
+
+    await waitFor(() => expect(screen.getByText("含已完成")).toBeInTheDocument());
+
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent(desktopSyncBrowserEventName, {
+        detail: {
+          preference: {
+            ...titlePreference,
+            showCompletedTasks: false
+          },
+          sourceId: "main-window",
+          type: "preference:changed"
+        }
+      }));
+    });
+
+    expect(screen.getByText("仅未完成")).toBeInTheDocument();
+    expect(screen.queryByText("已完成旧任务")).not.toBeInTheDocument();
+  });
+
+  it("reloads task board data once when an external reload request is received", async () => {
+    render(<FloatingCard />);
+
+    await waitFor(() => expect(screen.getAllByText("整理票据").length).toBeGreaterThan(0));
+    expect(apiMock.tasks).toHaveBeenCalledTimes(1);
+
+    apiMock.tasks.mockResolvedValueOnce({ tasks: [taskWith({ title: "标签刷新后的任务" })] });
+    apiMock.tags.mockResolvedValueOnce({ tags: tagOptions });
+    apiMock.getThemePreference.mockResolvedValueOnce(titlePreference);
+
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent(desktopSyncBrowserEventName, {
+        detail: {
+          sourceId: "main-window",
+          type: "task-board:reload-requested"
+        }
+      }));
+    });
+
+    await waitFor(() => expect(screen.getAllByText("标签刷新后的任务").length).toBeGreaterThan(0));
+    expect(apiMock.tasks).toHaveBeenCalledTimes(2);
+  });
+
+  it("emits task upsert events after changing task status from the floating card", async () => {
+    apiMock.updateTask.mockResolvedValue({
+      task: taskWith({
+        status: "COMPLETED",
+        completedAt: "2026-06-14T12:00:00.000Z"
+      })
+    });
+    const rawListener = vi.fn();
+    window.addEventListener(desktopSyncBrowserEventName, rawListener);
+    render(<FloatingCard />);
+
+    fireEvent.click(await screen.findByRole("checkbox", { name: "完成" }));
+
+    await waitFor(() => expect(rawListener).toHaveBeenCalledWith(expect.objectContaining({
+      detail: expect.objectContaining({
+        task: expect.objectContaining({
+          id: "task-1",
+          status: "COMPLETED"
+        }),
+        type: "task:upserted"
+      })
+    })));
+
+    window.removeEventListener(desktopSyncBrowserEventName, rawListener);
   });
 });

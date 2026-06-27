@@ -1,6 +1,6 @@
 import rrulePackage from "rrule";
 import type { Weekday } from "rrule";
-import type { CalendarOccurrence, RecurrenceRuleInput } from "@todo/shared";
+import { toLocalDateKey, type CalendarOccurrence, type RecurrenceRuleInput } from "@todo/shared";
 
 const { RRule } = rrulePackage as typeof import("rrule");
 
@@ -36,7 +36,7 @@ export interface ExpandableTask {
 }
 
 export function toDateKey(date: Date) {
-  return date.toISOString().slice(0, 10);
+  return toLocalDateKey(date);
 }
 
 export function expandTaskOccurrences(task: ExpandableTask, from: Date, to: Date): Date[] {

@@ -44,7 +44,15 @@ export function applyTheme(themeId: string | null | undefined) {
     shadow: palette.shadow,
     "soft-shadow": palette.softShadow,
     dots: palette.dots,
-    "control-color-scheme": palette.controlColorScheme
+    "control-color-scheme": palette.controlColorScheme,
+    "active-nav-text": palette.activeNavText ?? palette.primary,
+    "active-nav-shadow": palette.activeNavShadow ?? `color-mix(in srgb, ${palette.primary} 52%, ${palette.text})`,
+    "hover-text": palette.hoverText ?? `color-mix(in srgb, ${palette.primary} 62%, ${palette.text})`,
+    "emphasis-text": palette.emphasisText ?? `color-mix(in srgb, ${palette.primary} 46%, ${palette.text})`,
+    "strong-emphasis-text": palette.strongEmphasisText ?? `color-mix(in srgb, ${palette.primary} 70%, ${palette.text})`,
+    "task-drag-background": palette.taskDragBackground,
+    "task-drag-text": palette.taskDragText,
+    "task-drag-shadow": palette.taskDragShadow
   };
   for (const [key, value] of Object.entries(colorVariables)) {
     root.style.setProperty(`--color-${key}`, value);

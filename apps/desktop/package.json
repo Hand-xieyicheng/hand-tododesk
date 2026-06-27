@@ -1,6 +1,6 @@
 {
   "name": "@todo/desktop",
-  "version": "0.2.17",
+  "version": "0.2.18",
   "type": "module",
   "private": true,
   "scripts": {
@@ -29,7 +29,8 @@
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-router-dom": "^7.18.0",
-    "zod": "^3.25.64"
+    "zod": "^3.25.64",
+    "zustand": "^5.0.14"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.5.0",

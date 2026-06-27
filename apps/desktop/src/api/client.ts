@@ -33,6 +33,7 @@ import type {
   UpdateProfileRequest,
   UpdateTagRequest,
   UpdateThemePreferenceRequest,
+  UpdateTaskOrderRequest,
   UpdateTaskRequest
 } from "@todo/shared";
 import {
@@ -53,9 +54,10 @@ import {
   updateAnniversaryRequestSchema,
   updateHabitOrderRequestSchema,
   updateHabitRequestSchema,
+  updateProfileRequestSchema,
   updateTagRequestSchema,
-  updateThemePreferenceRequestSchema,
-  updateProfileRequestSchema
+  updateTaskOrderRequestSchema,
+  updateThemePreferenceRequestSchema
 } from "@todo/shared";
 import { clearSession, getAccessToken, getRefreshToken, saveAccessToken, saveRefreshToken } from "../lib/authStorage";
 
@@ -391,6 +393,12 @@ export const api = {
     return request<{ task: ApiTask }>(`/tasks/${id}`, {
       method: "PATCH",
       body: JSON.stringify(input)
+    });
+  },
+  async updateTaskOrder(input: UpdateTaskOrderRequest) {
+    return request<{ ok: true }>("/tasks/order", {
+      method: "PUT",
+      body: JSON.stringify(updateTaskOrderRequestSchema.parse(input))
     });
   },
   async deleteTask(id: string) {

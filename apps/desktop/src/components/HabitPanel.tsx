@@ -1,4 +1,4 @@
-import { memo, type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { memo, type FormEvent, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import {
   habitColorValues,
   habitWeekdayValues,
@@ -14,12 +14,13 @@ import {
 } from "@todo/shared";
 import { Button, Card, Input, Modal, Select } from "animal-island-ui";
 import {
+  Archive,
+  ArchiveRestore,
   Check,
   Edit3,
   Flame,
   MoreHorizontal,
   Plus,
-  RotateCcw,
   PenLine,
   Search,
   Trash2
@@ -48,6 +49,15 @@ interface HabitDraft {
 }
 
 const iconPageSize = 42;
+
+function IconButtonTooltip({ children, label }: { children: ReactNode; label: string }) {
+  return (
+    <span className="icon-button-tooltip-trigger" data-tooltip={label}>
+      {children}
+      <span className="icon-button-tooltip-label" role="tooltip">{label}</span>
+    </span>
+  );
+}
 
 const colorLabels: Record<HabitColor, string> = {
   blue: "蓝",
@@ -214,6 +224,7 @@ export function HabitPanel({ createOpen, showArchived, onCreateOpenChange }: Hab
   const [visibleIconCount, setVisibleIconCount] = useState(iconPageSize);
   const selectedHabit = useMemo(() => habits.find((habit) => habit.id === selectedId) ?? null, [habits, selectedId]);
   const modalOpen = createOpen || Boolean(editingHabit);
+  const archiveActionLabel = selectedHabit?.archivedAt ? "取消归档" : "归档";
   const matchingIconOptions = useMemo(() => {
     const query = iconQuery.trim().toLowerCase();
     return query
@@ -702,12 +713,21 @@ export function HabitPanel({ createOpen, showArchived, onCreateOpenChange }: Hab
                   </div>
                 </div>
                 <div className="habit-detail-actions">
-                  <Button icon={<Edit3 size={15} />} size="small" type="default" onClick={() => beginEdit(selectedHabit)}>
-                  </Button>
-                  <Button icon={<RotateCcw size={15} />} size="small" type="default" onClick={() => void archiveHabit(selectedHabit, !selectedHabit.archivedAt)}>
-                  </Button>
-                  <Button aria-label="删除" danger icon={<Trash2 size={15} />} size="small" type="default" onClick={() => requestDeleteHabit(selectedHabit)}>
-                  </Button>
+                  <IconButtonTooltip label="编辑">
+                    <Button aria-label="编辑" icon={<Edit3 size={15} />} size="small" type="default" onClick={() => beginEdit(selectedHabit)} />
+                  </IconButtonTooltip>
+                  <IconButtonTooltip label={archiveActionLabel}>
+                    <Button
+                      aria-label={archiveActionLabel}
+                      icon={selectedHabit.archivedAt ? <ArchiveRestore size={15} /> : <Archive size={15} />}
+                      size="small"
+                      type="default"
+                      onClick={() => void archiveHabit(selectedHabit, !selectedHabit.archivedAt)}
+                    />
+                  </IconButtonTooltip>
+                  <IconButtonTooltip label="删除">
+                    <Button aria-label="删除" danger icon={<Trash2 size={15} />} size="small" type="default" onClick={() => requestDeleteHabit(selectedHabit)} />
+                  </IconButtonTooltip>
                 </div>
               </Card>
 

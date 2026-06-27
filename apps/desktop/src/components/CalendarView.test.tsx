@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CalendarResponse } from "@todo/shared";
 import { CalendarView } from "./CalendarView";
 
@@ -50,6 +50,7 @@ const calendarPayload: CalendarResponse = {
         dueAt: "2026-06-25T10:00:00.000Z",
         priority: "IMPORTANT_NOT_URGENT",
         status: "TODO",
+        sortOrder: null,
         createdAt: "2026-06-01T00:00:00.000Z",
         updatedAt: "2026-06-01T00:00:00.000Z",
         completedAt: null,
@@ -74,6 +75,12 @@ const calendarPayload: CalendarResponse = {
 };
 
 describe("CalendarView", () => {
+  const originalTimezone = process.env.TZ;
+
+  beforeAll(() => {
+    process.env.TZ = "Asia/Shanghai";
+  });
+
   beforeEach(() => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2026-06-25T12:00:00.000Z"));
@@ -84,6 +91,10 @@ describe("CalendarView", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  afterAll(() => {
+    process.env.TZ = originalTimezone;
   });
 
   it("renders checked-in habit icons in the fixed day strip with title tooltip", async () => {
@@ -111,6 +122,35 @@ describe("CalendarView", () => {
     expect(container.querySelector(".calendar-habit-strip")).not.toBeInTheDocument();
     expect(container.querySelector(".calendar-cell.has-habits")).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/习惯打卡：/)).not.toBeInTheDocument();
+  });
+
+  it("keeps a Beijing today deadline in today's calendar cell", async () => {
+    const baseOccurrence = calendarPayload.occurrences[0]!;
+    vi.setSystemTime(new Date("2026-06-26T04:00:00.000Z"));
+    apiMock.calendar.mockResolvedValue({
+      ...calendarPayload,
+      occurrences: [
+        {
+          ...baseOccurrence,
+          id: "task-1:2026-06-26",
+          title: "今日截止",
+          date: "2026-06-26T15:59:00.000Z",
+          dueAt: "2026-06-26T15:59:00.000Z",
+          task: {
+            ...baseOccurrence.task,
+            title: "今日截止",
+            dueAt: "2026-06-26T15:59:00.000Z"
+          }
+        }
+      ],
+      habitCheckIns: []
+    });
+
+    render(<CalendarView onChanged={vi.fn()} />);
+
+    await waitFor(() => expect(apiMock.calendar).toHaveBeenCalled());
+    const taskCell = screen.getByText("今日截止").closest(".calendar-cell");
+    expect(taskCell?.querySelector(".calendar-date-number")).toHaveTextContent("26");
   });
 
   it("renders task hover popovers outside the calendar card to avoid clipping", async () => {

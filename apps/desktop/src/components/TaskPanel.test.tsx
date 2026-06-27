@@ -2,6 +2,7 @@ import { useState } from "react";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ApiTask } from "@todo/shared";
+import { desktopSyncBrowserEventName } from "../lib/desktopSync";
 import { getTodayEndDatetimeLocal } from "../lib/datetime";
 import { TaskPanel } from "./TaskPanel";
 
@@ -12,7 +13,8 @@ const apiMock = vi.hoisted(() => ({
   deleteTask: vi.fn(),
   taskQuadrants: vi.fn(),
   updateTag: vi.fn(),
-  updateTask: vi.fn()
+  updateTask: vi.fn(),
+  updateTaskOrder: vi.fn()
 }));
 
 const dndMock = vi.hoisted(() => ({
@@ -61,6 +63,48 @@ vi.mock("@dnd-kit/core", async () => {
   };
 });
 
+vi.mock("@dnd-kit/sortable", async () => {
+  const React = await import("react");
+  function arrayMove<T>(items: T[], oldIndex: number, newIndex: number) {
+    const nextItems = [...items];
+    const item = nextItems[oldIndex];
+    if (item === undefined) {
+      return nextItems;
+    }
+    nextItems.splice(oldIndex, 1);
+    nextItems.splice(newIndex, 0, item);
+    return nextItems;
+  }
+
+  return {
+    SortableContext: ({ children }: any) => React.createElement("div", { "data-testid": "sortable-context" }, children),
+    arrayMove,
+    rectSortingStrategy: vi.fn(),
+    sortableKeyboardCoordinates: vi.fn(),
+    verticalListSortingStrategy: vi.fn(),
+    useSortable: ({ data, disabled, id }: any) => {
+      dndMock.draggables.set(String(id), { data, disabled });
+      return {
+        attributes: { "data-sortable-id": String(id) },
+        isDragging: false,
+        listeners: disabled ? {} : { "data-sortable-listener": String(id) },
+        setActivatorNodeRef: vi.fn(),
+        setNodeRef: vi.fn(),
+        transform: null,
+        transition: undefined
+      };
+    }
+  };
+});
+
+vi.mock("@dnd-kit/utilities", () => ({
+  CSS: {
+    Transform: {
+      toString: vi.fn(() => "")
+    }
+  }
+}));
+
 vi.mock("animal-island-ui", () => ({
   Button: ({ children, danger, disabled, htmlType, icon, onClick, title, ...props }: any) => (
     <button aria-label={props["aria-label"]} disabled={disabled} type={htmlType ?? "button"} title={title} data-danger={danger ? "true" : undefined} onClick={onClick}>
@@ -106,6 +150,7 @@ const task: ApiTask = {
   dueAt: "2026-06-15T10:00:00.000Z",
   priority: "IMPORTANT_URGENT",
   status: "TODO",
+  sortOrder: null,
   createdAt: "2026-06-14T00:00:00.000Z",
   updatedAt: "2026-06-14T00:00:00.000Z",
   completedAt: null,
@@ -161,6 +206,15 @@ function renderPanel(displayMode: "full" | "title", panelTasks: ApiTask[] = [tas
   );
 }
 
+function collectDesktopSyncEvents() {
+  const listener = vi.fn();
+  window.addEventListener(desktopSyncBrowserEventName, listener);
+  return {
+    listener,
+    stop: () => window.removeEventListener(desktopSyncBrowserEventName, listener)
+  };
+}
+
 function renderKanbanPanel(
   panelTasks: ApiTask[],
   showCompletedTasks = true,
@@ -198,6 +252,31 @@ async function dropKanbanTask(taskId: string, columnId: string | null) {
   });
 }
 
+async function dropTaskOnTask(activeId: string, overId: string) {
+  const draggable = dndMock.draggables.get(activeId);
+  const droppable = dndMock.draggables.get(overId);
+  const active = { id: activeId, data: { current: draggable?.data } };
+
+  dndMock.handlers.onDragStart?.({ active });
+  await dndMock.handlers.onDragEnd?.({
+    active,
+    over: droppable ? { id: overId, data: { current: droppable.data } } : null
+  });
+}
+
+async function dropTaskOnQuadrant(activeId: string, priority: ApiTask["priority"]) {
+  const draggable = dndMock.draggables.get(activeId);
+  const dropId = `quadrant:${priority}`;
+  const droppable = dndMock.droppables.get(dropId);
+  const active = { id: activeId, data: { current: draggable?.data } };
+
+  dndMock.handlers.onDragStart?.({ active });
+  await dndMock.handlers.onDragEnd?.({
+    active,
+    over: droppable ? { id: dropId, data: { current: droppable.data } } : null
+  });
+}
+
 async function startKanbanTaskDrag(taskId: string) {
   const draggable = dndMock.draggables.get(taskId);
   const active = { id: taskId, data: { current: draggable?.data } };
@@ -214,6 +293,7 @@ describe("TaskPanel", () => {
     dndMock.droppables.clear();
     dndMock.handlers = {};
     apiMock.taskQuadrants.mockResolvedValue({ quadrants: emptyQuadrants() });
+    apiMock.updateTaskOrder.mockResolvedValue({ ok: true });
   });
 
   it("shows only title on cards and opens full content in a detail modal for title mode", () => {
@@ -271,6 +351,7 @@ describe("TaskPanel", () => {
     apiMock.createTask.mockResolvedValue({ task });
     const onChanged = vi.fn(async () => undefined);
     const onCreateOpenChange = vi.fn();
+    const syncEvents = collectDesktopSyncEvents();
     render(
       <TaskPanel
         createOpen
@@ -295,7 +376,53 @@ describe("TaskPanel", () => {
       title: "整理计划",
       tagId: "tag-1"
     })));
+    await waitFor(() => expect(syncEvents.listener).toHaveBeenCalledWith(expect.objectContaining({
+      detail: expect.objectContaining({
+        task: expect.objectContaining({
+          id: "task-1"
+        }),
+        type: "task:upserted"
+      })
+    })));
     await waitFor(() => expect(onCreateOpenChange).toHaveBeenCalledWith(false));
+    syncEvents.stop();
+  });
+
+  it("emits task upsert events after changing status from the task page", async () => {
+    apiMock.updateTask.mockResolvedValue({ task: taskWith({ status: "COMPLETED" }) });
+    const syncEvents = collectDesktopSyncEvents();
+    renderPanel("title");
+
+    fireEvent.click(screen.getByRole("button", { name: "完成" }));
+
+    await waitFor(() => expect(apiMock.updateTask).toHaveBeenCalledWith("task-1", { status: "COMPLETED" }));
+    await waitFor(() => expect(syncEvents.listener).toHaveBeenCalledWith(expect.objectContaining({
+      detail: expect.objectContaining({
+        task: expect.objectContaining({
+          id: "task-1",
+          status: "COMPLETED"
+        }),
+        type: "task:upserted"
+      })
+    })));
+    syncEvents.stop();
+  });
+
+  it("emits task deleted events after deleting from the task page", async () => {
+    apiMock.deleteTask.mockResolvedValue(undefined);
+    const syncEvents = collectDesktopSyncEvents();
+    renderPanel("title");
+
+    fireEvent.click(screen.getByRole("button", { name: "删除" }));
+
+    await waitFor(() => expect(apiMock.deleteTask).toHaveBeenCalledWith("task-1"));
+    await waitFor(() => expect(syncEvents.listener).toHaveBeenCalledWith(expect.objectContaining({
+      detail: expect.objectContaining({
+        taskId: "task-1",
+        type: "task:deleted"
+      })
+    })));
+    syncEvents.stop();
   });
 
   it("creates, renames, and deletes tags from the maintenance modal", async () => {
@@ -303,6 +430,7 @@ describe("TaskPanel", () => {
     apiMock.updateTag.mockResolvedValue({ tag: { id: "tag-1", name: "办公" } });
     apiMock.deleteTag.mockResolvedValue(undefined);
     const onChanged = vi.fn(async () => undefined);
+    const syncEvents = collectDesktopSyncEvents();
     render(
       <TaskPanel
         createOpen={false}
@@ -335,9 +463,16 @@ describe("TaskPanel", () => {
 
     await waitFor(() => expect(apiMock.deleteTag).toHaveBeenCalledWith("tag-2"));
     expect(onChanged).toHaveBeenCalledTimes(3);
+    await waitFor(() => {
+      const reloadEvents = syncEvents.listener.mock.calls.filter(([event]) => (
+        (event as CustomEvent).detail?.type === "task-board:reload-requested"
+      ));
+      expect(reloadEvents).toHaveLength(3);
+    });
+    syncEvents.stop();
   });
 
-  it("sorts list tasks with unfinished items first and created date ascending", () => {
+  it("sorts list tasks with completed items at the bottom", () => {
     const completedOld = taskWith({
       id: "done-old",
       title: "早创建已完成",
@@ -367,6 +502,78 @@ describe("TaskPanel", () => {
     ]);
   });
 
+  it("persists manual order after dragging list tasks", async () => {
+    const firstTask = taskWith({
+      id: "list-first",
+      title: "列表第一",
+      createdAt: "2026-06-01T00:00:00.000Z"
+    });
+    const secondTask = taskWith({
+      id: "list-second",
+      title: "列表第二",
+      createdAt: "2026-06-02T00:00:00.000Z"
+    });
+    const onChanged = vi.fn(async () => undefined);
+
+    render(
+      <TaskPanel
+        createOpen={false}
+        showCompletedTasks
+        tags={tagOptions}
+        taskCardDisplayMode="full"
+        tagMaintenanceOpen={false}
+        taskTagFilter="__all__"
+        tasks={[firstTask, secondTask]}
+        viewMode="list"
+        onChanged={onChanged}
+        onCreateOpenChange={vi.fn()}
+        onTagMaintenanceOpenChange={vi.fn()}
+      />
+    );
+
+    await dropTaskOnTask("list-first", "list-second");
+
+    await waitFor(() => expect(apiMock.updateTaskOrder).toHaveBeenCalledWith({
+      orderedIds: ["list-second", "list-first"]
+    }));
+    await waitFor(() => expect(onChanged).toHaveBeenCalledTimes(1));
+  });
+
+  it("uses the whole list task card as the drag activator", () => {
+    const { container } = renderPanel("full", [task]);
+    const sortableCard = container.querySelector<HTMLElement>("[data-task-sortable-id='task-1']");
+
+    expect(sortableCard).toHaveAttribute("data-sortable-listener", "task-1");
+    expect(screen.queryByRole("button", { name: "拖动排序准备周报" })).not.toBeInTheDocument();
+    expect(container.querySelector("[title='拖动排序']")).not.toBeInTheDocument();
+  });
+
+  it("does not allow completed list cards to drag or receive dropped tasks", async () => {
+    const openTask = taskWith({
+      id: "open-task",
+      title: "未完成事项",
+      createdAt: "2026-06-01T00:00:00.000Z"
+    });
+    const completedTask = taskWith({
+      id: "done-task",
+      title: "已完成事项",
+      status: "COMPLETED",
+      completedAt: "2026-06-03T00:00:00.000Z",
+      createdAt: "2026-06-02T00:00:00.000Z"
+    });
+
+    const { container } = renderPanel("full", [completedTask, openTask]);
+
+    const completedSortable = container.querySelector<HTMLElement>("[data-task-sortable-id='done-task']");
+    expect(dndMock.draggables.get("done-task")?.disabled).toBe(true);
+    expect(completedSortable).not.toHaveAttribute("data-sortable-listener");
+
+    await dropTaskOnTask("open-task", "done-task");
+    await dropTaskOnTask("done-task", "open-task");
+
+    expect(apiMock.updateTaskOrder).not.toHaveBeenCalled();
+  });
+
   it("filters list tasks by selected tag", () => {
     const workTask = taskWith({ id: "work", title: "工作任务", tags: [{ id: "tag-1", name: "工作" }] });
     const lifeTask = taskWith({ id: "life", title: "生活任务", tags: [{ id: "tag-2", name: "生活" }] });
@@ -377,7 +584,7 @@ describe("TaskPanel", () => {
     expect(screen.getByText("生活任务")).toBeInTheDocument();
   });
 
-  it("sorts quadrant tasks with the same display rule", async () => {
+  it("sorts quadrant tasks with completed items at the bottom", async () => {
     const completedOld = taskWith({
       id: "done-old",
       title: "象限早创建已完成",
@@ -429,6 +636,105 @@ describe("TaskPanel", () => {
       "象限晚创建未完成",
       "象限早创建已完成"
     ]);
+  });
+
+  it("updates priority and order when dragging a task across quadrants", async () => {
+    const urgentTask = taskWith({
+      id: "quadrant-urgent",
+      title: "紧急任务",
+      priority: "IMPORTANT_URGENT",
+      createdAt: "2026-06-01T00:00:00.000Z"
+    });
+    const plannedTask = taskWith({
+      id: "quadrant-planned",
+      title: "计划任务",
+      priority: "IMPORTANT_NOT_URGENT",
+      createdAt: "2026-06-02T00:00:00.000Z"
+    });
+    apiMock.updateTask.mockResolvedValue({
+      task: taskWith({ ...urgentTask, priority: "IMPORTANT_NOT_URGENT" })
+    });
+    apiMock.taskQuadrants.mockResolvedValue({
+      quadrants: {
+        ...emptyQuadrants(),
+        IMPORTANT_URGENT: [urgentTask],
+        IMPORTANT_NOT_URGENT: [plannedTask]
+      }
+    });
+
+    render(
+      <TaskPanel
+        createOpen={false}
+        showCompletedTasks
+        tags={tagOptions}
+        taskCardDisplayMode="full"
+        tagMaintenanceOpen={false}
+        taskTagFilter="__all__"
+        tasks={[urgentTask, plannedTask]}
+        viewMode="quadrant"
+        onChanged={vi.fn(async () => undefined)}
+        onCreateOpenChange={vi.fn()}
+        onTagMaintenanceOpenChange={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(dndMock.draggables.has("quadrant-planned")).toBe(true));
+    await dropTaskOnTask("quadrant-urgent", "quadrant-planned");
+
+    await waitFor(() => expect(apiMock.updateTask).toHaveBeenCalledWith("quadrant-urgent", {
+      priority: "IMPORTANT_NOT_URGENT"
+    }));
+    await waitFor(() => expect(apiMock.updateTaskOrder).toHaveBeenCalledWith({
+      orderedIds: ["quadrant-urgent", "quadrant-planned"]
+    }));
+  });
+
+  it("updates priority when dropping a task on another quadrant panel", async () => {
+    const urgentTask = taskWith({
+      id: "quadrant-urgent",
+      title: "紧急任务",
+      priority: "IMPORTANT_URGENT",
+      createdAt: "2026-06-01T00:00:00.000Z"
+    });
+    apiMock.updateTask.mockResolvedValue({
+      task: taskWith({ ...urgentTask, priority: "IMPORTANT_NOT_URGENT" })
+    });
+    apiMock.taskQuadrants.mockResolvedValue({
+      quadrants: {
+        ...emptyQuadrants(),
+        IMPORTANT_URGENT: [urgentTask],
+        IMPORTANT_NOT_URGENT: []
+      }
+    });
+
+    const { container } = render(
+      <TaskPanel
+        createOpen={false}
+        showCompletedTasks
+        tags={tagOptions}
+        taskCardDisplayMode="full"
+        tagMaintenanceOpen={false}
+        taskTagFilter="__all__"
+        tasks={[urgentTask]}
+        viewMode="quadrant"
+        onChanged={vi.fn(async () => undefined)}
+        onCreateOpenChange={vi.fn()}
+        onTagMaintenanceOpenChange={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(dndMock.droppables.has("quadrant:IMPORTANT_NOT_URGENT")).toBe(true));
+    const targetSurface = container.querySelector("[data-quadrant-drop-id='quadrant:IMPORTANT_NOT_URGENT']");
+    expect(targetSurface).toHaveClass("quadrant-drop-surface");
+
+    await dropTaskOnQuadrant("quadrant-urgent", "IMPORTANT_NOT_URGENT");
+
+    await waitFor(() => expect(apiMock.updateTask).toHaveBeenCalledWith("quadrant-urgent", {
+      priority: "IMPORTANT_NOT_URGENT"
+    }));
+    await waitFor(() => expect(apiMock.updateTaskOrder).toHaveBeenCalledWith({
+      orderedIds: ["quadrant-urgent"]
+    }));
   });
 
   it("filters quadrant tasks by selected tag", async () => {
@@ -545,6 +851,35 @@ describe("TaskPanel", () => {
     await dropKanbanTask("kanban-work", "tag-2");
 
     await waitFor(() => expect(apiMock.updateTask).toHaveBeenCalledWith("kanban-work", { tagId: "tag-2" }));
+    await waitFor(() => expect(apiMock.updateTaskOrder).toHaveBeenCalledWith({
+      orderedIds: ["kanban-work"]
+    }));
+    await waitFor(() => expect(onChanged).toHaveBeenCalledTimes(1));
+  });
+
+  it("persists manual order after dragging within a kanban column", async () => {
+    const workOld = taskWith({
+      id: "kanban-work-old",
+      title: "看板工作早",
+      tags: [{ id: "tag-1", name: "工作" }],
+      createdAt: "2026-06-01T00:00:00.000Z"
+    });
+    const workNew = taskWith({
+      id: "kanban-work-new",
+      title: "看板工作晚",
+      tags: [{ id: "tag-1", name: "工作" }],
+      createdAt: "2026-06-02T00:00:00.000Z"
+    });
+    const onChanged = vi.fn(async () => undefined);
+
+    renderKanbanPanel([workOld, workNew], true, "title", onChanged);
+
+    await dropTaskOnTask("kanban-work-old", "kanban-work-new");
+
+    await waitFor(() => expect(apiMock.updateTask).not.toHaveBeenCalled());
+    await waitFor(() => expect(apiMock.updateTaskOrder).toHaveBeenCalledWith({
+      orderedIds: ["kanban-work-new", "kanban-work-old"]
+    }));
     await waitFor(() => expect(onChanged).toHaveBeenCalledTimes(1));
   });
 

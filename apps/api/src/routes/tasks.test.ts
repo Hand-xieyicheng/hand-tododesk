@@ -30,6 +30,7 @@ const taskRow = {
   dueAt: null,
   priority: "IMPORTANT_NOT_URGENT",
   status: "TODO",
+  sortOrder: null,
   completedAt: null,
   createdAt: new Date("2026-06-01T00:00:00.000Z"),
   updatedAt: new Date("2026-06-01T00:00:00.000Z")
@@ -120,6 +121,106 @@ describe("task tag assignment", () => {
 
     expect(response.statusCode).toBe(400);
     expect(db.transaction).not.toHaveBeenCalled();
+  });
+});
+
+describe("task manual ordering", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    db.execute.mockResolvedValue({ affectedRows: 1 });
+    db.queryOne.mockImplementation(async (sql: string) => (
+      sql.includes("PomodoroSession")
+        ? { completedCount: 0, completedMinutes: 0 }
+        : null
+    ));
+    db.queryRows.mockResolvedValue([]);
+    db.transaction.mockImplementation(async (callback: (connection: { execute: typeof db.execute }) => Promise<unknown>) => callback({ execute: db.execute }));
+  });
+
+  it("returns open tasks before completed tasks, then applies manual and default ordering", async () => {
+    db.queryRows
+      .mockResolvedValueOnce([
+        {
+          ...taskRow,
+          id: "default-old",
+          title: "默认旧任务",
+          createdAt: new Date("2026-06-01T00:00:00.000Z"),
+          sortOrder: null
+        },
+        {
+          ...taskRow,
+          id: "manual-second",
+          title: "手动第二",
+          createdAt: new Date("2026-06-05T00:00:00.000Z"),
+          sortOrder: 2000
+        },
+        {
+          ...taskRow,
+          id: "manual-first-completed",
+          title: "手动第一已完成",
+          status: "COMPLETED",
+          completedAt: new Date("2026-06-06T00:00:00.000Z"),
+          createdAt: new Date("2026-06-06T00:00:00.000Z"),
+          sortOrder: 1000
+        },
+        {
+          ...taskRow,
+          id: "default-new",
+          title: "默认新任务",
+          createdAt: new Date("2026-06-03T00:00:00.000Z"),
+          sortOrder: null
+        }
+      ])
+      .mockResolvedValue([]);
+
+    const response = await injectTask("GET");
+
+    expect(response.statusCode).toBe(200);
+    expect(db.queryRows).toHaveBeenNthCalledWith(1, expect.stringContaining("`status` = 'COMPLETED'"), ["user-1"]);
+    expect(db.queryRows).toHaveBeenNthCalledWith(1, expect.stringContaining("`sortOrder` IS NULL"), ["user-1"]);
+    expect(response.json().tasks.map((task: { id: string }) => task.id)).toEqual([
+      "manual-second",
+      "default-old",
+      "default-new",
+      "manual-first-completed"
+    ]);
+    expect(response.json().tasks[3]).toMatchObject({
+      id: "manual-first-completed",
+      sortOrder: 1000
+    });
+  });
+
+  it("persists the supplied task order for the authenticated user", async () => {
+    db.queryRows.mockResolvedValueOnce([{ id: "task-2" }, { id: "task-1" }]);
+
+    const response = await injectTask("PUT", "/tasks/order", {
+      orderedIds: ["task-2", "task-1"]
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(db.execute).toHaveBeenNthCalledWith(1, expect.stringContaining("UPDATE `Task` SET `sortOrder` = ?"), [1000, "task-2", "user-1"]);
+    expect(db.execute).toHaveBeenNthCalledWith(2, expect.stringContaining("UPDATE `Task` SET `sortOrder` = ?"), [2000, "task-1", "user-1"]);
+    expect(response.json()).toEqual({ ok: true });
+  });
+
+  it("rejects task order updates containing unknown or archived task ids", async () => {
+    db.queryRows.mockResolvedValueOnce([{ id: "task-1" }]);
+
+    const response = await injectTask("PUT", "/tasks/order", {
+      orderedIds: ["task-1", "missing-task"]
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(db.transaction).not.toHaveBeenCalled();
+  });
+
+  it("rejects duplicate task order ids before touching the database", async () => {
+    const response = await injectTask("PUT", "/tasks/order", {
+      orderedIds: ["task-1", "task-1"]
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(db.queryRows).not.toHaveBeenCalled();
   });
 });
 

@@ -1,10 +1,15 @@
 import { type CSSProperties, type FormEvent, type KeyboardEvent, type PointerEvent, type ReactNode, type WheelEvent, useEffect, useMemo, useRef, useState } from "react";
-import { closestCenter, DndContext, DragOverlay, KeyboardSensor, PointerSensor, type DragEndEvent, type DragStartEvent, useDraggable, useDroppable, useSensor, useSensors } from "@dnd-kit/core";
-import { sortTasksForDisplay, type ApiTag, type ApiTask, type CreateTaskRequest, type TaskCardDisplayMode, type TaskPriority, type TaskStatus, type TaskViewMode } from "@todo/shared";
+import { closestCenter, DndContext, DragOverlay, KeyboardSensor, PointerSensor, type DragEndEvent, type DragStartEvent, useDroppable, useSensor, useSensors } from "@dnd-kit/core";
+import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { sortTasksForDisplay, type ApiTag, type ApiTask, type CreateTaskRequest, type TaskCardDisplayMode, type TaskPriority, type TaskStatus, type TaskViewMode, type UpdateTaskRequest } from "@todo/shared";
 import { Button, Card, Divider, Input, Modal, Select } from "animal-island-ui";
 import { Check, Pencil, Plus, RotateCcw, Save, Trash2, X } from "lucide-react";
 import { api } from "../api/client";
+import { emitDesktopSyncEvent } from "../lib/desktopSync";
 import { getTodayEndDatetimeLocal } from "../lib/datetime";
+import { applyVisibleTaskOrder, moveTaskInList, taskOrderIds } from "../lib/taskOrdering";
+import { useTaskBoardStore } from "../stores/taskBoardStore";
 import { ConfirmDialog } from "./ConfirmDialog";
 
 interface TaskPanelProps {
@@ -71,16 +76,25 @@ const allTagsFilterValue = "__all__";
 const untaggedTagsFilterValue = "__untagged__";
 const kanbanDragThresholdPx = 5;
 const kanbanColumnDropIdPrefix = "kanban-column:";
+const quadrantDropIdPrefix = "quadrant:";
 
-type KanbanTaskDragData = {
-  type: "kanban-task";
+type TaskSortView = "list" | "quadrant" | "kanban";
+
+type TaskSortDragData = {
+  type: "task-sort";
   taskId: string;
-  sourceTagId: string | null;
+  view: TaskSortView;
+  groupId: string;
+  priority?: TaskPriority;
+  tagId?: string | null;
 };
 
-type KanbanColumnDropData = {
-  type: "kanban-column";
-  tagId: string | null;
+type TaskGroupDropData = {
+  type: "task-group-drop";
+  view: "quadrant" | "kanban";
+  groupId: string;
+  priority?: TaskPriority;
+  tagId?: string | null;
 };
 
 type KanbanDragState = {
@@ -142,12 +156,20 @@ function getKanbanColumnDropId(columnId: string) {
   return `${kanbanColumnDropIdPrefix}${columnId}`;
 }
 
-function isKanbanTaskDragData(value: unknown): value is KanbanTaskDragData {
-  return Boolean(value && typeof value === "object" && (value as KanbanTaskDragData).type === "kanban-task" && typeof (value as KanbanTaskDragData).taskId === "string");
+function getQuadrantDropId(priority: TaskPriority) {
+  return `${quadrantDropIdPrefix}${priority}`;
 }
 
-function isKanbanColumnDropData(value: unknown): value is KanbanColumnDropData {
-  return Boolean(value && typeof value === "object" && (value as KanbanColumnDropData).type === "kanban-column");
+function getKanbanGroupId(tagId: string | null) {
+  return tagId ?? untaggedTagsFilterValue;
+}
+
+function isTaskSortDragData(value: unknown): value is TaskSortDragData {
+  return Boolean(value && typeof value === "object" && (value as TaskSortDragData).type === "task-sort" && typeof (value as TaskSortDragData).taskId === "string");
+}
+
+function isTaskGroupDropData(value: unknown): value is TaskGroupDropData {
+  return Boolean(value && typeof value === "object" && (value as TaskGroupDropData).type === "task-group-drop");
 }
 
 function getKanbanTaskDragWidth(taskId: string) {
@@ -320,6 +342,65 @@ function TaskCard({ task, compact, displayMode, onDelete, onOpenDetails, onSetSt
   );
 }
 
+interface SortableTaskCardProps extends TaskCardProps {
+  groupId: string;
+  priority?: TaskPriority;
+  tagId?: string | null;
+  view: TaskSortView;
+  wrapperClassName?: string;
+}
+
+function SortableTaskCard({ groupId, priority, tagId, view, wrapperClassName, ...cardProps }: SortableTaskCardProps) {
+  const sortDisabled = cardProps.task.status === "COMPLETED";
+  const {
+    attributes,
+    isDragging,
+    listeners,
+    setNodeRef,
+    transform,
+    transition
+  } = useSortable({
+    id: cardProps.task.id,
+    disabled: sortDisabled,
+    data: {
+      type: "task-sort",
+      taskId: cardProps.task.id,
+      view,
+      groupId,
+      priority,
+      tagId
+    } satisfies TaskSortDragData
+  });
+  const style: CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition
+  };
+
+  return (
+    <div
+      className={[
+        "task-sortable",
+        `task-sortable-${view}`,
+        wrapperClassName,
+        sortDisabled ? "is-sort-disabled" : "",
+        isDragging ? "is-dragging" : ""
+      ].filter(Boolean).join(" ")}
+      {...attributes}
+      {...(listeners ?? {})}
+      aria-disabled={sortDisabled || undefined}
+      aria-label={`拖动排序${cardProps.task.title}`}
+      data-kanban-task-id={view === "kanban" ? cardProps.task.id : undefined}
+      data-task-sortable-id={cardProps.task.id}
+      ref={setNodeRef}
+      style={style}
+    >
+      <TaskCard
+        {...cardProps}
+      />
+    </div>
+  );
+}
+
 interface KanbanTaskCardProps {
   disabled: boolean;
   displayMode: TaskCardDisplayMode;
@@ -333,35 +414,24 @@ interface KanbanTaskCardProps {
 
 function KanbanTaskCard({ disabled, displayMode, dragging, task, updating, onDelete, onOpenDetails, onSetStatus }: KanbanTaskCardProps) {
   const sourceTagId = task.tags[0]?.id ?? null;
-  const {
-    attributes,
-    isDragging,
-    listeners,
-    setNodeRef
-  } = useDraggable({
-    id: task.id,
-    data: {
-      type: "kanban-task",
-      taskId: task.id,
-      sourceTagId
-    } satisfies KanbanTaskDragData,
-    disabled
-  });
 
   return (
-    <div
-      {...attributes}
-      {...listeners}
-      className={[
+    <SortableTaskCard
+      compact
+      displayMode={displayMode}
+      groupId={getKanbanGroupId(sourceTagId)}
+      tagId={sourceTagId}
+      task={task}
+      view="kanban"
+      wrapperClassName={[
         "kanban-task-draggable",
-        dragging || isDragging ? "is-dragging" : "",
-        updating ? "is-updating" : ""
+        dragging ? "is-dragging" : "",
+        updating || disabled ? "is-updating" : ""
       ].filter(Boolean).join(" ")}
-      data-kanban-task-id={task.id}
-      ref={setNodeRef}
-    >
-      <TaskCard compact displayMode={displayMode} task={task} onDelete={onDelete} onOpenDetails={onOpenDetails} onSetStatus={onSetStatus} />
-    </div>
+      onDelete={onDelete}
+      onOpenDetails={onOpenDetails}
+      onSetStatus={onSetStatus}
+    />
   );
 }
 
@@ -376,9 +446,11 @@ function KanbanColumnSection({ children, column, draggingTaskId, onCreateTask }:
   const { isOver, setNodeRef } = useDroppable({
     id: getKanbanColumnDropId(column.id),
     data: {
-      type: "kanban-column",
+      type: "task-group-drop",
+      view: "kanban",
+      groupId: getKanbanGroupId(column.tagId),
       tagId: column.tagId
-    } satisfies KanbanColumnDropData
+    } satisfies TaskGroupDropData
   });
 
   return (
@@ -412,6 +484,47 @@ function KanbanColumnSection({ children, column, draggingTaskId, onCreateTask }:
         {children}
       </div>
     </section>
+  );
+}
+
+interface QuadrantDropSurfaceProps {
+  children: ReactNode;
+  priority: TaskPriority;
+}
+
+function QuadrantDropSurface({ children, priority }: QuadrantDropSurfaceProps) {
+  const { isOver, setNodeRef } = useDroppable({
+    id: getQuadrantDropId(priority),
+    data: {
+      type: "task-group-drop",
+      view: "quadrant",
+      groupId: priority,
+      priority
+    } satisfies TaskGroupDropData
+  });
+
+  const dropId = getQuadrantDropId(priority);
+
+  return (
+    <div
+      className={`quadrant-drop-surface${isOver ? " is-drop-target" : ""}`}
+      data-quadrant-drop-id={dropId}
+      ref={setNodeRef}
+    >
+      {children}
+    </div>
+  );
+}
+
+interface QuadrantTaskListProps {
+  children: ReactNode;
+}
+
+function QuadrantTaskList({ children }: QuadrantTaskListProps) {
+  return (
+    <div className="quadrant-task-list">
+      {children}
+    </div>
   );
 }
 
@@ -463,6 +576,7 @@ function TagMaintenanceModal({ open, tags, onChanged, onClose }: TagMaintenanceM
     setMessage("");
     try {
       await api.createTag({ name: nextName });
+      void emitDesktopSyncEvent({ type: "task-board:reload-requested" });
       setName("");
       await onChanged();
     } catch (error) {
@@ -481,6 +595,7 @@ function TagMaintenanceModal({ open, tags, onChanged, onClose }: TagMaintenanceM
     setMessage("");
     try {
       await api.updateTag(tag.id, { name: nextName });
+      void emitDesktopSyncEvent({ type: "task-board:reload-requested" });
       cancelEdit();
       await onChanged();
     } catch (error) {
@@ -498,6 +613,7 @@ function TagMaintenanceModal({ open, tags, onChanged, onClose }: TagMaintenanceM
     setMessage("");
     try {
       await api.deleteTag(deleteTarget.id);
+      void emitDesktopSyncEvent({ type: "task-board:reload-requested" });
       setDeleteTarget(null);
       if (editingId === deleteTarget.id) {
         cancelEdit();
@@ -570,6 +686,7 @@ function TagMaintenanceModal({ open, tags, onChanged, onClose }: TagMaintenanceM
 }
 
 export function TaskPanel({ createOpen, showCompletedTasks, tags, taskCardDisplayMode, tagMaintenanceOpen, taskTagFilter, tasks, viewMode, onChanged, onCreateOpenChange, onPanelMessageChange = () => undefined, onTagMaintenanceOpenChange }: TaskPanelProps) {
+  const setBoardTasks = useTaskBoardStore((state) => state.setTasks);
   const kanbanDragState = useRef<KanbanDragState | null>(null);
   const kanbanTaskSensors = useSensors(
     useSensor(PointerSensor, {
@@ -577,7 +694,7 @@ export function TaskPanel({ createOpen, showCompletedTasks, tags, taskCardDispla
         distance: kanbanDragThresholdPx
       }
     }),
-    useSensor(KeyboardSensor)
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
@@ -602,9 +719,28 @@ export function TaskPanel({ createOpen, showCompletedTasks, tags, taskCardDispla
     ),
     [showCompletedTasks, taskTagFilter, tasks]
   );
+  const visibleQuadrants = useMemo(() => {
+    const nextQuadrants = emptyQuadrants();
+    for (const item of priorityOrder) {
+      const sourceItems = quadrants[item] ?? [];
+      nextQuadrants[item] = sortTasksForDisplay(
+        (showCompletedTasks ? sourceItems : sourceItems.filter((task) => task.status !== "COMPLETED"))
+          .filter((task) => taskMatchesTagFilter(task, taskTagFilter))
+      );
+    }
+    return nextQuadrants;
+  }, [quadrants, showCompletedTasks, taskTagFilter]);
+  const visibleQuadrantTasks = useMemo(
+    () => priorityOrder.flatMap((item) => visibleQuadrants[item]),
+    [visibleQuadrants]
+  );
   const kanbanColumns = useMemo(
     () => buildKanbanColumns(tasks, tags, showCompletedTasks),
     [showCompletedTasks, tags, tasks]
+  );
+  const visibleKanbanTasks = useMemo(
+    () => kanbanColumns.flatMap((column) => column.tasks),
+    [kanbanColumns]
   );
   const draggingKanbanTask = useMemo(
     () => draggingKanbanTaskId ? tasks.find((item) => item.id === draggingKanbanTaskId) ?? null : null,
@@ -680,7 +816,8 @@ export function TaskPanel({ createOpen, showCompletedTasks, tags, taskCardDispla
     };
 
     try {
-      await api.createTask(input);
+      const payload = await api.createTask(input);
+      void emitDesktopSyncEvent({ type: "task:upserted", task: payload.task });
       resetForm();
       onCreateOpenChange(false);
       await refreshAfterChange();
@@ -690,12 +827,14 @@ export function TaskPanel({ createOpen, showCompletedTasks, tags, taskCardDispla
   }
 
   async function setStatus(task: ApiTask, status: TaskStatus) {
-    await api.updateTask(task.id, { status });
+    const payload = await api.updateTask(task.id, { status });
+    void emitDesktopSyncEvent({ type: "task:upserted", task: payload.task });
     await refreshAfterChange();
   }
 
   async function deleteTask(task: ApiTask) {
     await api.deleteTask(task.id);
+    void emitDesktopSyncEvent({ type: "task:deleted", taskId: task.id });
     await refreshAfterChange();
   }
 
@@ -712,32 +851,159 @@ export function TaskPanel({ createOpen, showCompletedTasks, tags, taskCardDispla
     onCreateOpenChange(true);
   }
 
-  async function moveKanbanTaskToTag(taskId: string, targetTagId: string | null) {
-    const task = tasks.find((item) => item.id === taskId);
-    if (!task) {
-      return;
-    }
-
-    const sourceTagId = task.tags[0]?.id ?? null;
-    if (sourceTagId === targetTagId || updatingKanbanTaskId) {
-      return;
-    }
-
+  async function persistTaskOrder(nextTasks: ApiTask[], message = "排序保存失败", update?: { id: string; input: UpdateTaskRequest }) {
+    const previousTasks = tasks;
     setPanelMessage("");
-    setUpdatingKanbanTaskId(taskId);
+    setBoardTasks(nextTasks);
+    setUpdatingKanbanTaskId(update?.id ?? "task-order");
     try {
-      await api.updateTask(task.id, { tagId: targetTagId });
+      if (update) {
+        const payload = await api.updateTask(update.id, update.input);
+        void emitDesktopSyncEvent({ type: "task:upserted", task: payload.task });
+      }
+      await api.updateTaskOrder({ orderedIds: taskOrderIds(nextTasks) });
+      void emitDesktopSyncEvent({ type: "task-board:reload-requested" });
       await refreshAfterChange();
     } catch (error) {
-      setPanelMessage(error instanceof Error ? error.message : "标签更新失败");
+      setBoardTasks(previousTasks);
+      setPanelMessage(error instanceof Error ? error.message : message);
     } finally {
-      setUpdatingKanbanTaskId((current) => current === taskId ? null : current);
+      setUpdatingKanbanTaskId((current) => current === (update?.id ?? "task-order") ? null : current);
     }
+  }
+
+  function moveTaskAcrossGroups(
+    groups: Record<string, ApiTask[]>,
+    groupOrder: string[],
+    activeId: string,
+    targetGroupId: string,
+    overTaskId: string | null,
+    patch: Partial<ApiTask>
+  ) {
+    let sourceGroupId = "";
+    let sourceIndex = -1;
+    let taskToMove: ApiTask | null = null;
+    for (const groupId of groupOrder) {
+      const index = (groups[groupId] ?? []).findIndex((task) => task.id === activeId);
+      if (index >= 0) {
+        sourceGroupId = groupId;
+        sourceIndex = index;
+        taskToMove = (groups[groupId] ?? [])[index] ?? null;
+        break;
+      }
+    }
+
+    const nextGroups = Object.fromEntries(groupOrder.map((groupId) => {
+      const nextItems = (groups[groupId] ?? []).filter((task) => task.id !== activeId);
+      return [groupId, nextItems];
+    })) as Record<string, ApiTask[]>;
+
+    if (!taskToMove || taskToMove.status === "COMPLETED" || !nextGroups[targetGroupId]) {
+      return null;
+    }
+
+    const targetItems = nextGroups[targetGroupId];
+    const targetOverTask = overTaskId ? (groups[targetGroupId] ?? []).find((task) => task.id === overTaskId) : null;
+    if (targetOverTask?.status === "COMPLETED") {
+      return null;
+    }
+    const overIndexBeforeMove = overTaskId ? (groups[targetGroupId] ?? []).findIndex((task) => task.id === overTaskId) : -1;
+    let insertIndex = overTaskId ? targetItems.findIndex((task) => task.id === overTaskId) : targetItems.length;
+    if (sourceGroupId === targetGroupId && sourceIndex >= 0 && overIndexBeforeMove > sourceIndex) {
+      insertIndex += 1;
+    }
+    if (!overTaskId) {
+      const firstCompletedIndex = targetItems.findIndex((task) => task.status === "COMPLETED");
+      if (firstCompletedIndex >= 0) {
+        insertIndex = firstCompletedIndex;
+      }
+    }
+    targetItems.splice(insertIndex < 0 ? targetItems.length : insertIndex, 0, {
+      ...taskToMove,
+      ...patch
+    });
+
+    return groupOrder.flatMap((groupId) => nextGroups[groupId] ?? []);
+  }
+
+  function handleTaskSortDragEnd(event: DragEndEvent) {
+    const activeData = event.active.data.current;
+    const overData = event.over?.data.current;
+    if (!isTaskSortDragData(activeData) || !overData) {
+      return;
+    }
+
+    if (activeData.view === "list") {
+      if (!isTaskSortDragData(overData) || overData.view !== "list") {
+        return;
+      }
+      const nextVisibleTasks = moveTaskInList(visibleTasks, activeData.taskId, overData.taskId);
+      if (!nextVisibleTasks) {
+        return;
+      }
+      void persistTaskOrder(applyVisibleTaskOrder(tasks, visibleTasks, nextVisibleTasks));
+      return;
+    }
+
+    if (activeData.view === "quadrant") {
+      const targetPriority = isTaskSortDragData(overData) && overData.view === "quadrant"
+        ? overData.priority
+        : isTaskGroupDropData(overData) && overData.view === "quadrant" ? overData.priority : undefined;
+      if (!targetPriority) {
+        return;
+      }
+      const overTaskId = isTaskSortDragData(overData) ? overData.taskId : null;
+      const nextVisibleTasks = moveTaskAcrossGroups(
+        visibleQuadrants,
+        priorityOrder,
+        activeData.taskId,
+        targetPriority,
+        overTaskId,
+        { priority: targetPriority }
+      );
+      if (!nextVisibleTasks) {
+        return;
+      }
+      const update = activeData.priority !== targetPriority
+        ? { id: activeData.taskId, input: { priority: targetPriority } }
+        : undefined;
+      void persistTaskOrder(applyVisibleTaskOrder(tasks, visibleQuadrantTasks, nextVisibleTasks), "排序保存失败", update);
+      return;
+    }
+
+    const targetTagId = isTaskSortDragData(overData) && overData.view === "kanban"
+      ? overData.tagId ?? null
+      : isTaskGroupDropData(overData) && overData.view === "kanban" ? overData.tagId ?? null : undefined;
+    if (targetTagId === undefined) {
+      return;
+    }
+    const targetGroupId = getKanbanGroupId(targetTagId);
+    const overTaskId = isTaskSortDragData(overData) ? overData.taskId : null;
+    if (!overTaskId && activeData.groupId === targetGroupId) {
+      return;
+    }
+
+    const kanbanGroups = Object.fromEntries(kanbanColumns.map((column) => [column.id, column.tasks])) as Record<string, ApiTask[]>;
+    const nextVisibleTasks = moveTaskAcrossGroups(
+      kanbanGroups,
+      kanbanColumns.map((column) => column.id),
+      activeData.taskId,
+      targetGroupId,
+      overTaskId,
+      { tags: targetTagId ? tags.filter((tag) => tag.id === targetTagId).slice(0, 1) : [] }
+    );
+    if (!nextVisibleTasks) {
+      return;
+    }
+    const update = activeData.tagId !== targetTagId
+      ? { id: activeData.taskId, input: { tagId: targetTagId } }
+      : undefined;
+    void persistTaskOrder(applyVisibleTaskOrder(tasks, visibleKanbanTasks, nextVisibleTasks), "排序保存失败", update);
   }
 
   function handleKanbanTaskDragStart(event: DragStartEvent) {
     const activeData = event.active.data.current;
-    if (isKanbanTaskDragData(activeData)) {
+    if (isTaskSortDragData(activeData) && activeData.view === "kanban") {
       setDraggingKanbanTaskId(activeData.taskId);
       setKanbanDragOverlayWidth(getKanbanTaskDragWidth(activeData.taskId));
     }
@@ -751,13 +1017,7 @@ export function TaskPanel({ createOpen, showCompletedTasks, tags, taskCardDispla
   function handleKanbanTaskDragEnd(event: DragEndEvent) {
     setDraggingKanbanTaskId(null);
     setKanbanDragOverlayWidth(null);
-    const activeData = event.active.data.current;
-    const overData = event.over?.data.current;
-    if (!isKanbanTaskDragData(activeData) || !isKanbanColumnDropData(overData)) {
-      return;
-    }
-
-    void moveKanbanTaskToTag(activeData.taskId, overData.tagId);
+    handleTaskSortDragEnd(event);
   }
 
   function handleKanbanWheel(event: WheelEvent<HTMLElement>) {
@@ -874,12 +1134,29 @@ export function TaskPanel({ createOpen, showCompletedTasks, tags, taskCardDispla
 
       <div className={`task-layout task-layout-${viewMode}`}>
         {viewMode === "list" ? (
-          <section className="task-list">
-            {visibleTasks.length === 0 ? <Card className="empty-state" type="dashed">暂无待办</Card> : null}
-            {visibleTasks.map((task) => (
-              <TaskCard displayMode={taskCardDisplayMode} key={task.id} task={task} onDelete={deleteTask} onOpenDetails={setDetailTask} onSetStatus={setStatus} />
-            ))}
-          </section>
+          <DndContext
+            collisionDetection={closestCenter}
+            sensors={kanbanTaskSensors}
+            onDragEnd={handleTaskSortDragEnd}
+          >
+            <SortableContext items={visibleTasks.map((task) => task.id)} strategy={verticalListSortingStrategy}>
+              <section className="task-list">
+                {visibleTasks.length === 0 ? <Card className="empty-state" type="dashed">暂无待办</Card> : null}
+                {visibleTasks.map((task) => (
+                  <SortableTaskCard
+                    displayMode={taskCardDisplayMode}
+                    groupId="list"
+                    key={task.id}
+                    task={task}
+                    view="list"
+                    onDelete={deleteTask}
+                    onOpenDetails={setDetailTask}
+                    onSetStatus={setStatus}
+                  />
+                ))}
+              </section>
+            </SortableContext>
+          </DndContext>
         ) : viewMode === "kanban" ? (
           <DndContext
             collisionDetection={closestCenter}
@@ -904,19 +1181,21 @@ export function TaskPanel({ createOpen, showCompletedTasks, tags, taskCardDispla
                   key={column.id}
                   onCreateTask={openCreateForKanbanColumn}
                 >
-                  {column.tasks.map((task) => (
-                    <KanbanTaskCard
-                      disabled={Boolean(updatingKanbanTaskId)}
-                      displayMode={taskCardDisplayMode}
-                      dragging={draggingKanbanTaskId === task.id}
-                      key={task.id}
-                      task={task}
-                      updating={updatingKanbanTaskId === task.id}
-                      onDelete={deleteTask}
-                      onOpenDetails={setDetailTask}
-                      onSetStatus={setStatus}
-                    />
-                  ))}
+                  <SortableContext items={column.tasks.map((task) => task.id)} strategy={verticalListSortingStrategy}>
+                    {column.tasks.map((task) => (
+                      <KanbanTaskCard
+                        disabled={Boolean(updatingKanbanTaskId)}
+                        displayMode={taskCardDisplayMode}
+                        dragging={draggingKanbanTaskId === task.id}
+                        key={task.id}
+                        task={task}
+                        updating={updatingKanbanTaskId === task.id}
+                        onDelete={deleteTask}
+                        onOpenDetails={setDetailTask}
+                        onSetStatus={setStatus}
+                      />
+                    ))}
+                  </SortableContext>
                 </KanbanColumnSection>
               ))}
             </section>
@@ -929,33 +1208,50 @@ export function TaskPanel({ createOpen, showCompletedTasks, tags, taskCardDispla
             </DragOverlay>
           </DndContext>
         ) : (
-          <section className="quadrant-grid">
-            {priorityOrder.map((item) => {
-              const sourceItems = quadrants[item] ?? [];
-              const items = sortTasksForDisplay(
-                (showCompletedTasks ? sourceItems : sourceItems.filter((task) => task.status !== "COMPLETED"))
-                  .filter((task) => taskMatchesTagFilter(task, taskTagFilter))
-              );
-              return (
-                <Card className={`quadrant-panel priority-${priorityClass(item)}`} key={item} pattern="default">
-                  <header>
-                    <div>
-                      <h3>{quadrantMeta[item].title}</h3>
-                      <span>{quadrantMeta[item].hint}</span>
-                    </div>
-                    <strong>{items.length}</strong>
-                  </header>
-                  <Divider type="dashed-teal" />
-                  <div className="quadrant-task-list">
-                    {items.length === 0 ? <div className="empty-state">暂无待办</div> : null}
-                    {items.map((task) => (
-                      <TaskCard compact displayMode={taskCardDisplayMode} key={task.id} task={task} onDelete={deleteTask} onOpenDetails={setDetailTask} onSetStatus={setStatus} />
-                    ))}
-                  </div>
-                </Card>
-              );
-            })}
-          </section>
+          <DndContext
+            collisionDetection={closestCenter}
+            sensors={kanbanTaskSensors}
+            onDragEnd={handleTaskSortDragEnd}
+          >
+            <section className="quadrant-grid">
+              {priorityOrder.map((item) => {
+                const items = visibleQuadrants[item] ?? [];
+                return (
+                  <Card className={`quadrant-panel priority-${priorityClass(item)}`} key={item} pattern="default">
+                    <QuadrantDropSurface priority={item}>
+                      <header>
+                        <div>
+                          <h3>{quadrantMeta[item].title}</h3>
+                          <span>{quadrantMeta[item].hint}</span>
+                        </div>
+                        <strong>{items.length}</strong>
+                      </header>
+                      <Divider type="dashed-teal" />
+                      <SortableContext items={items.map((task) => task.id)} strategy={verticalListSortingStrategy}>
+                        <QuadrantTaskList>
+                          {items.length === 0 ? <div className="empty-state">暂无待办</div> : null}
+                          {items.map((task) => (
+                            <SortableTaskCard
+                              compact
+                              displayMode={taskCardDisplayMode}
+                              groupId={item}
+                              key={task.id}
+                              priority={item}
+                              task={task}
+                              view="quadrant"
+                              onDelete={deleteTask}
+                              onOpenDetails={setDetailTask}
+                              onSetStatus={setStatus}
+                            />
+                          ))}
+                        </QuadrantTaskList>
+                      </SortableContext>
+                    </QuadrantDropSurface>
+                  </Card>
+                );
+              })}
+            </section>
+          </DndContext>
         )}
       </div>
     </>

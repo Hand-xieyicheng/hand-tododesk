@@ -32,9 +32,10 @@ import {
 	  themeIdValues,
 	  titleColorValues,
   resolveBuiltInAnniversaryTemplate,
-  updateAnniversaryOrderRequestSchema,
-  updateAnniversaryRequestSchema,
-  updateHabitRequestSchema,
+	  updateAnniversaryOrderRequestSchema,
+	  updateAnniversaryRequestSchema,
+	  updateHabitRequestSchema,
+  updateTaskOrderRequestSchema,
   updateMemoRequestSchema,
   updateTagRequestSchema,
   updateThemePreferenceRequestSchema,
@@ -165,11 +166,11 @@ describe("app bootstrap schema", () => {
     });
 
     expect(appBootstrapResponseSchema.parse({
-      apiVersion: "0.2.17",
+      apiVersion: "0.2.18",
       releaseChannel: "stable",
       desktop: {
         minimumVersion: "0.1.0",
-        latestVersion: "0.2.17",
+        latestVersion: "0.2.18",
         updateEndpoint: "https://github.com/Hand-xieyicheng/hand-tododesk/releases/latest/download/latest.json"
       },
       featureFlags: {
@@ -185,11 +186,11 @@ describe("app bootstrap schema", () => {
 
   it("rejects unsupported release channels", () => {
     expect(appBootstrapResponseSchema.safeParse({
-      apiVersion: "0.2.17",
+      apiVersion: "0.2.18",
       releaseChannel: "beta",
       desktop: {
         minimumVersion: "0.1.0",
-        latestVersion: "0.2.17",
+        latestVersion: "0.2.18",
         updateEndpoint: "https://github.com/Hand-xieyicheng/hand-tododesk/releases/latest/download/latest.json"
       },
       featureFlags: defaultAppFeatureFlags
@@ -381,20 +382,39 @@ describe("task display sorting", () => {
     expect(updateTagRequestSchema.safeParse({ name: "" }).success).toBe(false);
   });
 
-  it("puts unfinished tasks first and sorts each group by created date ascending", () => {
+  it("accepts manual task order requests", () => {
+    expect(updateTaskOrderRequestSchema.parse({ orderedIds: ["task-2", "task-1"] })).toEqual({
+      orderedIds: ["task-2", "task-1"]
+    });
+    expect(updateTaskOrderRequestSchema.safeParse({ orderedIds: [] }).success).toBe(false);
+    expect(updateTaskOrderRequestSchema.safeParse({ orderedIds: ["task-1", "task-1"] }).success).toBe(false);
+  });
+
+  it("keeps completed tasks below open tasks, then uses manual order and created date", () => {
     const tasks = [
-      { id: "done-new", status: "COMPLETED", createdAt: "2026-06-04T00:00:00.000Z" },
-      { id: "todo-new", status: "TODO", createdAt: "2026-06-03T00:00:00.000Z" },
-      { id: "done-old", status: "COMPLETED", createdAt: "2026-06-01T00:00:00.000Z" },
-      { id: "todo-old", status: "TODO", createdAt: "2026-06-02T00:00:00.000Z" }
-    ] satisfies Array<Pick<ApiTask, "id" | "status" | "createdAt">>;
+      { id: "done-manual-first", status: "COMPLETED", createdAt: "2026-06-04T00:00:00.000Z", sortOrder: 1000 },
+      { id: "todo-default-new", status: "TODO", createdAt: "2026-06-03T00:00:00.000Z", sortOrder: null },
+      { id: "done-default-old", status: "COMPLETED", createdAt: "2026-06-01T00:00:00.000Z", sortOrder: null },
+      { id: "todo-default-same-time-b", status: "TODO", createdAt: "2026-06-02T00:00:00.000Z", sortOrder: null },
+      { id: "todo-default-same-time-a", status: "TODO", createdAt: "2026-06-02T00:00:00.000Z", sortOrder: null },
+      { id: "todo-manual-second", status: "TODO", createdAt: "2026-06-05T00:00:00.000Z", sortOrder: 2000 }
+    ] satisfies Array<Pick<ApiTask, "id" | "status" | "createdAt" | "sortOrder">>;
 
     expect(sortTasksForDisplay(tasks).map((task) => task.id)).toEqual([
-      "todo-old",
-      "todo-new",
-      "done-old",
-      "done-new"
+      "todo-manual-second",
+      "todo-default-same-time-a",
+      "todo-default-same-time-b",
+      "todo-default-new",
+      "done-manual-first",
+      "done-default-old"
     ]);
-    expect(tasks.map((task) => task.id)).toEqual(["done-new", "todo-new", "done-old", "todo-old"]);
+    expect(tasks.map((task) => task.id)).toEqual([
+      "done-manual-first",
+      "todo-default-new",
+      "done-default-old",
+      "todo-default-same-time-b",
+      "todo-default-same-time-a",
+      "todo-manual-second"
+    ]);
   });
 });

@@ -114,6 +114,7 @@ model Task {
   dueAt             DateTime?
   priority          TaskPriority       @default(IMPORTANT_NOT_URGENT)
   status            TaskStatus         @default(TODO)
+  sortOrder         Int?
   completedAt       DateTime?
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
@@ -125,6 +126,7 @@ model Task {
 
   @@index([userId, dueAt])
   @@index([userId, status])
+  @@index([userId, sortOrder, createdAt, id])
 }
 
 model Tag {

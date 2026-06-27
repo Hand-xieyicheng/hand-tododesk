@@ -158,6 +158,23 @@ describe("HabitPanel", () => {
     await waitFor(() => expect(apiMock.checkInHabit).toHaveBeenCalledWith("habit-1", today));
   });
 
+  it("renders semantic tooltips for detail action icons", async () => {
+    const { container } = render(<HabitPanel createOpen={false} showArchived={false} onCreateOpenChange={vi.fn()} />);
+
+    await waitFor(() => expect(screen.getAllByText("学习日语").length).toBeGreaterThan(0));
+
+    const detailActions = container.querySelector(".habit-detail-actions");
+    expect(detailActions).not.toBeNull();
+    expect(within(detailActions as HTMLElement).getByRole("button", { name: "编辑" })).toBeInTheDocument();
+    const archiveButton = within(detailActions as HTMLElement).getByRole("button", { name: "归档" });
+    expect(archiveButton.querySelector(".lucide-archive")).not.toBeNull();
+    expect(archiveButton.querySelector(".lucide-rotate-ccw")).toBeNull();
+    expect(within(detailActions as HTMLElement).getByRole("button", { name: "删除" })).toBeInTheDocument();
+    expect(within(detailActions as HTMLElement).getByText("编辑")).toHaveAttribute("role", "tooltip");
+    expect(within(detailActions as HTMLElement).getByText("归档")).toHaveAttribute("role", "tooltip");
+    expect(within(detailActions as HTMLElement).getByText("删除")).toHaveAttribute("role", "tooltip");
+  });
+
   it("selects a habit when clicking anywhere on its sidebar card body", async () => {
     const secondHabit: ApiHabit = { ...habit, id: "habit-2", title: "喝水记录", color: "blue", icon: "Droplets" };
     const secondDetail: ApiHabitDetail = { ...detail, habit: secondHabit, stats: secondHabit.stats };

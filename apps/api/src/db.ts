@@ -98,6 +98,22 @@ async function ensureColumn(tableName: string, columnName: string, addColumnSql:
   }
 }
 
+async function indexExists(tableName: string, indexName: string) {
+  return queryOne<DbRow & { INDEX_NAME: string }>(
+    `SELECT INDEX_NAME
+     FROM INFORMATION_SCHEMA.STATISTICS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND INDEX_NAME = ?`,
+    [tableName, indexName]
+  );
+}
+
+async function ensureIndex(tableName: string, indexName: string, addIndexSql: string) {
+  const index = await indexExists(tableName, indexName);
+  if (!index) {
+    await execute(addIndexSql);
+  }
+}
+
 async function ensureTaskPrioritySchema() {
   const priorityColumn = await columnExists("Task", "priority");
   const columnType = String(priorityColumn?.COLUMN_TYPE ?? "");
@@ -346,6 +362,8 @@ async function ensureThemePreferenceThemeSchema() {
 
 async function ensureIncrementalSchema() {
   await ensureTaskPrioritySchema();
+  await ensureColumn("Task", "sortOrder", "ALTER TABLE `Task` ADD COLUMN `sortOrder` INTEGER NULL");
+  await ensureIndex("Task", "Task_userId_sortOrder_createdAt_id_idx", "CREATE INDEX `Task_userId_sortOrder_createdAt_id_idx` ON `Task` (`userId`, `sortOrder`, `createdAt`, `id`)");
   await ensureMemoSchema();
   await ensureAnniversarySchema();
   await ensureHabitSchema();

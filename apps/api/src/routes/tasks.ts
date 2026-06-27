@@ -7,6 +7,7 @@ import {
   sortTasksForDisplay,
   taskPriorityValues,
   toLocalDateKey,
+  updateTaskOrderRequestSchema,
   updateTaskRequestSchema
 } from "@todo/shared";
 import { asDate, execute, id, queryOne, queryRows, toMysqlDate, transaction, type DbRow } from "../db.js";
@@ -21,6 +22,7 @@ type TaskRow = DbRow & {
   dueAt: Date | string | null;
   priority: string;
   status: TaskStatus;
+  sortOrder: number | string | null;
   completedAt: Date | string | null;
   createdAt: Date | string;
   updatedAt: Date | string;
@@ -50,6 +52,8 @@ type CalendarHabitCheckInRow = DbRow & {
   color: string;
   sortOrder: number | string;
 };
+
+const taskDisplayOrderSql = "CASE WHEN `status` = 'COMPLETED' THEN 1 ELSE 0 END ASC, CASE WHEN `sortOrder` IS NULL THEN 1 ELSE 0 END ASC, `sortOrder` ASC, `createdAt` ASC, `id` ASC";
 
 function normalizeHabitColor(value: string | null | undefined): HabitColor {
   return habitColorValues.includes(value as HabitColor) ? value as HabitColor : "mint";
@@ -133,6 +137,7 @@ async function serializeTask(row: TaskRow): Promise<ApiTask> {
     dueAt: asDate(row.dueAt)?.toISOString() ?? null,
     priority: normalizeTaskPriority(row.priority),
     status: row.status,
+    sortOrder: row.sortOrder === null || row.sortOrder === undefined ? null : Number(row.sortOrder),
     createdAt: asDate(row.createdAt)?.toISOString() ?? new Date().toISOString(),
     updatedAt: asDate(row.updatedAt)?.toISOString() ?? new Date().toISOString(),
     completedAt: asDate(row.completedAt)?.toISOString() ?? null,
@@ -180,7 +185,7 @@ async function upsertRecurrence(taskId: string, recurrenceRule: RecurrenceRuleIn
 export async function taskRoutes(app: FastifyInstance) {
   app.get("/tasks", { preHandler: app.authenticate }, async (request) => {
     const rows = await queryRows<TaskRow>(
-      "SELECT * FROM `Task` WHERE `userId` = ? AND `status` <> 'ARCHIVED' ORDER BY CASE WHEN `status` = 'COMPLETED' THEN 1 ELSE 0 END ASC, `createdAt` ASC, `id` ASC",
+      `SELECT * FROM \`Task\` WHERE \`userId\` = ? AND \`status\` <> 'ARCHIVED' ORDER BY ${taskDisplayOrderSql}`,
       [request.user.id]
     );
     return { tasks: sortTasksForDisplay(await Promise.all(rows.map(serializeTask))) };
@@ -188,7 +193,7 @@ export async function taskRoutes(app: FastifyInstance) {
 
   app.get("/tasks/quadrants", { preHandler: app.authenticate }, async (request) => {
     const rows = await queryRows<TaskRow>(
-      "SELECT * FROM `Task` WHERE `userId` = ? AND `status` <> 'ARCHIVED' ORDER BY CASE WHEN `status` = 'COMPLETED' THEN 1 ELSE 0 END ASC, `createdAt` ASC, `id` ASC",
+      `SELECT * FROM \`Task\` WHERE \`userId\` = ? AND \`status\` <> 'ARCHIVED' ORDER BY ${taskDisplayOrderSql}`,
       [request.user.id]
     );
     const tasks = sortTasksForDisplay(await Promise.all(rows.map(serializeTask)));
@@ -233,6 +238,29 @@ export async function taskRoutes(app: FastifyInstance) {
     await upsertRecurrence(taskId, body.recurrenceRule ?? null);
     const task = await queryOne<TaskRow>("SELECT * FROM `Task` WHERE `id` = ?", [taskId]);
     return reply.code(201).send({ task: task ? await serializeTask(task) : null });
+  });
+
+  app.put("/tasks/order", { preHandler: app.authenticate }, async (request, reply) => {
+    const body = updateTaskOrderRequestSchema.parse(request.body);
+    const placeholders = body.orderedIds.map(() => "?").join(", ");
+    const rows = await queryRows<DbRow & { id: string }>(
+      `SELECT \`id\`
+       FROM \`Task\`
+       WHERE \`userId\` = ? AND \`status\` <> 'ARCHIVED' AND \`id\` IN (${placeholders})`,
+      [request.user.id, ...body.orderedIds]
+    );
+    if (rows.length !== body.orderedIds.length) {
+      return reply.code(404).send({ error: "Task not found" });
+    }
+
+    await transaction(async (connection) => {
+      await Promise.all(body.orderedIds.map((taskId, index) => connection.execute(
+        "UPDATE `Task` SET `sortOrder` = ?, `updatedAt` = NOW(3) WHERE `id` = ? AND `userId` = ?",
+        [(index + 1) * 1000, taskId, request.user.id]
+      )));
+    });
+
+    return { ok: true };
   });
 
   app.patch("/tasks/:id", { preHandler: app.authenticate }, async (request, reply) => {

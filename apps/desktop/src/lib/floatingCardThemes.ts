@@ -14,6 +14,9 @@ export interface FloatingCardThemeDefinition {
   check: string;
   shadow: string;
   dots: string;
+  taskDragBackground: string;
+  taskDragText: string;
+  taskDragShadow: string;
   controlColorScheme: "light" | "dark";
 }
 
@@ -37,6 +40,9 @@ export const floatingCardThemeRegistry: Record<FloatingCardThemeId, FloatingCard
         check: palette.onPrimary,
         shadow: palette.shadow,
         dots: palette.dots,
+        taskDragBackground: palette.taskDragBackground,
+        taskDragText: palette.taskDragText,
+        taskDragShadow: palette.taskDragShadow,
         controlColorScheme: palette.controlColorScheme
       }
     ];
@@ -67,6 +73,9 @@ export function getFloatingCardThemeStyle(themeId: string | null | undefined) {
     "--floating-card-check": theme.check,
     "--floating-card-shadow": theme.shadow,
     "--floating-card-dots": theme.dots,
+    "--floating-card-task-drag-background": theme.taskDragBackground,
+    "--floating-card-task-drag-text": theme.taskDragText,
+    "--floating-card-task-drag-shadow": theme.taskDragShadow,
     "--floating-card-control-color-scheme": useLightControlIcons ? "dark" : "light",
     "--floating-card-control-icon-filter": useLightControlIcons ? "brightness(0) invert(1)" : "none"
   };

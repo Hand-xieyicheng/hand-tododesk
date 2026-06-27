@@ -56,6 +56,11 @@
   --color-soft-shadow: rgba(61, 52, 40, 0.08);
   --color-dots: rgba(114, 93, 66, 0.08);
   --color-control-color-scheme: light;
+  --color-active-nav-text: var(--color-primary);
+  --color-active-nav-shadow: color-mix(in srgb, var(--color-primary) 52%, var(--color-text));
+  --color-hover-text: color-mix(in srgb, var(--color-primary) 62%, var(--color-text));
+  --color-emphasis-text: color-mix(in srgb, var(--color-primary) 46%, var(--color-text));
+  --color-strong-emphasis-text: color-mix(in srgb, var(--color-primary) 70%, var(--color-text));
   --island-ink: var(--color-text);
   --island-shadow: var(--color-shadow);
   --island-soft-shadow: var(--color-soft-shadow);
@@ -299,6 +304,17 @@ textarea:focus-visible,
   box-shadow: inset -1px 0 0 color-mix(in srgb, var(--color-surface) 76%, transparent), 10px 0 24px var(--color-soft-shadow);
 }
 
+:root[data-theme="white-ink"] .sidebar {
+  --sidebar-hairline: #ffffff;
+  background: var(--island-paper-dots) 4px 8px / 22px 22px, linear-gradient(180deg, #ffffff 0%, #ffffff 100%);
+  box-shadow: inset -1px 0 0 #ffffff, 8px 0 28px rgba(17, 24, 39, 0.12);
+}
+
+:root[data-theme="white-ink"] .app-shell.is-sidebar-collapsed .sidebar {
+  background: var(--island-paper-dots) 4px 8px / 22px 22px, linear-gradient(180deg, #ffffff 0%, #ffffff 100%);
+  box-shadow: inset -1px 0 0 #ffffff, 10px 0 24px rgba(17, 24, 39, 0.12);
+}
+
 .brand-block {
   display: flex;
   align-items: center;
@@ -349,66 +365,38 @@ textarea:focus-visible,
   display: none;
 }
 
-.sidebar-collapse-tooltip {
-  position: absolute;
-  top: calc(3px * var(--app-ui-scale));
-  right: calc(-20px * var(--app-ui-scale));
-  z-index: 1400;
-  display: inline-flex;
-  line-height: 0;
-}
-
 .sidebar-nav-tooltip {
   position: relative;
   z-index: 1400;
 }
 
-.sidebar-nav-tooltip [role="tooltip"],
-.sidebar-collapse-tooltip [role="tooltip"] {
+.sidebar-nav-tooltip [role="tooltip"] {
   z-index: 2600 !important;
 }
 
-.sidebar-collapse-button {
+.sidebar-brand-button {
   appearance: none;
   position: relative;
   display: grid;
-  width: calc(20px * var(--app-ui-scale));
-  height: calc(28px * var(--app-ui-scale));
   padding: 0;
   place-items: center;
   border: 0;
-  border-radius: 0;
+  border-radius: calc(24px * var(--app-ui-scale));
   background: transparent;
-  color: color-mix(in srgb, var(--color-primary) 58%, var(--color-text));
   box-shadow: none;
-  transition: color 160ms ease, transform 160ms ease;
+  cursor: pointer;
+  line-height: 0;
+  transition: transform 160ms ease, filter 160ms ease;
 }
 
-.sidebar-collapse-button:hover {
-  color: var(--island-ink);
-  transform: translateX(-1px);
+.sidebar-brand-button:hover {
+  filter: saturate(1.04);
+  transform: translateY(-1px);
 }
 
-.sidebar-collapse-caret {
-  display: grid;
-  width: calc(18px * var(--app-ui-scale));
-  height: calc(24px * var(--app-ui-scale));
-  place-items: center;
-  filter:
-    drop-shadow(0 2px 0 var(--color-shadow))
-    drop-shadow(0 8px 12px var(--color-soft-shadow));
-  pointer-events: none;
-}
-
-.sidebar-collapse-caret svg {
-  display: block;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-}
-
-.sidebar-collapse-caret path {
-  fill: currentColor;
+.sidebar-brand-button:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-primary) 72%, transparent);
+  outline-offset: calc(5px * var(--app-ui-scale));
 }
 
 .app-shell.is-sidebar-collapsed .app-brand {
@@ -421,48 +409,16 @@ textarea:focus-visible,
   min-height: calc(var(--app-titlebar-drag-height) + calc(46px * var(--app-ui-scale)));
 }
 
-.app-shell.is-sidebar-collapsed .sidebar-collapse-button {
-  width: calc(34px * var(--app-ui-scale));
-  height: calc(34px * var(--app-ui-scale));
-  border: 1px solid color-mix(in srgb, var(--color-primary) 34%, var(--color-border));
-  border-radius: 13px 12px 15px 12px;
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--color-surface) 94%, transparent), color-mix(in srgb, var(--color-surface-strong) 76%, transparent)),
-    var(--color-surface);
-  box-shadow: 0 3px 0 var(--color-shadow), 0 8px 16px var(--color-soft-shadow);
-  transform: none;
-}
-
-.app-shell.is-sidebar-collapsed .sidebar-collapse-button:hover {
-  border-color: color-mix(in srgb, var(--color-primary) 58%, var(--color-border));
-  transform: translateY(-1px);
-}
-
-.app-shell.is-sidebar-collapsed .sidebar-collapse-tooltip {
-  top: calc(3px * var(--app-ui-scale));
-  right: auto;
-  left: 50%;
-  transform: translateX(-50%);
-}
-
-.app-shell.is-macos-desktop.is-sidebar-collapsed .sidebar-collapse-tooltip {
-  top: calc(var(--app-titlebar-drag-height) + 8px - calc(18px * var(--app-ui-scale)));
-}
-
-.app-shell.is-sidebar-collapsed .sidebar-collapse-button svg {
-  width: calc(16px * var(--app-ui-scale));
-  height: calc(16px * var(--app-ui-scale));
-}
-
-.app-shell.is-sidebar-collapsed .sidebar-collapse-caret {
-  display: none;
+.app-shell.is-sidebar-collapsed .sidebar-brand-button {
+  width: calc(52px * var(--app-ui-scale));
+  height: calc(52px * var(--app-ui-scale));
 }
 
 .app-shell.is-sidebar-collapsed .sidebar-brand-logo {
-  display: none;
-  width: 0;
-  opacity: 0;
-  transform: scale(0.86);
+  display: block;
+  width: calc(48px * var(--app-ui-scale));
+  opacity: 1;
+  transform: none;
 }
 
 .app-shell.is-sidebar-collapsed .sidebar-brand-mark {
@@ -618,7 +574,7 @@ textarea:focus-visible,
 }
 
 .nav-button:hover {
-  color: color-mix(in srgb, var(--color-primary) 45%, var(--color-text)) !important;
+  color: var(--color-hover-text) !important;
   transform: translateX(2px);
 }
 
@@ -630,7 +586,7 @@ textarea:focus-visible,
 }
 
 .nav-button.is-active {
-  color: var(--color-primary)  !important;
+  color: var(--color-active-nav-text) !important;
 }
 
 .app-shell.is-sidebar-collapsed .nav-button.is-active {
@@ -664,7 +620,7 @@ textarea:focus-visible,
 .app-shell.is-sidebar-collapsed .nav-button:hover .nav-button-icon {
   border-color: color-mix(in srgb, var(--color-primary) 28%, var(--color-border));
   background: color-mix(in srgb, var(--color-primary) 12%, var(--color-surface));
-  color: color-mix(in srgb, var(--color-primary) 56%, var(--color-text));
+  color: var(--color-hover-text);
   box-shadow: inset 0 1px 0 color-mix(in srgb, var(--color-surface) 90%, transparent), 0 3px 0 var(--color-soft-shadow);
   transform: translateY(-1px);
 }
@@ -673,14 +629,14 @@ textarea:focus-visible,
   border-color: color-mix(in srgb, var(--color-primary) 46%, var(--color-border));
   background: color-mix(in srgb, var(--color-primary) 88%, var(--color-surface));
   color: var(--color-on-primary);
-  box-shadow: 0 3px 0 color-mix(in srgb, var(--color-primary) 52%, var(--color-text));
+  box-shadow: 0 3px 0 var(--color-active-nav-shadow);
 }
 
 .app-shell.is-sidebar-collapsed .nav-button.is-active .nav-button-icon {
   border-color: transparent;
   background: color-mix(in srgb, var(--color-primary) 72%, var(--color-surface));
   color: var(--color-on-primary);
-  box-shadow: 0 3px 0 color-mix(in srgb, var(--color-primary) 48%, var(--color-text)), 0 8px 14px var(--color-soft-shadow);
+  box-shadow: 0 3px 0 var(--color-active-nav-shadow), 0 8px 14px var(--color-soft-shadow);
 }
 
 .nav-button svg {
@@ -690,9 +646,14 @@ textarea:focus-visible,
 
 .nav-button-label {
   overflow: hidden;
+  font-weight: 800;
   text-overflow: ellipsis;
   white-space: nowrap;
   transition: opacity 140ms ease, width 160ms ease;
+}
+
+.nav-button.is-active .nav-button-label {
+  font-weight: 900;
 }
 
 .app-shell.is-sidebar-collapsed .nav-button-label {
@@ -794,19 +755,6 @@ textarea:focus-visible,
 
 :root[data-display-size="default"] .app-shell.is-macos-desktop.is-sidebar-collapsed .sidebar {
   padding-inline: calc(12px * var(--app-ui-scale));
-}
-
-:root:not([data-display-size]) .app-shell.is-macos-desktop.is-sidebar-collapsed .sidebar-collapse-button,
-:root[data-display-size="default"] .app-shell.is-macos-desktop.is-sidebar-collapsed .sidebar-collapse-button {
-  width: calc(42px * var(--app-ui-scale));
-  height: calc(42px * var(--app-ui-scale));
-  border-radius: 16px 14px 18px 14px;
-}
-
-:root:not([data-display-size]) .app-shell.is-macos-desktop.is-sidebar-collapsed .sidebar-collapse-button svg,
-:root[data-display-size="default"] .app-shell.is-macos-desktop.is-sidebar-collapsed .sidebar-collapse-button svg {
-  width: calc(19px * var(--app-ui-scale));
-  height: calc(19px * var(--app-ui-scale));
 }
 
 :root:not([data-display-size]) .app-shell.is-macos-desktop.is-sidebar-collapsed .nav-button,
@@ -1121,7 +1069,7 @@ textarea:focus-visible,
 .task-view-toggle button:hover:not(:disabled),
 .task-view-toggle button:focus-visible {
   background: color-mix(in srgb, var(--color-primary) 10%, transparent) !important;
-  color: color-mix(in srgb, var(--color-primary) 62%, var(--color-text)) !important;
+  color: var(--color-hover-text) !important;
   outline: none;
 }
 
@@ -1230,6 +1178,39 @@ textarea:focus-visible,
   font-size: calc(13px * var(--app-ui-scale)) !important;
   line-height: 1 !important;
   white-space: nowrap;
+}
+
+.task-tag-maintenance-button:hover:not(:disabled),
+.task-tag-maintenance-button:focus-visible,
+.task-tag-maintenance-button[class*="animal-btn-"]:hover:not(:disabled),
+.task-tag-maintenance-button[class*="animal-btn-"]:focus-visible {
+  color: var(--color-hover-text) !important;
+}
+
+.task-tag-maintenance-button:hover:not(:disabled) > span,
+.task-tag-maintenance-button:focus-visible > span,
+.task-tag-maintenance-button[class*="animal-btn-"]:hover:not(:disabled) > span,
+.task-tag-maintenance-button[class*="animal-btn-"]:focus-visible > span {
+  color: inherit !important;
+}
+
+.task-tag-maintenance-button:hover:not(:disabled) [class*="animal-btn-icon"],
+.task-tag-maintenance-button:focus-visible [class*="animal-btn-icon"],
+.task-tag-maintenance-button:hover:not(:disabled) svg,
+.task-tag-maintenance-button:focus-visible svg,
+.task-tag-maintenance-button[class*="animal-btn-"]:hover:not(:disabled) [class*="animal-btn-icon"],
+.task-tag-maintenance-button[class*="animal-btn-"]:focus-visible [class*="animal-btn-icon"],
+.task-tag-maintenance-button[class*="animal-btn-"]:hover:not(:disabled) svg,
+.task-tag-maintenance-button[class*="animal-btn-"]:focus-visible svg {
+  color: inherit !important;
+  stroke: currentColor !important;
+}
+
+.task-tag-maintenance-button:hover:not(:disabled) svg [stroke]:not([stroke="none"]),
+.task-tag-maintenance-button:focus-visible svg [stroke]:not([stroke="none"]),
+.task-tag-maintenance-button[class*="animal-btn-"]:hover:not(:disabled) svg [stroke]:not([stroke="none"]),
+.task-tag-maintenance-button[class*="animal-btn-"]:focus-visible svg [stroke]:not([stroke="none"]) {
+  stroke: currentColor !important;
 }
 
 .memo-topbar-actions {
@@ -1483,7 +1464,7 @@ textarea:focus-visible,
 }
 
 .memo-save-state-saved {
-  color: var(--color-primary);
+  color: var(--color-emphasis-text);
 }
 
 .memo-save-state-error {
@@ -1502,7 +1483,8 @@ textarea:focus-visible,
 }
 
 .memo-editor-actions .icon-button-tooltip-trigger,
-.memo-rich-toolbar .icon-button-tooltip-trigger {
+.memo-rich-toolbar .icon-button-tooltip-trigger,
+.habit-detail-actions .icon-button-tooltip-trigger {
   flex: 0 0 auto;
 }
 
@@ -1541,14 +1523,16 @@ textarea:focus-visible,
   white-space: nowrap;
 }
 
-.memo-editor-actions .icon-button-tooltip-trigger::before {
+.memo-editor-actions .icon-button-tooltip-trigger::before,
+.habit-detail-actions .icon-button-tooltip-trigger::before {
   top: calc(100% + 4px);
   bottom: auto;
   border-width: 0 5px 5px;
   border-color: transparent transparent color-mix(in srgb, var(--color-text) 86%, #000);
 }
 
-.memo-editor-actions .icon-button-tooltip-label {
+.memo-editor-actions .icon-button-tooltip-label,
+.habit-detail-actions .icon-button-tooltip-label {
   top: calc(100% + 9px);
   bottom: auto;
 }
@@ -2127,7 +2111,7 @@ textarea::placeholder {
 }
 
 .task-copy[role="button"]:hover h3 {
-  color: var(--color-primary);
+  color: var(--color-hover-text);
 }
 
 .task-copy[role="button"]:focus-visible {
@@ -2416,6 +2400,55 @@ textarea::placeholder {
   transform: translateX(calc(3px * var(--app-ui-scale)));
 }
 
+.task-sortable {
+  min-width: 0;
+  touch-action: manipulation;
+  cursor: grab;
+}
+
+.task-sortable:active {
+  cursor: grabbing;
+}
+
+.task-sortable.is-sort-disabled,
+.task-sortable.is-sort-disabled:active {
+  cursor: default;
+}
+
+.task-sortable > .task-item {
+  width: 100%;
+  cursor: inherit;
+}
+
+.task-sortable .task-copy[role="button"] {
+  cursor: inherit;
+}
+
+.task-sortable.is-dragging {
+  opacity: 0.96;
+}
+
+.task-sortable.is-dragging > .task-item {
+  border-color: color-mix(in srgb, var(--color-task-drag-background) 74%, var(--color-primary)) !important;
+  background:
+    linear-gradient(135deg, var(--color-task-drag-background), color-mix(in srgb, var(--color-task-drag-background) 74%, var(--color-surface))) !important;
+  color: var(--color-task-drag-text);
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--color-primary) 24%, transparent),
+    0 10px 24px var(--color-task-drag-shadow) !important;
+}
+
+.task-sortable.is-dragging > .task-item h3,
+.task-sortable.is-dragging > .task-item .task-notes,
+.task-sortable.is-dragging > .task-item .task-meta span,
+.task-sortable.is-dragging > .task-item .task-copy[role="button"]:hover h3 {
+  color: var(--color-task-drag-text) !important;
+}
+
+.task-sortable.is-dragging > .task-item .task-meta span {
+  background: color-mix(in srgb, var(--color-surface) 58%, transparent);
+}
+
 .floating-task button {
   width: calc(24px * var(--app-ui-scale)) !important;
   min-width: calc(24px * var(--app-ui-scale)) !important;
@@ -2427,6 +2460,7 @@ textarea::placeholder {
   background: color-mix(in srgb, var(--floating-card-surface, var(--color-surface)) 62%, transparent) !important;
   box-shadow: 0 1px 0 color-mix(in srgb, var(--floating-card-shadow, rgba(86, 94, 101, 0.12)) 56%, transparent) !important;
   color: color-mix(in srgb, var(--floating-card-muted, var(--color-muted)) 82%, var(--floating-card-text, var(--color-text))) !important;
+  cursor: pointer !important;
   font-size: calc(14px * var(--app-ui-scale)) !important;
   line-height: 1 !important;
   transform: none !important;
@@ -2486,7 +2520,7 @@ textarea::placeholder {
 .task-icon-action:hover,
 .task-icon-action:focus-visible {
   background: color-mix(in srgb, var(--color-primary) 12%, transparent);
-  color: color-mix(in srgb, var(--color-primary) 65%, var(--color-text));
+  color: var(--color-strong-emphasis-text);
   outline: none;
 }
 
@@ -2663,6 +2697,12 @@ textarea::placeholder {
   filter: saturate(0.72);
 }
 
+.quadrant-drop-surface.is-drop-target,
+.kanban-column.is-drop-target {
+  outline: 2px dashed color-mix(in srgb, var(--color-primary) 48%, transparent);
+  outline-offset: calc(3px * var(--app-ui-scale));
+}
+
 .kanban-column {
   display: grid;
   width: clamp(calc(250px * var(--app-ui-scale)), 24vw, calc(340px * var(--app-ui-scale)));
@@ -2759,7 +2799,7 @@ textarea::placeholder {
 .kanban-add-task:hover:not(:disabled),
 .kanban-add-task:focus-visible {
   background: color-mix(in srgb, var(--color-primary) 10%, transparent) !important;
-  color: color-mix(in srgb, var(--color-primary) 62%, var(--color-text)) !important;
+  color: var(--color-hover-text) !important;
   outline: none;
 }
 
@@ -2800,6 +2840,18 @@ textarea::placeholder {
   border: 1px solid color-mix(in srgb, var(--color-border) 74%, transparent) !important;
   border-radius: 16px 15px 18px 15px !important;
   box-shadow: 0 3px 0 var(--color-soft-shadow);
+}
+
+.quadrant-drop-surface {
+  display: grid;
+  grid-row: 1 / -1;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  min-width: 0;
+  height: 100%;
+  min-height: 0;
+  align-content: stretch;
+  gap: calc(8px * var(--app-ui-scale));
+  border-radius: inherit;
 }
 
 .quadrant-panel[class*="animal-card"] {
@@ -3697,7 +3749,7 @@ textarea::placeholder {
 .habit-monthday-picker button.is-active {
   border-color: var(--color-primary);
   background: color-mix(in srgb, var(--color-primary) 14%, var(--color-surface));
-  color: var(--color-primary);
+  color: var(--color-strong-emphasis-text);
   box-shadow: 0 3px 0 color-mix(in srgb, var(--color-primary) 34%, var(--color-border));
 }
 
@@ -3841,7 +3893,7 @@ textarea::placeholder {
 .segmented-control button:focus-visible {
   border-color: color-mix(in srgb, var(--color-primary) 42%, var(--color-border)) !important;
   background: color-mix(in srgb, var(--color-primary) 12%, transparent) !important;
-  color: color-mix(in srgb, var(--color-primary) 70%, var(--color-text)) !important;
+  color: var(--color-strong-emphasis-text) !important;
 }
 
 .segmented-control .is-active:hover:not(:disabled),
@@ -3937,7 +3989,7 @@ textarea::placeholder {
 }
 
 .calendar-cell.is-today header {
-  color: color-mix(in srgb, var(--color-primary) 68%, var(--color-text));
+  color: var(--color-strong-emphasis-text);
 }
 
 .calendar-cell header strong {
@@ -4068,7 +4120,7 @@ textarea::placeholder {
 }
 
 .calendar-task:hover {
-  color: color-mix(in srgb, var(--color-primary) 60%, var(--color-text)) !important;
+  color: var(--color-hover-text) !important;
 }
 
 .calendar-task.is-done {
@@ -4326,7 +4378,7 @@ textarea::placeholder {
 }
 
 .stat-tile strong {
-  color: var(--color-primary);
+  color: var(--color-strong-emphasis-text);
   font-size: calc(26px * var(--app-ui-scale));
   font-weight: 900;
   line-height: 1;
@@ -4724,7 +4776,7 @@ textarea::placeholder {
   position: absolute;
   top: calc(14px * var(--app-ui-scale));
   right: calc(13px * var(--app-ui-scale));
-  color: var(--color-primary);
+  color: var(--color-emphasis-text);
 }
 
 .footer-config {
@@ -4859,7 +4911,7 @@ textarea::placeholder {
   align-items: center;
   justify-content: space-between;
   gap: calc(10px * var(--app-ui-scale));
-  color: var(--color-primary);
+  color: var(--color-emphasis-text);
 }
 
 .profile-header-save-button,
@@ -5218,7 +5270,7 @@ textarea::placeholder {
   border-radius: 8px;
   background: rgba(255, 253, 241, 0.72);
   box-shadow: 0 10px 28px var(--color-soft-shadow);
-  color: color-mix(in srgb, var(--color-primary) 62%, var(--color-text));
+  color: var(--color-hover-text);
   will-change: transform;
 }
 
@@ -5355,7 +5407,7 @@ textarea::placeholder {
 .landing-nav-login[class*="animal-btn-"]:hover:not(:disabled) {
   border-color: color-mix(in srgb, var(--color-primary) 54%, var(--color-border)) !important;
   background: color-mix(in srgb, var(--color-primary) 10%, var(--color-surface)) !important;
-  color: color-mix(in srgb, var(--color-primary) 46%, var(--color-text)) !important;
+  color: var(--color-emphasis-text) !important;
   transform: translateY(-1px);
 }
 
@@ -5390,7 +5442,7 @@ textarea::placeholder {
   border: 2px solid color-mix(in srgb, var(--color-primary) 42%, var(--landing-hairline));
   border-radius: 999px;
   background: color-mix(in srgb, var(--color-primary) 11%, var(--color-surface));
-  color: color-mix(in srgb, var(--color-primary) 54%, var(--color-text));
+  color: var(--color-emphasis-text);
   font-size: 13px;
   font-weight: 950;
   line-height: 1.15;
@@ -5478,7 +5530,7 @@ textarea::placeholder {
 .landing-secondary-action:hover,
 .landing-download-button:hover {
   border-color: color-mix(in srgb, var(--color-primary) 46%, var(--color-border));
-  color: color-mix(in srgb, var(--color-primary) 50%, var(--color-text));
+  color: var(--color-emphasis-text);
   transform: translateY(-1px);
 }
 
@@ -5567,7 +5619,7 @@ textarea::placeholder {
   border: 1px solid color-mix(in srgb, var(--color-primary) 34%, transparent);
   border-radius: 999px;
   background: rgba(255, 253, 241, 0.78);
-  color: color-mix(in srgb, var(--color-primary) 58%, var(--color-text));
+  color: var(--color-hover-text);
   font-size: 12px;
   font-weight: 950;
 }
@@ -5611,7 +5663,7 @@ textarea::placeholder {
   border: 1px solid color-mix(in srgb, var(--color-primary) 36%, var(--color-surface));
   border-radius: 8px;
   background: color-mix(in srgb, var(--color-primary) 16%, var(--color-surface));
-  color: color-mix(in srgb, var(--color-primary) 70%, #0a514b);
+  color: var(--color-strong-emphasis-text);
 }
 
 .landing-feature-card-copy {
@@ -5642,7 +5694,7 @@ textarea::placeholder {
 }
 
 .landing-feature-index {
-  color: color-mix(in srgb, var(--color-primary) 42%, var(--color-muted));
+  color: var(--color-emphasis-text);
   font-size: 12px;
   font-weight: 950;
   line-height: 1;
@@ -5685,7 +5737,7 @@ textarea::placeholder {
 .landing-advantage-item svg {
   flex: 0 0 auto;
   margin-top: 1px;
-  color: var(--color-primary);
+  color: var(--color-strong-emphasis-text);
 }
 
 .landing-download-section {
@@ -5756,7 +5808,7 @@ textarea::placeholder {
   border: 1px solid color-mix(in srgb, var(--color-primary) 34%, #ffffff);
   border-radius: 8px;
   background: color-mix(in srgb, var(--color-primary) 14%, var(--color-surface));
-  color: color-mix(in srgb, var(--color-primary) 68%, #0a514b);
+  color: var(--color-strong-emphasis-text);
 }
 
 .landing-platform-logo-macos {
@@ -6670,6 +6722,45 @@ body .primary-button[class*="animal-btn"] {
   gap: calc(7px * var(--app-ui-scale));
 }
 
+.floating-task-sortable {
+  min-width: 0;
+  touch-action: manipulation;
+  cursor: grab;
+}
+
+.floating-task-sortable:active {
+  cursor: grabbing;
+}
+
+.floating-task-sortable.is-sort-disabled,
+.floating-task-sortable.is-sort-disabled:active {
+  cursor: default;
+}
+
+.floating-task-sortable.is-dragging {
+  opacity: 0.96;
+}
+
+.floating-task-sortable.is-dragging > .floating-task {
+  border-color: color-mix(in srgb, var(--floating-card-accent) 52%, var(--floating-card-task-drag-background, var(--color-task-drag-background))) !important;
+  background:
+    linear-gradient(135deg, var(--floating-card-task-drag-background, var(--color-task-drag-background)), color-mix(in srgb, var(--floating-card-task-drag-background, var(--color-task-drag-background)) 72%, var(--floating-card-surface))) !important;
+  color: var(--floating-card-task-drag-text, var(--color-task-drag-text));
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--floating-card-accent) 28%, transparent),
+    0 10px 24px var(--floating-card-task-drag-shadow, var(--color-task-drag-shadow)) !important;
+}
+
+.floating-task-sortable.is-dragging .floating-task-title,
+.floating-task-sortable.is-dragging .floating-task-notes,
+.floating-task-sortable.is-dragging .floating-task-meta span {
+  color: var(--floating-card-task-drag-text, var(--color-task-drag-text)) !important;
+}
+
+.floating-task-sortable.is-dragging .floating-task-meta span {
+  background: rgba(255, 255, 255, 0.54);
+}
+
 .floating-task {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
@@ -6680,6 +6771,7 @@ body .primary-button[class*="animal-btn"] {
   border-radius: 14px 13px 15px 13px !important;
   background: color-mix(in srgb, var(--floating-card-surface) 88%, transparent) !important;
   color: var(--floating-card-text);
+  cursor: inherit;
   box-shadow: 0 2px 0 color-mix(in srgb, var(--floating-card-shadow) 70%, transparent);
 }
 
@@ -7085,11 +7177,6 @@ body .primary-button[class*="animal-btn"] {
     justify-self: start;
     padding: 0;
     border-bottom: 0;
-  }
-
-  .sidebar-collapse-tooltip,
-  .app-shell.is-sidebar-collapsed .sidebar-collapse-tooltip {
-    display: none;
   }
 
   .sidebar-brand-logo,

@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CSSProperties, PointerEvent } from "react";
-import { defaultAppFeatureFlags, defaultThemeId, defaultVisibleSidebarModules, normalizeThemeId, type ApiTag, type ApiTask, type ApiThemePreference, type ApiUser, type AppBootstrapResponse, type AppCloseBehavior, type AppFeatureFlags, type DisplaySize, type FloatingCardThemeId, type FontFamily, type FooterType as AppFooterType, type SidebarModule, type TaskCardDisplayMode, type TaskViewMode, type ThemeId, type TitleColor } from "@todo/shared";
+import { defaultAppFeatureFlags, defaultThemeId, defaultVisibleSidebarModules, normalizeThemeId, type ApiThemePreference, type ApiUser, type AppBootstrapResponse, type AppCloseBehavior, type AppFeatureFlags, type DisplaySize, type FloatingCardThemeId, type FontFamily, type FooterType as AppFooterType, type SidebarModule, type TaskCardDisplayMode, type TaskViewMode, type ThemeId, type TitleColor } from "@todo/shared";
 import { Button, Footer, Loading, Select, Title, Tooltip } from "animal-island-ui";
-import { Bell, CalendarDays, CheckSquare2, Clock3, Eye, EyeOff, Flame, Hourglass, Kanban, LayoutGrid, ListTodo, LogOut, NotebookPen, PanelLeftOpen, Pin, Plus, Tags, UserRound } from "lucide-react";
+import { Bell, CalendarDays, CheckSquare2, Clock3, Eye, EyeOff, Flame, Hourglass, Kanban, LayoutGrid, ListTodo, LogOut, NotebookPen, Pin, Plus, Tags, UserRound } from "lucide-react";
 import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { api, ApiError, authSessionExpiredEvent } from "./api/client";
 import { AuthView } from "./components/AuthView";
@@ -17,6 +17,7 @@ import { ResetPasswordView } from "./components/ResetPasswordView";
 import { TaskPanel } from "./components/TaskPanel";
 import todoDeskLogo from "./assets/tododesk-logo.png";
 import { applyDisplaySize, normalizeDisplaySize } from "./lib/displaySize";
+import { emitDesktopSyncEvent, listenDesktopSyncEvents } from "./lib/desktopSync";
 import { defaultFloatingCardThemeId } from "./lib/floatingCardThemes";
 import { applyFontFamily, normalizeFontFamily } from "./lib/fonts";
 import { applyTheme } from "./lib/themes";
@@ -24,6 +25,7 @@ import { clearSession, getSavedUser, saveUser } from "./lib/authStorage";
 import { useAppUpdater } from "./lib/useAppUpdater";
 import { compareVersions } from "./lib/version";
 import { getViewTitleSize } from "./lib/viewTitleSize";
+import { useTaskBoardStore } from "./stores/taskBoardStore";
 
 type View = SidebarModule | "profile";
 
@@ -62,7 +64,6 @@ const defaultThemePreference: ApiThemePreference = {
   fontFamily: "system"
 };
 
-const preferenceSyncIntervalMs = 5000;
 const allTagsFilterValue = "__all__";
 const untaggedTagsFilterValue = "__untagged__";
 
@@ -138,8 +139,10 @@ export function App() {
   const location = useLocation();
   const navigate = useNavigate();
   const [user, setUser] = useState<ApiUser | null>(() => getSavedUser());
-  const [tasks, setTasks] = useState<ApiTask[]>([]);
-  const [tags, setTags] = useState<ApiTag[]>([]);
+  const tasks = useTaskBoardStore((state) => state.tasks);
+  const tags = useTaskBoardStore((state) => state.tags);
+  const resetTaskBoard = useTaskBoardStore((state) => state.reset);
+  const setTaskSnapshot = useTaskBoardStore((state) => state.setSnapshot);
   const [taskTagFilter, setTaskTagFilter] = useState(allTagsFilterValue);
   const [taskTagMaintenanceOpen, setTaskTagMaintenanceOpen] = useState(false);
   const [appBootstrap, setAppBootstrap] = useState<AppBootstrapResponse | null>(null);
@@ -274,8 +277,10 @@ export function App() {
         api.getThemePreference().catch(() => defaultThemePreference),
         api.currentUser()
       ]);
-      setTasks(taskPayload.tasks);
-      setTags(tagPayload.tags);
+      setTaskSnapshot({
+        tags: tagPayload.tags,
+        tasks: taskPayload.tasks
+      });
       setUser(profile.user);
       saveUser(profile.user);
       applyThemePreference(preference);
@@ -283,8 +288,7 @@ export function App() {
       if (error instanceof ApiError && error.status === 401) {
         await clearSession();
         setUser(null);
-        setTasks([]);
-        setTags([]);
+        resetTaskBoard();
         setTaskTagFilter(allTagsFilterValue);
       } else {
         setMessage(error instanceof Error ? error.message : "加载失败");
@@ -312,8 +316,7 @@ export function App() {
   useEffect(() => {
     function handleSessionExpired() {
       setUser(null);
-      setTasks([]);
-      setTags([]);
+      resetTaskBoard();
       setTaskTagFilter(allTagsFilterValue);
       navigateToView("tasks", true);
       setMessage("");
@@ -382,33 +385,23 @@ export function App() {
       return;
     }
 
-    let cancelled = false;
-    const syncPreference = async () => {
-      try {
-        const preference = await api.getThemePreference();
-        if (!cancelled) {
-          applyThemePreference(preference);
-        }
-      } catch {
-        // Background preference sync should not interrupt the current workflow.
+    return listenDesktopSyncEvents((event) => {
+      if (event.type === "task:upserted") {
+        useTaskBoardStore.getState().upsertTask(event.task);
+        return;
       }
-    };
-    const intervalId = window.setInterval(() => void syncPreference(), preferenceSyncIntervalMs);
-    const syncWhenVisible = () => {
-      if (document.visibilityState === "visible") {
-        void syncPreference();
+      if (event.type === "task:deleted") {
+        useTaskBoardStore.getState().deleteTask(event.taskId);
+        return;
       }
-    };
-
-    window.addEventListener("focus", syncWhenVisible);
-    document.addEventListener("visibilitychange", syncWhenVisible);
-
-    return () => {
-      cancelled = true;
-      window.clearInterval(intervalId);
-      window.removeEventListener("focus", syncWhenVisible);
-      document.removeEventListener("visibilitychange", syncWhenVisible);
-    };
+      if (event.type === "preference:changed") {
+        applyThemePreference(event.preference);
+        return;
+      }
+      if (event.type === "task-board:reload-requested") {
+        void loadAppData();
+      }
+    });
   }, [user?.id]);
 
   useEffect(() => {
@@ -430,8 +423,7 @@ export function App() {
   async function handleLogout() {
     await api.logout();
     setUser(null);
-    setTasks([]);
-    setTags([]);
+    resetTaskBoard();
     setTaskTagFilter(allTagsFilterValue);
     navigateToView("tasks", true);
   }
@@ -443,52 +435,63 @@ export function App() {
 
   function handlePasswordChanged() {
     setUser(null);
-    setTasks([]);
-    setTags([]);
+    resetTaskBoard();
     setTaskTagFilter(allTagsFilterValue);
     navigateToView("tasks", true);
   }
 
   function handlePasswordResetCompleted() {
     setUser(null);
-    setTasks([]);
-    setTags([]);
+    resetTaskBoard();
     setTaskTagFilter(allTagsFilterValue);
+  }
+
+  function publishThemePreference(preference: ApiThemePreference) {
+    applyThemePreference(preference);
+    void emitDesktopSyncEvent({ type: "preference:changed", preference });
   }
 
   function handleThemeChanged(next: ThemeId) {
     setThemeId(next);
     localStorage.setItem("tododesk.theme", next);
-    void api.setThemePreference({ themeId: next }).catch((error) => {
-      setMessage(error instanceof Error ? error.message : "主题保存失败");
-    });
+    void api.setThemePreference({ themeId: next })
+      .then(publishThemePreference)
+      .catch((error) => {
+        setMessage(error instanceof Error ? error.message : "主题保存失败");
+      });
   }
 
   function handleTitleColorChanged(next: TitleColor) {
     setTitleColor(next);
-    void api.setThemePreference({ titleColor: next }).catch((error) => {
-      setMessage(error instanceof Error ? error.message : "标题颜色保存失败");
-    });
+    void api.setThemePreference({ titleColor: next })
+      .then(publishThemePreference)
+      .catch((error) => {
+        setMessage(error instanceof Error ? error.message : "标题颜色保存失败");
+      });
   }
 
   function handleFooterVisibleChanged(next: boolean) {
     setFooterVisible(next);
-    void api.setThemePreference({ footerVisible: next }).catch((error) => {
-      setMessage(error instanceof Error ? error.message : "Footer 显示配置保存失败");
-    });
+    void api.setThemePreference({ footerVisible: next })
+      .then(publishThemePreference)
+      .catch((error) => {
+        setMessage(error instanceof Error ? error.message : "Footer 显示配置保存失败");
+      });
   }
 
   function handleFooterTypeChanged(next: AppFooterType) {
     setFooterType(next);
-    void api.setThemePreference({ footerType: next }).catch((error) => {
-      setMessage(error instanceof Error ? error.message : "Footer 样式保存失败");
-    });
+    void api.setThemePreference({ footerType: next })
+      .then(publishThemePreference)
+      .catch((error) => {
+        setMessage(error instanceof Error ? error.message : "Footer 样式保存失败");
+      });
   }
 
   function handleShowCompletedTasksChanged(next: boolean) {
     setShowCompletedTasks(next);
     void api.setThemePreference({ showCompletedTasks: next })
-      .then(applyThemePreference)
+      .then(publishThemePreference)
       .catch((error) => {
         setShowCompletedTasks(!next);
         setMessage(error instanceof Error ? error.message : "待办显示配置保存失败");
@@ -497,67 +500,81 @@ export function App() {
 
   function handleTaskViewModeChanged(next: TaskViewMode) {
     setTaskViewMode(next);
-    void api.setThemePreference({ taskViewMode: next }).catch((error) => {
-      setMessage(error instanceof Error ? error.message : "待办样式配置保存失败");
-    });
+    void api.setThemePreference({ taskViewMode: next })
+      .then(publishThemePreference)
+      .catch((error) => {
+        setMessage(error instanceof Error ? error.message : "待办样式配置保存失败");
+      });
   }
 
   function handleTaskCardDisplayModeChanged(next: TaskCardDisplayMode) {
     const previous = taskCardDisplayMode;
     setTaskCardDisplayMode(next);
-    void api.setThemePreference({ taskCardDisplayMode: next }).catch((error) => {
-      setTaskCardDisplayMode(previous);
-      setMessage(error instanceof Error ? error.message : "待办事项卡片显示配置保存失败");
-    });
+    void api.setThemePreference({ taskCardDisplayMode: next })
+      .then(publishThemePreference)
+      .catch((error) => {
+        setTaskCardDisplayMode(previous);
+        setMessage(error instanceof Error ? error.message : "待办事项卡片显示配置保存失败");
+      });
   }
 
   function handleFloatingCardThemeChanged(next: FloatingCardThemeId) {
     const previous = floatingCardThemeId;
     setFloatingCardThemeId(next);
-    void api.setThemePreference({ floatingCardThemeId: next }).catch((error) => {
-      setFloatingCardThemeId(previous);
-      setMessage(error instanceof Error ? error.message : "固定卡片主题保存失败");
-    });
+    void api.setThemePreference({ floatingCardThemeId: next })
+      .then(publishThemePreference)
+      .catch((error) => {
+        setFloatingCardThemeId(previous);
+        setMessage(error instanceof Error ? error.message : "固定卡片主题保存失败");
+      });
   }
 
   function handleAppCloseBehaviorChanged(next: AppCloseBehavior) {
     const previous = appCloseBehavior;
     setAppCloseBehavior(next);
     void syncNativeAppCloseBehavior(next);
-    void api.setThemePreference({ appCloseBehavior: next }).catch((error) => {
-      setAppCloseBehavior(previous);
-      void syncNativeAppCloseBehavior(previous);
-      setMessage(error instanceof Error ? error.message : "关闭应用配置保存失败");
-    });
+    void api.setThemePreference({ appCloseBehavior: next })
+      .then(publishThemePreference)
+      .catch((error) => {
+        setAppCloseBehavior(previous);
+        void syncNativeAppCloseBehavior(previous);
+        setMessage(error instanceof Error ? error.message : "关闭应用配置保存失败");
+      });
   }
 
   function handleDisplaySizeChanged(next: DisplaySize) {
     setDisplaySize(next);
     localStorage.setItem("tododesk.displaySize", next);
     applyDisplaySize(next);
-    void api.setThemePreference({ displaySize: next }).catch((error) => {
-      setMessage(error instanceof Error ? error.message : "界面显示大小保存失败");
-    });
+    void api.setThemePreference({ displaySize: next })
+      .then(publishThemePreference)
+      .catch((error) => {
+        setMessage(error instanceof Error ? error.message : "界面显示大小保存失败");
+      });
   }
 
   function handleVisibleSidebarModulesChanged(next: SidebarModule[]) {
     const previous = visibleSidebarModules;
     setVisibleSidebarModules(next);
-    void api.setThemePreference({ visibleSidebarModules: next }).catch((error) => {
-      setVisibleSidebarModules(previous);
-      setMessage(error instanceof Error ? error.message : "显示模块配置保存失败");
-    });
+    void api.setThemePreference({ visibleSidebarModules: next })
+      .then(publishThemePreference)
+      .catch((error) => {
+        setVisibleSidebarModules(previous);
+        setMessage(error instanceof Error ? error.message : "显示模块配置保存失败");
+      });
   }
 
   function handleSidebarCollapsedChanged(next: boolean) {
     const previous = sidebarCollapsed;
     setSidebarCollapsed(next);
     localStorage.setItem("tododesk.sidebarCollapsed", String(next));
-    void api.setThemePreference({ sidebarCollapsed: next }).catch((error) => {
-      setSidebarCollapsed(previous);
-      localStorage.setItem("tododesk.sidebarCollapsed", String(previous));
-      setMessage(error instanceof Error ? error.message : "侧边栏配置保存失败");
-    });
+    void api.setThemePreference({ sidebarCollapsed: next })
+      .then(publishThemePreference)
+      .catch((error) => {
+        setSidebarCollapsed(previous);
+        localStorage.setItem("tododesk.sidebarCollapsed", String(previous));
+        setMessage(error instanceof Error ? error.message : "侧边栏配置保存失败");
+      });
   }
 
   function handleFontFamilyChanged(next: FontFamily) {
@@ -565,12 +582,14 @@ export function App() {
     const normalized = applyFontFamily(next);
     setFontFamily(normalized);
     localStorage.setItem("tododesk.fontFamily", normalized);
-    void api.setThemePreference({ fontFamily: normalized }).catch((error) => {
-      setFontFamily(previous);
-      localStorage.setItem("tododesk.fontFamily", previous);
-      applyFontFamily(previous);
-      setMessage(error instanceof Error ? error.message : "字体配置保存失败");
-    });
+    void api.setThemePreference({ fontFamily: normalized })
+      .then(publishThemePreference)
+      .catch((error) => {
+        setFontFamily(previous);
+        localStorage.setItem("tododesk.fontFamily", previous);
+        applyFontFamily(previous);
+        setMessage(error instanceof Error ? error.message : "字体配置保存失败");
+      });
   }
 
   async function openFloatingCard() {
@@ -605,26 +624,6 @@ export function App() {
     );
   }
 
-  const sidebarToggleButton = (
-    <button
-      aria-expanded={!sidebarCollapsed}
-      aria-label={sidebarToggleAction}
-      className="sidebar-collapse-button"
-      type="button"
-      onClick={() => handleSidebarCollapsedChanged(!sidebarCollapsed)}
-    >
-      {sidebarCollapsed ? (
-        <PanelLeftOpen size={16} />
-      ) : (
-        <span className="sidebar-collapse-caret" aria-hidden="true">
-          <svg viewBox="0 0 20 24" focusable="false">
-            <path d="M4.32 10.07 15.22 3.7c1.67-.98 3.78.23 3.78 2.17v12.26c0 1.94-2.11 3.15-3.78 2.17L4.32 13.93c-1.49-.87-1.49-2.99 0-3.86Z" />
-          </svg>
-        </span>
-      )}
-    </button>
-  );
-
   return (
     <div className={appShellClassName}>
       <div
@@ -635,14 +634,15 @@ export function App() {
       />
       <aside className="sidebar">
         <div className="brand-block app-brand app-drag-region" onPointerDown={startWindowDrag}>
-          {sidebarCollapsed ? (
-            <span className="sidebar-collapse-tooltip">{sidebarToggleButton}</span>
-          ) : (
-            <Tooltip className="sidebar-collapse-tooltip" placement="right" title={sidebarToggleAction} trigger="hover" variant="default">
-              {sidebarToggleButton}
-            </Tooltip>
-          )}
-          <img className="brand-logo sidebar-brand-logo" src={todoDeskLogo} alt="小柴记" />
+          <button
+            aria-expanded={!sidebarCollapsed}
+            aria-label={sidebarToggleAction}
+            className="sidebar-brand-button"
+            type="button"
+            onClick={() => handleSidebarCollapsedChanged(!sidebarCollapsed)}
+          >
+            <img className="brand-logo sidebar-brand-logo" src={todoDeskLogo} alt="小柴记" />
+          </button>
         </div>
 
         <nav className="nav-list" aria-label="主要导航">

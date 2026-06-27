@@ -20,6 +20,14 @@ export interface SharedThemePalette {
   softShadow: string;
   dots: string;
   controlColorScheme: ThemeControlColorScheme;
+  activeNavText?: string;
+  activeNavShadow?: string;
+  hoverText?: string;
+  emphasisText?: string;
+  strongEmphasisText?: string;
+  taskDragBackground: string;
+  taskDragText: string;
+  taskDragShadow: string;
 }
 
 export const sharedThemePaletteRegistry: Record<ThemeId, SharedThemePalette> = {
@@ -40,7 +48,10 @@ export const sharedThemePaletteRegistry: Record<ThemeId, SharedThemePalette> = {
     shadow: "rgba(114, 93, 66, 0.13)",
     softShadow: "rgba(61, 52, 40, 0.08)",
     dots: "rgba(114, 93, 66, 0.08)",
-    controlColorScheme: "light"
+    controlColorScheme: "light",
+    taskDragBackground: "#b9fff4",
+    taskDragText: "#14524d",
+    taskDragShadow: "rgba(25, 200, 185, 0.28)"
   },
   "white-ink": {
     id: "white-ink",
@@ -51,15 +62,23 @@ export const sharedThemePaletteRegistry: Record<ThemeId, SharedThemePalette> = {
     text: "#111827",
     muted: "#4b5563",
     border: "#cbd5e1",
-    primary: "#2563eb",
-    secondary: "#64748b",
-    accent: "#2563eb",
-    warning: "#d97706",
-    onPrimary: "#ffffff",
-    shadow: "rgba(17, 24, 39, 0.12)",
-    softShadow: "rgba(17, 24, 39, 0.07)",
+    primary: "#ffffff",
+    secondary: "#f8fafc",
+    accent: "#111827",
+    warning: "#e5e7eb",
+    onPrimary: "#111827",
+    shadow: "#ffffff",
+    softShadow: "#ffffff",
     dots: "rgba(17, 24, 39, 0.08)",
-    controlColorScheme: "light"
+    controlColorScheme: "light",
+    activeNavText: "#6b7280",
+    activeNavShadow: "#ffffff",
+    hoverText: "#6b7280",
+    emphasisText: "#6b7280",
+    strongEmphasisText: "#6b7280",
+    taskDragBackground: "#e5e7eb",
+    taskDragText: "#111827",
+    taskDragShadow: "rgba(17, 24, 39, 0.16)"
   },
   "black-snow": {
     id: "black-snow",
@@ -78,7 +97,10 @@ export const sharedThemePaletteRegistry: Record<ThemeId, SharedThemePalette> = {
     shadow: "rgba(0, 0, 0, 0.28)",
     softShadow: "rgba(0, 0, 0, 0.18)",
     dots: "rgba(255, 255, 255, 0.12)",
-    controlColorScheme: "dark"
+    controlColorScheme: "dark",
+    taskDragBackground: "#2f6ea8",
+    taskDragText: "#ffffff",
+    taskDragShadow: "rgba(147, 197, 253, 0.34)"
   },
   cream: {
     id: "cream",
@@ -97,7 +119,10 @@ export const sharedThemePaletteRegistry: Record<ThemeId, SharedThemePalette> = {
     shadow: "rgba(61, 52, 40, 0.13)",
     softShadow: "rgba(61, 52, 40, 0.08)",
     dots: "rgba(61, 52, 40, 0.08)",
-    controlColorScheme: "light"
+    controlColorScheme: "light",
+    taskDragBackground: "#ffe2a8",
+    taskDragText: "#3d3428",
+    taskDragShadow: "rgba(217, 119, 6, 0.28)"
   },
   blush: {
     id: "blush",
@@ -116,7 +141,10 @@ export const sharedThemePaletteRegistry: Record<ThemeId, SharedThemePalette> = {
     shadow: "rgba(127, 86, 92, 0.14)",
     softShadow: "rgba(127, 86, 92, 0.08)",
     dots: "rgba(61, 52, 40, 0.08)",
-    controlColorScheme: "light"
+    controlColorScheme: "light",
+    taskDragBackground: "#ffd0dc",
+    taskDragText: "#4a1f2b",
+    taskDragShadow: "rgba(225, 29, 72, 0.28)"
   },
   peach: {
     id: "peach",
@@ -135,7 +163,10 @@ export const sharedThemePaletteRegistry: Record<ThemeId, SharedThemePalette> = {
     shadow: "rgba(125, 86, 52, 0.16)",
     softShadow: "rgba(125, 86, 52, 0.09)",
     dots: "rgba(61, 52, 40, 0.09)",
-    controlColorScheme: "light"
+    controlColorScheme: "light",
+    taskDragBackground: "#ffc49a",
+    taskDragText: "#4a2411",
+    taskDragShadow: "rgba(234, 88, 12, 0.28)"
   },
   lemon: {
     id: "lemon",
@@ -154,7 +185,10 @@ export const sharedThemePaletteRegistry: Record<ThemeId, SharedThemePalette> = {
     shadow: "rgba(111, 97, 39, 0.15)",
     softShadow: "rgba(111, 97, 39, 0.08)",
     dots: "rgba(61, 52, 40, 0.09)",
-    controlColorScheme: "light"
+    controlColorScheme: "light",
+    taskDragBackground: "#fff36d",
+    taskDragText: "#3d3428",
+    taskDragShadow: "rgba(202, 138, 4, 0.28)"
   },
   mint: {
     id: "mint",
@@ -173,7 +207,10 @@ export const sharedThemePaletteRegistry: Record<ThemeId, SharedThemePalette> = {
     shadow: "rgba(31, 61, 43, 0.13)",
     softShadow: "rgba(31, 61, 43, 0.08)",
     dots: "rgba(31, 61, 43, 0.08)",
-    controlColorScheme: "light"
+    controlColorScheme: "light",
+    taskDragBackground: "#b8f7ce",
+    taskDragText: "#123b22",
+    taskDragShadow: "rgba(22, 163, 74, 0.26)"
   },
   sage: {
     id: "sage",
@@ -192,7 +229,10 @@ export const sharedThemePaletteRegistry: Record<ThemeId, SharedThemePalette> = {
     shadow: "rgba(36, 53, 36, 0.13)",
     softShadow: "rgba(36, 53, 36, 0.08)",
     dots: "rgba(36, 53, 36, 0.08)",
-    controlColorScheme: "light"
+    controlColorScheme: "light",
+    taskDragBackground: "#d7efcf",
+    taskDragText: "#243524",
+    taskDragShadow: "rgba(77, 124, 15, 0.24)"
   },
   sky: {
     id: "sky",
@@ -211,7 +251,10 @@ export const sharedThemePaletteRegistry: Record<ThemeId, SharedThemePalette> = {
     shadow: "rgba(31, 51, 82, 0.13)",
     softShadow: "rgba(31, 51, 82, 0.08)",
     dots: "rgba(31, 51, 82, 0.08)",
-    controlColorScheme: "light"
+    controlColorScheme: "light",
+    taskDragBackground: "#c7e5ff",
+    taskDragText: "#1f3352",
+    taskDragShadow: "rgba(37, 99, 235, 0.26)"
   },
   aqua: {
     id: "aqua",
@@ -230,7 +273,10 @@ export const sharedThemePaletteRegistry: Record<ThemeId, SharedThemePalette> = {
     shadow: "rgba(20, 59, 58, 0.13)",
     softShadow: "rgba(20, 59, 58, 0.08)",
     dots: "rgba(20, 59, 58, 0.08)",
-    controlColorScheme: "light"
+    controlColorScheme: "light",
+    taskDragBackground: "#b7f2ee",
+    taskDragText: "#143b3a",
+    taskDragShadow: "rgba(15, 118, 110, 0.26)"
   },
   lavender: {
     id: "lavender",
@@ -249,7 +295,10 @@ export const sharedThemePaletteRegistry: Record<ThemeId, SharedThemePalette> = {
     shadow: "rgba(51, 38, 79, 0.13)",
     softShadow: "rgba(51, 38, 79, 0.08)",
     dots: "rgba(51, 38, 79, 0.08)",
-    controlColorScheme: "light"
+    controlColorScheme: "light",
+    taskDragBackground: "#ddd1ff",
+    taskDragText: "#33264f",
+    taskDragShadow: "rgba(124, 58, 237, 0.26)"
   },
   coral: {
     id: "coral",
@@ -268,7 +317,10 @@ export const sharedThemePaletteRegistry: Record<ThemeId, SharedThemePalette> = {
     shadow: "rgba(127, 29, 29, 0.22)",
     softShadow: "rgba(127, 29, 29, 0.14)",
     dots: "rgba(255, 255, 255, 0.16)",
-    controlColorScheme: "dark"
+    controlColorScheme: "dark",
+    taskDragBackground: "#ffe0c2",
+    taskDragText: "#5a1d1d",
+    taskDragShadow: "rgba(254, 215, 170, 0.34)"
   },
   teal: {
     id: "teal",
@@ -287,7 +339,10 @@ export const sharedThemePaletteRegistry: Record<ThemeId, SharedThemePalette> = {
     shadow: "rgba(8, 47, 43, 0.24)",
     softShadow: "rgba(8, 47, 43, 0.14)",
     dots: "rgba(255, 255, 255, 0.14)",
-    controlColorScheme: "dark"
+    controlColorScheme: "dark",
+    taskDragBackground: "#99f6e4",
+    taskDragText: "#053b36",
+    taskDragShadow: "rgba(153, 246, 228, 0.34)"
   },
   navy: {
     id: "navy",
@@ -306,7 +361,10 @@ export const sharedThemePaletteRegistry: Record<ThemeId, SharedThemePalette> = {
     shadow: "rgba(15, 23, 42, 0.24)",
     softShadow: "rgba(15, 23, 42, 0.14)",
     dots: "rgba(255, 255, 255, 0.14)",
-    controlColorScheme: "dark"
+    controlColorScheme: "dark",
+    taskDragBackground: "#bfdbfe",
+    taskDragText: "#172f73",
+    taskDragShadow: "rgba(191, 219, 254, 0.34)"
   }
 };
 

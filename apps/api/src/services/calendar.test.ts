@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { buildOccurrences, expandTaskOccurrences } from "./calendar.js";
 
 const baseTask = {
@@ -11,6 +11,16 @@ const baseTask = {
 };
 
 describe("calendar recurrence expansion", () => {
+  const originalTimezone = process.env.TZ;
+
+  beforeAll(() => {
+    process.env.TZ = "Asia/Shanghai";
+  });
+
+  afterAll(() => {
+    process.env.TZ = originalTimezone;
+  });
+
   it("expands weekly tasks inside the requested range", () => {
     const dates = expandTaskOccurrences({
       ...baseTask,
@@ -63,6 +73,7 @@ describe("calendar recurrence expansion", () => {
       dueAt: "2026-06-01T09:00:00.000Z",
       priority: "IMPORTANT_NOT_URGENT",
       status: "TODO",
+      sortOrder: null,
       createdAt: "2026-06-01T00:00:00.000Z",
       updatedAt: "2026-06-01T00:00:00.000Z",
       completedAt: null,
@@ -76,5 +87,37 @@ describe("calendar recurrence expansion", () => {
       ["2026-06-01", "TODO"],
       ["2026-06-03", "COMPLETED"]
     ]);
+  });
+
+  it("uses Beijing date keys for occurrences crossing the UTC day boundary", () => {
+    const task = {
+      ...baseTask,
+      dueAt: new Date("2026-06-26T16:30:00.000Z"),
+      recurrenceRule: null
+    };
+
+    const occurrences = buildOccurrences(
+      [task],
+      new Date("2026-06-26T16:00:00.000Z"),
+      new Date("2026-06-27T16:00:00.000Z"),
+      () => ({
+        id: "task_1",
+        title: "夜间任务",
+        notes: null,
+        dueAt: "2026-06-26T16:30:00.000Z",
+        priority: "IMPORTANT_NOT_URGENT",
+        status: "TODO",
+        sortOrder: null,
+        createdAt: "2026-06-01T00:00:00.000Z",
+        updatedAt: "2026-06-01T00:00:00.000Z",
+        completedAt: null,
+        recurrenceRule: null,
+        tags: [],
+        pomodoroCompletedCount: 0,
+        pomodoroCompletedMinutes: 0
+      })
+    );
+
+    expect(occurrences.map((item) => item.id)).toEqual(["task_1:2026-06-27"]);
   });
 });

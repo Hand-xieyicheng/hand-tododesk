@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import type { CalendarHabitCheckIn, CalendarOccurrence, CalendarView as CalendarViewMode } from "@todo/shared";
+import { toLocalDateKey, type CalendarHabitCheckIn, type CalendarOccurrence, type CalendarView as CalendarViewMode } from "@todo/shared";
 import { Button, Card } from "animal-island-ui";
 import { CalendarClock, ChevronLeft, ChevronRight, CheckCircle2 } from "lucide-react";
 import { api } from "../api/client";
@@ -156,7 +156,7 @@ function getRange(cursor: Date, mode: CalendarViewMode) {
 }
 
 function keyOf(date: Date | string) {
-  return new Date(date).toISOString().slice(0, 10);
+  return toLocalDateKey(typeof date === "string" ? new Date(date) : date);
 }
 
 function isSameCalendarDate(left: Date, right: Date) {

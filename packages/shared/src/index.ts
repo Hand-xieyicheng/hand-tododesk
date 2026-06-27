@@ -355,6 +355,13 @@ export const updateTaskRequestSchema = createTaskRequestSchema.partial().extend(
   recurrenceRule: recurrenceRuleSchema.optional().nullable()
 });
 
+export const updateTaskOrderRequestSchema = z.object({
+  orderedIds: z.array(z.string().min(1)).min(1).max(500)
+}).refine((value) => new Set(value.orderedIds).size === value.orderedIds.length, {
+  message: "Task ids must be unique",
+  path: ["orderedIds"]
+});
+
 export const tagNameSchema = z.string().trim().min(1).max(40);
 
 export const createTagRequestSchema = z.object({
@@ -479,6 +486,7 @@ export type HabitListQuery = z.infer<typeof habitListQuerySchema>;
 export type HabitDetailQuery = z.infer<typeof habitDetailQuerySchema>;
 export type CreateTaskRequest = z.infer<typeof createTaskRequestSchema>;
 export type UpdateTaskRequest = z.infer<typeof updateTaskRequestSchema>;
+export type UpdateTaskOrderRequest = z.infer<typeof updateTaskOrderRequestSchema>;
 export type CreateTagRequest = z.infer<typeof createTagRequestSchema>;
 export type UpdateTagRequest = z.infer<typeof updateTagRequestSchema>;
 export type RecurrenceRuleInput = z.infer<typeof recurrenceRuleSchema>;
@@ -669,6 +677,7 @@ export interface ApiTask {
   dueAt: string | null;
   priority: TaskPriority;
   status: TaskStatus;
+  sortOrder: number | null;
   createdAt: string;
   updatedAt: string;
   completedAt: string | null;
@@ -678,7 +687,10 @@ export interface ApiTask {
   pomodoroCompletedMinutes: number;
 }
 
-type DisplaySortableTask = Pick<ApiTask, "id" | "status" | "createdAt">;
+type DisplaySortableTask = Pick<ApiTask, "id" | "createdAt"> & {
+  sortOrder?: number | null;
+  status?: TaskStatus | string | null;
+};
 
 function taskCreatedAtTime(task: DisplaySortableTask) {
   const timestamp = Date.parse(task.createdAt);
@@ -686,10 +698,22 @@ function taskCreatedAtTime(task: DisplaySortableTask) {
 }
 
 export function compareTasksForDisplay(left: DisplaySortableTask, right: DisplaySortableTask) {
-  const leftCompletedRank = left.status === "COMPLETED" ? 1 : 0;
-  const rightCompletedRank = right.status === "COMPLETED" ? 1 : 0;
-  if (leftCompletedRank !== rightCompletedRank) {
-    return leftCompletedRank - rightCompletedRank;
+  const leftCompletionRank = left.status === "COMPLETED" ? 1 : 0;
+  const rightCompletionRank = right.status === "COMPLETED" ? 1 : 0;
+  if (leftCompletionRank !== rightCompletionRank) {
+    return leftCompletionRank - rightCompletionRank;
+  }
+
+  const leftSortOrder = typeof left.sortOrder === "number" && Number.isFinite(left.sortOrder) ? left.sortOrder : null;
+  const rightSortOrder = typeof right.sortOrder === "number" && Number.isFinite(right.sortOrder) ? right.sortOrder : null;
+  const leftHasManualOrder = leftSortOrder !== null;
+  const rightHasManualOrder = rightSortOrder !== null;
+
+  if (leftHasManualOrder !== rightHasManualOrder) {
+    return leftHasManualOrder ? -1 : 1;
+  }
+  if (leftSortOrder !== null && rightSortOrder !== null && leftSortOrder !== rightSortOrder) {
+    return leftSortOrder - rightSortOrder;
   }
 
   const createdAtRank = taskCreatedAtTime(left) - taskCreatedAtTime(right);

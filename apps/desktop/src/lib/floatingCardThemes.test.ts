@@ -40,4 +40,17 @@ describe("floating card themes", () => {
       "--floating-card-control-icon-filter": "none"
     });
   });
+
+  it("exposes task drag colors from the selected floating card theme", () => {
+    expect(getFloatingCardThemeStyle("navy")).toMatchObject({
+      "--floating-card-task-drag-background": "#bfdbfe",
+      "--floating-card-task-drag-text": "#172f73",
+      "--floating-card-task-drag-shadow": "rgba(191, 219, 254, 0.34)"
+    });
+    expect(getFloatingCardThemeStyle("blush")).toMatchObject({
+      "--floating-card-task-drag-background": "#ffd0dc",
+      "--floating-card-task-drag-text": "#4a1f2b",
+      "--floating-card-task-drag-shadow": "rgba(225, 29, 72, 0.28)"
+    });
+  });
 });
