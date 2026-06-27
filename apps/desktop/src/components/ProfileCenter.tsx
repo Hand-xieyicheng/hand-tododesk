@@ -27,6 +27,7 @@ interface ProfileCenterProps {
   footerVisible: boolean;
   footerType: AppFooterType;
   fontFamily: FontFamily;
+  printButtonEnabled: boolean;
   sidebarModuleOptions: SidebarModuleOption[];
   taskCardDisplayMode: TaskCardDisplayMode;
   themeId: ThemeId;
@@ -39,6 +40,7 @@ interface ProfileCenterProps {
   onFontFamilyChanged(fontFamily: FontFamily): void;
   onDisplaySizeChanged(displaySize: DisplaySize): void;
   onPasswordChanged(): void;
+  onPrintButtonEnabledChanged(enabled: boolean): void;
   onTaskCardDisplayModeChanged(taskCardDisplayMode: TaskCardDisplayMode): void;
   onTitleColorChanged(titleColor: TitleColor): void;
   onThemeChanged(themeId: ThemeId): void;
@@ -263,6 +265,7 @@ export function ProfileCenter({
   footerVisible,
   footerType,
   fontFamily,
+  printButtonEnabled,
   sidebarModuleOptions,
   taskCardDisplayMode,
   themeId,
@@ -275,6 +278,7 @@ export function ProfileCenter({
   onFontFamilyChanged,
   onDisplaySizeChanged,
   onPasswordChanged,
+  onPrintButtonEnabledChanged,
   onTaskCardDisplayModeChanged,
   onTitleColorChanged,
   onThemeChanged,
@@ -894,6 +898,17 @@ export function ProfileCenter({
               options={taskCardDisplayModeOptions}
               value={taskCardDisplayMode}
               onChange={(value) => onTaskCardDisplayModeChanged(value as TaskCardDisplayMode)}
+            />
+          </div>
+          <div className="display-size-config">
+            <span className="display-size-config-label">便签打印</span>
+            <Radio
+              options={[
+                { label: "隐藏打印按钮", value: "off" },
+                { label: "显示打印按钮", value: "on" }
+              ]}
+              value={printButtonEnabled ? "on" : "off"}
+              onChange={(value) => onPrintButtonEnabledChanged(value === "on")}
             />
           </div>
           <div className="module-display-config">

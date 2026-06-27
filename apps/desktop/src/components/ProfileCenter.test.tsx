@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { defaultVisibleSidebarModules, type ApiUser, type AppBootstrapResponse, type SidebarModule } from "@todo/shared";
 import type { AppUpdaterController } from "../lib/useAppUpdater";
@@ -113,6 +113,7 @@ function renderProfile(updater: AppUpdaterController, props: Partial<Parameters<
       footerVisible
       footerType="sea"
       fontFamily="system"
+      printButtonEnabled={false}
       sidebarModuleOptions={sidebarModuleOptions}
       taskCardDisplayMode="full"
       themeId="warm-paper"
@@ -125,6 +126,7 @@ function renderProfile(updater: AppUpdaterController, props: Partial<Parameters<
       onAppCloseBehaviorChanged={vi.fn()}
       onDisplaySizeChanged={vi.fn()}
       onPasswordChanged={vi.fn()}
+      onPrintButtonEnabledChanged={vi.fn()}
       onTaskCardDisplayModeChanged={vi.fn()}
       onTitleColorChanged={vi.fn()}
       onThemeChanged={vi.fn()}
@@ -169,6 +171,15 @@ describe("ProfileCenter", () => {
     expect(screen.getByText("日历")).toBeInTheDocument();
     expect(screen.getByText("番茄时钟")).toBeInTheDocument();
     expect(screen.getByLabelText("拖动排序 待办事项")).toBeInTheDocument();
+  });
+
+  it("shows print button visibility settings", () => {
+    const onPrintButtonEnabledChanged = vi.fn();
+    renderProfile(createUpdater("idle"), { onPrintButtonEnabledChanged });
+
+    expect(screen.getByText("便签打印")).toBeInTheDocument();
+    fireEvent.click(screen.getByText(/显示打印按钮/));
+    expect(onPrintButtonEnabledChanged).toHaveBeenCalledWith(true);
   });
 
   it("renders sortable module items with module color identifiers", () => {

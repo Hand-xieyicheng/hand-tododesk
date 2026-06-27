@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CSSProperties, PointerEvent } from "react";
 import { defaultAppFeatureFlags, defaultThemeId, defaultVisibleSidebarModules, normalizeThemeId, type ApiThemePreference, type ApiUser, type AppBootstrapResponse, type AppCloseBehavior, type AppFeatureFlags, type DisplaySize, type FloatingCardThemeId, type FontFamily, type FooterType as AppFooterType, type SidebarModule, type TaskCardDisplayMode, type TaskViewMode, type ThemeId, type TitleColor } from "@todo/shared";
 import { Button, Footer, Loading, Select, Title, Tooltip } from "animal-island-ui";
-import { Bell, CalendarDays, CheckSquare2, Clock3, Eye, EyeOff, Flame, Hourglass, Kanban, LayoutGrid, ListTodo, LogOut, NotebookPen, Pin, Plus, Tags, UserRound } from "lucide-react";
+import { Bell, CalendarDays, CheckSquare2, Clock3, Eye, EyeOff, Flame, Hourglass, Kanban, LayoutGrid, ListTodo, LogOut, NotebookPen, Pin, Plus, Printer, Tags, UserRound } from "lucide-react";
 import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { api, ApiError, authSessionExpiredEvent } from "./api/client";
 import { AuthView } from "./components/AuthView";
@@ -12,6 +12,7 @@ import { HabitPanel } from "./components/HabitPanel";
 import { LandingPage } from "./components/LandingPage";
 import { MemoPanel } from "./components/MemoPanel";
 import { PomodoroView } from "./components/PomodoroView";
+import { PrintShareDialog } from "./components/PrintShareDialog";
 import { ProfileCenter } from "./components/ProfileCenter";
 import { ResetPasswordView } from "./components/ResetPasswordView";
 import { TaskPanel } from "./components/TaskPanel";
@@ -156,6 +157,8 @@ export function App() {
   const [titleColor, setTitleColor] = useState<TitleColor>("app-teal");
   const [footerVisible, setFooterVisible] = useState(true);
   const [footerType, setFooterType] = useState<AppFooterType>("sea");
+  const [printButtonEnabled, setPrintButtonEnabled] = useState(false);
+  const [taskPrintDialogOpen, setTaskPrintDialogOpen] = useState(false);
   const [showCompletedTasks, setShowCompletedTasks] = useState(true);
   const [taskCardDisplayMode, setTaskCardDisplayMode] = useState<TaskCardDisplayMode>("full");
   const [floatingCardThemeId, setFloatingCardThemeId] = useState<FloatingCardThemeId>(defaultFloatingCardThemeId);
@@ -234,6 +237,7 @@ export function App() {
     setTitleColor(preference.titleColor);
     setFooterVisible(preference.footerVisible);
     setFooterType(preference.footerType);
+    setPrintButtonEnabled(preference.printButtonEnabled);
     setShowCompletedTasks(preference.showCompletedTasks);
     setTaskViewMode(preference.taskViewMode);
     setTaskCardDisplayMode(preference.taskCardDisplayMode);
@@ -486,6 +490,17 @@ export function App() {
       .then(publishThemePreference)
       .catch((error) => {
         setMessage(error instanceof Error ? error.message : "Footer 样式保存失败");
+      });
+  }
+
+  function handlePrintButtonEnabledChanged(next: boolean) {
+    const previous = printButtonEnabled;
+    setPrintButtonEnabled(next);
+    void api.setThemePreference({ printButtonEnabled: next })
+      .then(publishThemePreference)
+      .catch((error) => {
+        setPrintButtonEnabled(previous);
+        setMessage(error instanceof Error ? error.message : "便签打印配置保存失败");
       });
   }
 
@@ -773,6 +788,11 @@ export function App() {
                     </Button>
                   </div>
                 ) : null}
+                {printButtonEnabled ? (
+                  <Button aria-label="便签打印" className="ghost-button" icon={<Printer size={14} />} size="small" type="default" onClick={() => setTaskPrintDialogOpen(true)}>
+                    打印
+                  </Button>
+                ) : null}
                 <Button className="primary-button" icon={<Plus size={14} />} size="small" type="default" onClick={() => setTaskCreateOpen(true)}>
                   新增
                 </Button>
@@ -855,6 +875,7 @@ export function App() {
                 appCloseBehavior={appCloseBehavior}
                 displaySize={displaySize}
                 fontFamily={fontFamily}
+                printButtonEnabled={printButtonEnabled}
                 sidebarModuleOptions={sidebarModuleOptions}
                 themeId={themeId}
                 titleColor={titleColor}
@@ -866,6 +887,7 @@ export function App() {
                 onFloatingCardThemeChanged={handleFloatingCardThemeChanged}
                 onAppCloseBehaviorChanged={handleAppCloseBehaviorChanged}
                 onPasswordChanged={handlePasswordChanged}
+                onPrintButtonEnabledChanged={handlePrintButtonEnabledChanged}
                 onTaskCardDisplayModeChanged={handleTaskCardDisplayModeChanged}
                 onTitleColorChanged={handleTitleColorChanged}
                 onThemeChanged={handleThemeChanged}
@@ -879,6 +901,18 @@ export function App() {
           />
           <Route path="*" element={<Navigate to={viewRoutes.tasks} replace />} />
         </Routes>
+        {printButtonEnabled ? (
+          <PrintShareDialog
+            open={taskPrintDialogOpen}
+            sourceType="tasks"
+            source={{
+              tagFilter: taskTagFilter,
+              showCompletedTasks,
+              viewMode: effectiveTaskViewMode
+            }}
+            onClose={() => setTaskPrintDialogOpen(false)}
+          />
+        ) : null}
         {footerVisible ? (
           <div className="workspace-footer-decoration" aria-hidden="true">
             <Footer

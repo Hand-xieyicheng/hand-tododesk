@@ -32,6 +32,7 @@ vi.mock("./api/client", async () => {
     ...actual,
     api: {
       appBootstrap: vi.fn(),
+      createPrintShare: vi.fn(),
       currentUser: vi.fn(),
       getThemePreference: vi.fn(),
       logout: vi.fn(),
@@ -60,6 +61,10 @@ vi.mock("./components/MemoPanel", () => ({
 
 vi.mock("./components/PomodoroView", () => ({
   PomodoroView: () => <div />
+}));
+
+vi.mock("./components/PrintShareDialog", () => ({
+  PrintShareDialog: ({ open, source }: any) => open ? <div role="dialog" aria-label="便签打印">{source.tagFilter}:{String(source.showCompletedTasks)}:{source.viewMode}</div> : null
 }));
 
 vi.mock("./components/ProfileCenter", () => ({
@@ -140,5 +145,30 @@ describe("App sidebar", () => {
 
     const collapsedLogoToggle = screen.getByRole("button", { name: "展开侧边栏" });
     expect(within(collapsedLogoToggle).getByRole("img", { name: "小柴记" })).toBeInTheDocument();
+  });
+
+  it("hides task print entry by default", async () => {
+    render(
+      <MemoryRouter initialEntries={["/tasks"]}>
+        <App />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => expect(localStorage.getItem("tododesk.theme")).toBe(mockThemePreference.themeId));
+    expect(screen.queryByRole("button", { name: "便签打印" })).not.toBeInTheDocument();
+  });
+
+  it("shows task print entry when enabled", async () => {
+    vi.mocked(api.getThemePreference).mockResolvedValue({ ...mockThemePreference, printButtonEnabled: true });
+    render(
+      <MemoryRouter initialEntries={["/tasks"]}>
+        <App />
+      </MemoryRouter>
+    );
+
+    const printButton = await screen.findByRole("button", { name: "便签打印" });
+    expect(printButton).toBeInTheDocument();
+    fireEvent.click(printButton);
+    expect(await screen.findByRole("dialog", { name: "便签打印" })).toHaveTextContent("__all__:true:list");
   });
 });
