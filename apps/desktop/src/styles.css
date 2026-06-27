@@ -1849,6 +1849,46 @@ textarea:focus-visible,
   background: var(--color-surface);
 }
 
+.print-share-dialog {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.9fr);
+  gap: 16px;
+}
+
+.print-share-config,
+.print-share-result {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+
+.print-share-config label,
+.print-share-result label {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.print-share-error,
+.print-share-copy-message {
+  margin: 0;
+  font-size: 13px;
+}
+
+.print-share-error {
+  color: #b42318;
+}
+
+.print-share-copy-message {
+  color: var(--color-emphasis-text);
+}
+
+@media (max-width: 720px) {
+  .print-share-dialog {
+    grid-template-columns: 1fr;
+  }
+}
+
 .tag-maintenance-name {
   overflow: hidden;
   color: var(--color-text);

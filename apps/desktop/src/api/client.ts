@@ -6,6 +6,7 @@ import type {
   ApiMemo,
   ApiMemoAsset,
   ApiMemoListItem,
+  ApiPrintShareResponse,
   ApiTag,
   ApiTask,
   ApiThemePreference,
@@ -17,6 +18,7 @@ import type {
   ChangePasswordRequest,
   CreateHabitRequest,
   CreateMemoRequest,
+  CreatePrintShareRequest,
   CreateAnniversaryRequest,
   CreateTagRequest,
   CreateTaskRequest,
@@ -43,6 +45,7 @@ import {
   createAnniversaryRequestSchema,
   createHabitRequestSchema,
   createMemoRequestSchema,
+  createPrintShareRequestSchema,
   createTagRequestSchema,
   forgotPasswordRequestSchema,
   habitCheckInRequestSchema,
@@ -462,6 +465,17 @@ export const api = {
       body: JSON.stringify(changePasswordRequestSchema.parse(input))
     });
     await clearSession();
+  },
+  async createPrintShare(input: CreatePrintShareRequest) {
+    return request<ApiPrintShareResponse>("/print-shares", {
+      method: "POST",
+      body: JSON.stringify(createPrintShareRequestSchema.parse(input))
+    });
+  },
+  async revokePrintShare(id: string) {
+    return request<{ ok: true }>(`/print-shares/${encodeURIComponent(id)}`, {
+      method: "DELETE"
+    });
   },
   async getThemePreference() {
     return request<ApiThemePreference>("/preferences/theme");
