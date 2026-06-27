@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { Button, Input, Modal, Select } from "animal-island-ui";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { Button, Input, Modal } from "animal-island-ui";
 import type {
   ApiPrintShare,
   CreatePrintShareRequest,
@@ -17,35 +17,35 @@ type PrintTemplateId = PrintShareConfig["templateId"];
 type PrintFontSizeMode = PrintShareConfig["fontSizeMode"];
 type PrintMarginMode = PrintShareConfig["marginMode"];
 
-const templateOptions: Array<{ key: string; value: PrintTemplateId; label: string }> = [
-  { key: "checklist", value: "checklist", label: "清单模板" },
-  { key: "memo", value: "memo", label: "备忘录模板" },
-  { key: "compact", value: "compact", label: "紧凑模板" },
-  { key: "decorated", value: "decorated", label: "装饰模板" }
+const templateOptions: Array<{ value: PrintTemplateId; label: string }> = [
+  { value: "checklist", label: "清单模板" },
+  { value: "memo", label: "备忘录模板" },
+  { value: "compact", label: "紧凑模板" },
+  { value: "decorated", label: "装饰模板" }
 ];
 
 const paperOptions = [
-  { key: "58", value: "58", label: "58mm" },
-  { key: "80", value: "80", label: "80mm" }
+  { value: "58", label: "58mm" },
+  { value: "80", label: "80mm" }
 ];
 
-const fontSizeOptions: Array<{ key: string; value: PrintFontSizeMode; label: string }> = [
-  { key: "small", value: "small", label: "小字" },
-  { key: "normal", value: "normal", label: "标准" },
-  { key: "large", value: "large", label: "大字" }
+const fontSizeOptions: Array<{ value: PrintFontSizeMode; label: string }> = [
+  { value: "small", label: "小字" },
+  { value: "normal", label: "标准" },
+  { value: "large", label: "大字" }
 ];
 
-const marginOptions: Array<{ key: string; value: PrintMarginMode; label: string }> = [
-  { key: "narrow", value: "narrow", label: "窄边距" },
-  { key: "normal", value: "normal", label: "标准" },
-  { key: "wide", value: "wide", label: "宽边距" }
+const marginOptions: Array<{ value: PrintMarginMode; label: string }> = [
+  { value: "narrow", label: "窄边距" },
+  { value: "normal", label: "标准" },
+  { value: "wide", label: "宽边距" }
 ];
 
 const expiryOptions = [
-  { key: "1", value: "1", label: "1 小时" },
-  { key: "24", value: "24", label: "24 小时" },
-  { key: "72", value: "72", label: "3 天" },
-  { key: "168", value: "168", label: "7 天" }
+  { value: "1", label: "1 小时" },
+  { value: "24", label: "24 小时" },
+  { value: "72", label: "3 天" },
+  { value: "168", label: "7 天" }
 ];
 
 function defaultTemplateFor(sourceType: PrintShareDialogProps["sourceType"]): PrintTemplateId {
@@ -91,6 +91,8 @@ function errorMessageFor(error: unknown) {
 }
 
 export function PrintShareDialog(props: PrintShareDialogProps) {
+  const fieldIdPrefix = useId();
+  const requestIdRef = useRef(0);
   const [templateId, setTemplateId] = useState<PrintTemplateId>(() => defaultTemplateFor(props.sourceType));
   const [paperWidthMm, setPaperWidthMm] = useState(58);
   const [fontSizeMode, setFontSizeMode] = useState<PrintFontSizeMode>("normal");
@@ -105,11 +107,9 @@ export function PrintShareDialog(props: PrintShareDialogProps) {
     : `memo:${props.source.memoId}`;
 
   useEffect(() => {
-    if (!props.open) {
-      return;
-    }
-
+    requestIdRef.current += 1;
     setTemplateId(defaultTemplateFor(props.sourceType));
+    setGenerating(false);
     setPaperWidthMm(58);
     setFontSizeMode("normal");
     setMarginMode("normal");
@@ -117,6 +117,10 @@ export function PrintShareDialog(props: PrintShareDialogProps) {
     setPrintShare(null);
     setError("");
     setCopyMessage("");
+
+    return () => {
+      requestIdRef.current += 1;
+    };
   }, [props.open, props.sourceType, sourceKey]);
 
   const config = useMemo<PrintShareConfig>(() => ({
@@ -144,17 +148,27 @@ export function PrintShareDialog(props: PrintShareDialogProps) {
       };
     }
 
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
     setGenerating(true);
     setError("");
     setCopyMessage("");
     try {
       const response = await api.createPrintShare(input);
+      if (requestIdRef.current !== requestId) {
+        return;
+      }
       setPrintShare(response.printShare);
     } catch (caught) {
+      if (requestIdRef.current !== requestId) {
+        return;
+      }
       setPrintShare(null);
       setError(errorMessageFor(caught));
     } finally {
-      setGenerating(false);
+      if (requestIdRef.current === requestId) {
+        setGenerating(false);
+      }
     }
   }
 
@@ -176,11 +190,19 @@ export function PrintShareDialog(props: PrintShareDialogProps) {
     }
   }
 
+  function invalidateGeneratedResult() {
+    requestIdRef.current += 1;
+    setGenerating(false);
+    setPrintShare(null);
+    setError("");
+    setCopyMessage("");
+  }
+
   function handleTemplateChange(value: string) {
     const nextTemplate = parseTemplateId(value);
     if (nextTemplate) {
       setTemplateId(nextTemplate);
-      setPrintShare(null);
+      invalidateGeneratedResult();
     }
   }
 
@@ -188,7 +210,7 @@ export function PrintShareDialog(props: PrintShareDialogProps) {
     const nextWidth = Number(value);
     if (Number.isInteger(nextWidth)) {
       setPaperWidthMm(nextWidth);
-      setPrintShare(null);
+      invalidateGeneratedResult();
     }
   }
 
@@ -196,7 +218,7 @@ export function PrintShareDialog(props: PrintShareDialogProps) {
     const nextMode = parseFontSizeMode(value);
     if (nextMode) {
       setFontSizeMode(nextMode);
-      setPrintShare(null);
+      invalidateGeneratedResult();
     }
   }
 
@@ -204,7 +226,7 @@ export function PrintShareDialog(props: PrintShareDialogProps) {
     const nextMode = parseMarginMode(value);
     if (nextMode) {
       setMarginMode(nextMode);
-      setPrintShare(null);
+      invalidateGeneratedResult();
     }
   }
 
@@ -212,7 +234,7 @@ export function PrintShareDialog(props: PrintShareDialogProps) {
     const nextExpiry = Number(value);
     if (Number.isInteger(nextExpiry)) {
       setExpiresInHours(nextExpiry);
-      setPrintShare(null);
+      invalidateGeneratedResult();
     }
   }
 
@@ -228,25 +250,70 @@ export function PrintShareDialog(props: PrintShareDialogProps) {
     >
       <div className="print-share-dialog">
         <section className="print-share-config" aria-label="打印配置">
-          <label>
+          <label htmlFor={`${fieldIdPrefix}-template`}>
             模板
-            <Select value={templateId} options={templateOptions} onChange={handleTemplateChange} />
+            <select
+              className="print-share-native-select"
+              id={`${fieldIdPrefix}-template`}
+              value={templateId}
+              onChange={(event) => handleTemplateChange(event.target.value)}
+            >
+              {templateOptions.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
           </label>
-          <label>
+          <label htmlFor={`${fieldIdPrefix}-paper`}>
             纸宽
-            <Select value={String(paperWidthMm)} options={paperOptions} onChange={handlePaperChange} />
+            <select
+              className="print-share-native-select"
+              id={`${fieldIdPrefix}-paper`}
+              value={String(paperWidthMm)}
+              onChange={(event) => handlePaperChange(event.target.value)}
+            >
+              {paperOptions.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
           </label>
-          <label>
+          <label htmlFor={`${fieldIdPrefix}-font-size`}>
             字号
-            <Select value={fontSizeMode} options={fontSizeOptions} onChange={handleFontSizeChange} />
+            <select
+              className="print-share-native-select"
+              id={`${fieldIdPrefix}-font-size`}
+              value={fontSizeMode}
+              onChange={(event) => handleFontSizeChange(event.target.value)}
+            >
+              {fontSizeOptions.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
           </label>
-          <label>
+          <label htmlFor={`${fieldIdPrefix}-margin`}>
             边距
-            <Select value={marginMode} options={marginOptions} onChange={handleMarginChange} />
+            <select
+              className="print-share-native-select"
+              id={`${fieldIdPrefix}-margin`}
+              value={marginMode}
+              onChange={(event) => handleMarginChange(event.target.value)}
+            >
+              {marginOptions.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
           </label>
-          <label>
+          <label htmlFor={`${fieldIdPrefix}-expiry`}>
             有效期
-            <Select value={String(expiresInHours)} options={expiryOptions} onChange={handleExpiryChange} />
+            <select
+              className="print-share-native-select"
+              id={`${fieldIdPrefix}-expiry`}
+              value={String(expiresInHours)}
+              onChange={(event) => handleExpiryChange(event.target.value)}
+            >
+              {expiryOptions.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
           </label>
           <Button type="primary" loading={generating} disabled={generating} onClick={generateLink}>
             生成链接

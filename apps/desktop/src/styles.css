@@ -1869,6 +1869,22 @@ textarea:focus-visible,
   font-size: 13px;
 }
 
+.print-share-native-select {
+  width: 100%;
+  min-height: 36px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-surface) 92%, var(--color-background));
+  color: var(--color-text);
+  font: inherit;
+  padding: 6px 10px;
+}
+
+.print-share-native-select:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--color-primary) 48%, #ffffff);
+  outline-offset: 2px;
+}
+
 .print-share-error,
 .print-share-copy-message {
   margin: 0;
