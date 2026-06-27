@@ -11,6 +11,7 @@ import { authRoutes } from "./routes/auth.js";
 import { habitRoutes } from "./routes/habits.js";
 import { pomodoroRoutes } from "./routes/pomodoro.js";
 import { preferenceRoutes } from "./routes/preferences.js";
+import { printShareRoutes } from "./routes/print-shares.js";
 import { tagRoutes } from "./routes/tags.js";
 import { taskRoutes } from "./routes/tasks.js";
 import { userRoutes } from "./routes/users.js";
@@ -99,6 +100,7 @@ export async function buildApp() {
   await app.register(taskRoutes);
   await app.register(pomodoroRoutes);
   await app.register(preferenceRoutes);
+  await app.register(printShareRoutes);
   await app.register(userRoutes);
 
   app.get("/health", async () => ({ ok: true }));
