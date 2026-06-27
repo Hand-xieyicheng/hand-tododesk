@@ -324,7 +324,7 @@ model PrintShare {
   id             String   @id @default(cuid())
   userId         String
   tokenHash      String   @unique
-  sourceType     String
+  sourceType     String   @db.VarChar(32)
   sourceJson     Json
   configJson     Json
   expiresAt      DateTime
