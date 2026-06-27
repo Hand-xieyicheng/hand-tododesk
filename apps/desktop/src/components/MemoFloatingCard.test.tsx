@@ -57,6 +57,7 @@ const themePreference: ApiThemePreference = {
   titleColor: "app-teal",
   footerVisible: true,
   footerType: "sea",
+  printButtonEnabled: false,
   showCompletedTasks: true,
   taskViewMode: "list",
   taskCardDisplayMode: "title",
