@@ -160,6 +160,25 @@ describe("print share routes", () => {
     expect(db.execute).toHaveBeenCalledWith("UPDATE `PrintShare` SET `lastAccessedAt` = NOW(3), `updatedAt` = NOW(3) WHERE `id` = ?", ["share-1"]);
   });
 
+  it("GET /print/:token applies the selected print template to public HTML", async () => {
+    db.queryOne.mockResolvedValueOnce({
+      ...validShare,
+      configJson: JSON.stringify({
+        ...printConfig,
+        templateId: "decorated"
+      })
+    });
+    db.queryRows
+      .mockResolvedValueOnce([taskRow])
+      .mockResolvedValueOnce([]);
+
+    const response = await inject("GET", "/print/decorated-token", undefined, false);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toContain("print-template-decorated");
+    expect(response.body).toContain("border: 1px solid");
+  });
+
   it.each([
     ["expired", { ...validShare, expiresAt: new Date("2000-01-01T00:00:00.000Z") }],
     ["revoked", { ...validShare, revokedAt: new Date("2026-01-01T00:00:00.000Z") }],

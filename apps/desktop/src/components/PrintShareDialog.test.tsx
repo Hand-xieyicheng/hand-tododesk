@@ -134,6 +134,37 @@ describe("PrintShareDialog", () => {
     expect(screen.queryByRole("button", { name: "复制链接" })).not.toBeInTheDocument();
   });
 
+  it("creates a print share with custom paper width", async () => {
+    vi.mocked(api.createPrintShare).mockResolvedValue({
+      printShare: {
+        id: "share-custom",
+        url: "https://todo.test/print-shares/share-custom",
+        expiresAt: "2026-06-29T00:00:00.000Z"
+      }
+    });
+
+    const source = {
+      tagFilter: "all",
+      showCompletedTasks: false,
+      viewMode: "list" as const
+    };
+
+    render(<PrintShareDialog open source={source} sourceType="tasks" onClose={vi.fn()} />);
+
+    fireEvent.change(screen.getByLabelText("纸宽"), { target: { value: "custom" } });
+    fireEvent.change(screen.getByLabelText("自定义纸宽"), { target: { value: "62" } });
+    fireEvent.click(screen.getByRole("button", { name: "生成链接" }));
+
+    await waitFor(() => {
+      expect(api.createPrintShare).toHaveBeenCalledWith(expect.objectContaining({
+        config: expect.objectContaining({
+          paperWidthMode: "custom",
+          paperWidthMm: 62
+        })
+      }));
+    });
+  });
+
   it("ignores a stale generated link when config changes before the request resolves", async () => {
     const deferred = createDeferred<Awaited<ReturnType<typeof api.createPrintShare>>>();
     vi.mocked(api.createPrintShare).mockReturnValue(deferred.promise);

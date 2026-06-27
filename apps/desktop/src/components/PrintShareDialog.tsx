@@ -1,4 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
+import type { ChangeEvent } from "react";
 import { Button, Input, Modal } from "animal-island-ui";
 import type {
   ApiPrintShare,
@@ -14,6 +15,7 @@ type PrintShareDialogProps =
   | { open: boolean; sourceType: "memo"; source: PrintMemoSource; onClose(): void };
 
 type PrintTemplateId = PrintShareConfig["templateId"];
+type PrintPaperWidthMode = PrintShareConfig["paperWidthMode"];
 type PrintFontSizeMode = PrintShareConfig["fontSizeMode"];
 type PrintMarginMode = PrintShareConfig["marginMode"];
 
@@ -26,7 +28,8 @@ const templateOptions: Array<{ value: PrintTemplateId; label: string }> = [
 
 const paperOptions = [
   { value: "58", label: "58mm" },
-  { value: "80", label: "80mm" }
+  { value: "80", label: "80mm" },
+  { value: "custom", label: "自定义" }
 ];
 
 const fontSizeOptions: Array<{ value: PrintFontSizeMode; label: string }> = [
@@ -86,6 +89,10 @@ function parseMarginMode(value: string): PrintMarginMode | null {
   }
 }
 
+function parsePaperWidthMode(value: string): PrintPaperWidthMode | null {
+  return value === "custom" ? "custom" : "preset";
+}
+
 function errorMessageFor(error: unknown) {
   return error instanceof Error ? error.message : "生成链接失败，请稍后重试";
 }
@@ -94,6 +101,7 @@ export function PrintShareDialog(props: PrintShareDialogProps) {
   const fieldIdPrefix = useId();
   const requestIdRef = useRef(0);
   const [templateId, setTemplateId] = useState<PrintTemplateId>(() => defaultTemplateFor(props.sourceType));
+  const [paperWidthMode, setPaperWidthMode] = useState<PrintPaperWidthMode>("preset");
   const [paperWidthMm, setPaperWidthMm] = useState(58);
   const [fontSizeMode, setFontSizeMode] = useState<PrintFontSizeMode>("normal");
   const [marginMode, setMarginMode] = useState<PrintMarginMode>("normal");
@@ -110,6 +118,7 @@ export function PrintShareDialog(props: PrintShareDialogProps) {
     requestIdRef.current += 1;
     setTemplateId(defaultTemplateFor(props.sourceType));
     setGenerating(false);
+    setPaperWidthMode("preset");
     setPaperWidthMm(58);
     setFontSizeMode("normal");
     setMarginMode("normal");
@@ -125,12 +134,12 @@ export function PrintShareDialog(props: PrintShareDialogProps) {
 
   const config = useMemo<PrintShareConfig>(() => ({
     templateId,
-    paperWidthMode: "preset",
+    paperWidthMode,
     paperWidthMm,
     fontSizeMode,
     marginMode,
     expiresInHours
-  }), [expiresInHours, fontSizeMode, marginMode, paperWidthMm, templateId]);
+  }), [expiresInHours, fontSizeMode, marginMode, paperWidthMm, paperWidthMode, templateId]);
 
   async function generateLink() {
     let input: CreatePrintShareRequest;
@@ -207,7 +216,24 @@ export function PrintShareDialog(props: PrintShareDialogProps) {
   }
 
   function handlePaperChange(value: string) {
+    const nextMode = parsePaperWidthMode(value);
+    if (!nextMode) {
+      return;
+    }
+    setPaperWidthMode(nextMode);
+    if (nextMode === "custom") {
+      invalidateGeneratedResult();
+      return;
+    }
     const nextWidth = Number(value);
+    if (Number.isInteger(nextWidth)) {
+      setPaperWidthMm(nextWidth);
+      invalidateGeneratedResult();
+    }
+  }
+
+  function handleCustomPaperWidthChange(event: ChangeEvent<HTMLInputElement>) {
+    const nextWidth = Number(event.target.value);
     if (Number.isInteger(nextWidth)) {
       setPaperWidthMm(nextWidth);
       invalidateGeneratedResult();
@@ -268,7 +294,7 @@ export function PrintShareDialog(props: PrintShareDialogProps) {
             <select
               className="print-share-native-select"
               id={`${fieldIdPrefix}-paper`}
-              value={String(paperWidthMm)}
+              value={paperWidthMode === "custom" ? "custom" : String(paperWidthMm)}
               onChange={(event) => handlePaperChange(event.target.value)}
             >
               {paperOptions.map((option) => (
@@ -276,6 +302,20 @@ export function PrintShareDialog(props: PrintShareDialogProps) {
               ))}
             </select>
           </label>
+          {paperWidthMode === "custom" ? (
+            <label htmlFor={`${fieldIdPrefix}-custom-paper`}>
+              自定义纸宽
+              <Input
+                id={`${fieldIdPrefix}-custom-paper`}
+                min={40}
+                max={120}
+                step={1}
+                type="number"
+                value={String(paperWidthMm)}
+                onChange={handleCustomPaperWidthChange}
+              />
+            </label>
+          ) : null}
           <label htmlFor={`${fieldIdPrefix}-font-size`}>
             字号
             <select

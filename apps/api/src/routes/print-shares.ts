@@ -134,6 +134,7 @@ function marginMm(configValue: PrintShareConfig) {
 function htmlShell(title: string, configValue: PrintShareConfig, body: string) {
   const pageWidth = configValue.paperWidthMm;
   const maxHeight = configValue.maxHeightMm ? `max-height: ${configValue.maxHeightMm}mm;` : "";
+  const templateClassName = `print-template-${configValue.templateId}`;
   return `<!doctype html>
 <html lang="zh-CN">
 <head>
@@ -160,6 +161,19 @@ function htmlShell(title: string, configValue: PrintShareConfig, body: string) {
     .memo-content { word-break: break-word; }
     .memo-content img { max-width: 100%; height: auto; }
     .empty { margin: 0; color: #6b7280; }
+    .print-template-memo li { display: block; }
+    .print-template-memo .box { display: none; }
+    .print-template-memo .task-title { font-weight: 500; }
+    .print-template-compact { line-height: 1.25; }
+    .print-template-compact h1 { margin-bottom: 5px; font-size: 1.05em; }
+    .print-template-compact li { grid-template-columns: 10px 1fr; gap: 4px; padding: 2px 0; }
+    .print-template-compact .box { width: 9px; height: 9px; margin-top: 2px; }
+    .print-template-compact .task-notes,
+    .print-template-compact .tags { margin-top: 1px; font-size: 0.78em; }
+    .print-template-decorated { border: 1px solid #111827; }
+    .print-template-decorated h1 { margin-bottom: 10px; padding-bottom: 5px; text-align: center; border-bottom: 1px solid #111827; }
+    .print-template-decorated h1::before,
+    .print-template-decorated h1::after { content: "·"; padding: 0 4px; }
     @page { size: ${pageWidth}mm auto; margin: 0; }
     @media print {
       body { background: #fff; }
@@ -168,7 +182,7 @@ function htmlShell(title: string, configValue: PrintShareConfig, body: string) {
   </style>
 </head>
 <body>
-  <main>${body}</main>
+  <main class="${templateClassName}">${body}</main>
 </body>
 </html>`;
 }
