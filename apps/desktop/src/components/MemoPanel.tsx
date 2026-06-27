@@ -21,6 +21,7 @@ import {
   Pin,
   PinOff,
   Plus,
+  Printer,
   Quote,
   Search,
   Table2,
@@ -30,10 +31,15 @@ import {
 import { api } from "../api/client";
 import { escapeHtml, isRichContentEmpty, sanitizeRichHtml } from "../lib/memoRichText";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { PrintShareDialog } from "./PrintShareDialog";
 
 const autosaveDelayMs = 1200;
 
 type SaveState = "idle" | "saving" | "saved" | "error";
+
+interface MemoPanelProps {
+  printButtonEnabled?: boolean;
+}
 
 function memoToListItem(memo: ApiMemo): ApiMemoListItem {
   return {
@@ -76,7 +82,7 @@ function IconButtonTooltip({ children, label }: { children: ReactNode; label: st
   );
 }
 
-export function MemoPanel() {
+export function MemoPanel({ printButtonEnabled = false }: MemoPanelProps) {
   const [topbarActions, setTopbarActions] = useState<HTMLElement | null>(null);
   const [memos, setMemos] = useState<ApiMemoListItem[]>([]);
   const [selectedMemo, setSelectedMemo] = useState<ApiMemo | null>(null);
@@ -90,6 +96,7 @@ export function MemoPanel() {
   const [uploadBusy, setUploadBusy] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteBusy, setDeleteBusy] = useState(false);
+  const [printDialogOpen, setPrintDialogOpen] = useState(false);
   const [message, setMessage] = useState("");
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const editorRef = useRef<HTMLDivElement | null>(null);
@@ -405,6 +412,13 @@ export function MemoPanel() {
     }
   }
 
+  async function openMemoPrintDialog() {
+    if (!selectedMemo || !(await saveCurrentMemo())) {
+      return;
+    }
+    setPrintDialogOpen(true);
+  }
+
   function requestDeleteMemo() {
     if (!selectedMemo || deleteBusy) {
       return;
@@ -533,6 +547,17 @@ export function MemoPanel() {
       >
         {showArchived ? "归档" : "当前"}
       </Button>
+      {printButtonEnabled ? (
+        <Button
+          aria-label="便签打印"
+          className="memo-topbar-button"
+          disabled={!selectedMemo}
+          icon={<Printer size={15} />}
+          size="small"
+          type="default"
+          onClick={() => void openMemoPrintDialog()}
+        />
+      ) : null}
       <Button className="memo-topbar-button" icon={<Plus size={15} />} size="small" type="default" onClick={() => void createMemo()}>
         新建
       </Button>
@@ -706,6 +731,14 @@ export function MemoPanel() {
           </Card>
         )}
       </section>
+      {selectedMemo ? (
+        <PrintShareDialog
+          open={printDialogOpen}
+          sourceType="memo"
+          source={{ memoId: selectedMemo.id }}
+          onClose={() => setPrintDialogOpen(false)}
+        />
+      ) : null}
     </section>
   );
 }

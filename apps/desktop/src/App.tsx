@@ -848,7 +848,7 @@ export function App() {
               />
             )}
           />
-          <Route path={viewRoutes.memos} element={<MemoPanel />} />
+          <Route path={viewRoutes.memos} element={<MemoPanel printButtonEnabled={printButtonEnabled} />} />
           <Route
             path={viewRoutes.anniversaries}
             element={featureFlags.anniversaries ? <AnniversaryPanel createOpen={anniversaryCreateOpen} onCreateOpenChange={setAnniversaryCreateOpen} /> : <Navigate to={viewRoutes.tasks} replace />}

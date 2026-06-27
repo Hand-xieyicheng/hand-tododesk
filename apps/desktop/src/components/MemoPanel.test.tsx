@@ -55,6 +55,10 @@ vi.mock("../api/client", () => ({
 
 vi.mock("@tauri-apps/api/core", () => tauriCoreMock);
 
+vi.mock("./PrintShareDialog", () => ({
+  PrintShareDialog: ({ open, source }: any) => open ? <div role="dialog" aria-label="便签打印">memo:{source.memoId}</div> : null
+}));
+
 const memoListItem = {
   id: "memo-1",
   title: "测试备忘录",
@@ -117,12 +121,12 @@ describe("MemoPanel", () => {
     topbar.className = "topbar-actions";
     document.body.appendChild(topbar);
 
-    render(<MemoPanel />);
+    render(<MemoPanel printButtonEnabled />);
 
-    await waitFor(() => expect(topbar.querySelectorAll("button")).toHaveLength(2));
+    await waitFor(() => expect(topbar.querySelectorAll("button")).toHaveLength(3));
     const topbarButtons = Array.from(topbar.querySelectorAll("button"));
-    const [archiveButton, createButton] = topbarButtons as [HTMLButtonElement, HTMLButtonElement];
-    expect(topbarButtons.map((button) => button.textContent)).toEqual(["当前", "新建"]);
+    const [archiveButton, , createButton] = topbarButtons as [HTMLButtonElement, HTMLButtonElement, HTMLButtonElement];
+    expect(topbarButtons.map((button) => button.textContent || button.getAttribute("aria-label"))).toEqual(["当前", "便签打印", "新建"]);
     expect(createButton).toHaveAttribute("data-button-type", "default");
     expect(document.querySelector(".memo-sidebar-panel")).not.toContainElement(archiveButton);
     expect(document.querySelector(".memo-sidebar-panel")).not.toContainElement(createButton);
@@ -175,6 +179,26 @@ describe("MemoPanel", () => {
       contentHtml: nextHtml
     })));
     await waitFor(() => expect(tauriCoreMock.invoke).toHaveBeenCalledWith("open_memo_floating_card", { memoId: "memo-1" }));
+  });
+
+  it("saves the selected memo before opening print dialog", async () => {
+    apiMock.updateMemo.mockImplementation(async (_id: string, input: any) => ({
+      memo: { ...memoDetail, ...input, excerpt: "更新摘要", updatedAt: "2026-06-17T08:01:00.000Z" }
+    }));
+
+    render(<MemoPanel printButtonEnabled />);
+
+    const editor = await screen.findByRole("textbox", { name: "备忘录正文" });
+    await waitFor(() => expect(apiMock.memo).toHaveBeenCalledWith("memo-1"));
+
+    editor.innerHTML = "<p>打印前保存</p>";
+    fireEvent.input(editor);
+    fireEvent.click(screen.getByRole("button", { name: "便签打印" }));
+
+    await waitFor(() => expect(apiMock.updateMemo).toHaveBeenCalledWith("memo-1", expect.objectContaining({
+      contentHtml: "<p>打印前保存</p>"
+    })));
+    expect(await screen.findByRole("dialog", { name: "便签打印" })).toHaveTextContent("memo:memo-1");
   });
 
   it("opens an independent browser window when the native memo card command is unavailable", async () => {
