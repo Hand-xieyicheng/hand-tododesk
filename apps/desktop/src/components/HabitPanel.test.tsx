@@ -14,6 +14,52 @@ const apiMock = vi.hoisted(() => ({
   updateHabitOrder: vi.fn()
 }));
 
+vi.mock("@dnd-kit/core", () => ({
+  closestCenter: vi.fn(),
+  DndContext: ({ children, onDragEnd }: any) => (
+    <div data-testid="habit-dnd-context">
+      {children}
+      <button
+        aria-label="模拟习惯排序"
+        type="button"
+        onClick={() => onDragEnd({ active: { id: "habit-2" }, over: { id: "habit-1" } })}
+      />
+    </div>
+  ),
+  KeyboardSensor: vi.fn(),
+  PointerSensor: vi.fn(),
+  useSensor: vi.fn((sensor, options) => ({ options, sensor })),
+  useSensors: vi.fn((...sensors) => sensors)
+}));
+
+vi.mock("@dnd-kit/sortable", () => ({
+  arrayMove: (items: unknown[], oldIndex: number, newIndex: number) => {
+    const nextItems = [...items];
+    const [item] = nextItems.splice(oldIndex, 1);
+    nextItems.splice(newIndex, 0, item);
+    return nextItems;
+  },
+  rectSortingStrategy: {},
+  SortableContext: ({ children }: any) => <>{children}</>,
+  sortableKeyboardCoordinates: vi.fn(),
+  useSortable: ({ id }: any) => ({
+    attributes: { "data-sortable-id": id },
+    isDragging: false,
+    listeners: {},
+    setNodeRef: vi.fn(),
+    transform: null,
+    transition: undefined
+  })
+}));
+
+vi.mock("@dnd-kit/utilities", () => ({
+  CSS: {
+    Transform: {
+      toString: () => undefined
+    }
+  }
+}));
+
 vi.mock("../api/client", () => ({
   api: apiMock
 }));
@@ -129,6 +175,7 @@ describe("HabitPanel", () => {
     apiMock.checkInHabit.mockResolvedValue({ checkIn: null });
     apiMock.cancelHabitCheckIn.mockResolvedValue(undefined);
     apiMock.deleteHabit.mockResolvedValue(undefined);
+    apiMock.updateHabitOrder.mockResolvedValue({ ok: true });
   });
 
   it("renders create modal with icon picker and frequency controls", () => {
@@ -192,6 +239,33 @@ describe("HabitPanel", () => {
     fireEvent.click(secondStats!);
 
     await waitFor(() => expect(apiMock.habitDetail).toHaveBeenLastCalledWith("habit-2", today.slice(0, 7)));
+  });
+
+  it("reorders habit sidebar cards by drag and persists the user order", async () => {
+    const secondHabit: ApiHabit = {
+      ...habit,
+      id: "habit-2",
+      title: "喝水记录",
+      color: "blue",
+      icon: "Droplets",
+      sortOrder: 2000,
+      createdAt: "2026-06-02T00:00:00.000Z"
+    };
+    const secondDetail: ApiHabitDetail = { ...detail, habit: secondHabit, stats: secondHabit.stats };
+    apiMock.habits.mockResolvedValue({ habits: [habit, secondHabit] });
+    apiMock.habitDetail.mockImplementation((habitId: string) => Promise.resolve(habitId === secondHabit.id ? secondDetail : detail));
+
+    const { container } = render(<HabitPanel createOpen={false} showArchived={false} onCreateOpenChange={vi.fn()} />);
+
+    await waitFor(() => expect(screen.getByText("喝水记录")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole("button", { name: "模拟习惯排序" }));
+
+    await waitFor(() => expect(apiMock.updateHabitOrder).toHaveBeenCalledWith({ orderedIds: ["habit-2", "habit-1"] }));
+    expect(Array.from(container.querySelectorAll(".habit-list-card strong")).map((item) => item.textContent)).toEqual([
+      "喝水记录",
+      "学习日语"
+    ]);
   });
 
   it("keeps habit list content in place while a list refresh is pending", async () => {

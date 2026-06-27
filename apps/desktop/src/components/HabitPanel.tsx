@@ -1,4 +1,7 @@
-import { memo, type FormEvent, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import { memo, type CSSProperties, type FormEvent, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import { closestCenter, DndContext, KeyboardSensor, PointerSensor, type DragEndEvent, useSensor, useSensors } from "@dnd-kit/core";
+import { arrayMove, rectSortingStrategy, SortableContext, sortableKeyboardCoordinates, useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import {
   habitColorValues,
   habitWeekdayValues,
@@ -203,6 +206,64 @@ const HabitIconOptionButton = memo(function HabitIconOptionButton({ active, icon
   );
 });
 
+interface SortableHabitCardProps {
+  habit: ApiHabit;
+  selected: boolean;
+  onBeginEdit(habit: ApiHabit): void;
+  onSelect(habitId: string): void;
+  onToggleToday(habit: ApiHabit): void;
+}
+
+function SortableHabitCard({ habit, selected, onBeginEdit, onSelect, onToggleToday }: SortableHabitCardProps) {
+  const { attributes, isDragging, listeners, setNodeRef, transform, transition } = useSortable({ id: habit.id });
+  const style: CSSProperties = {
+    opacity: isDragging ? 0.72 : undefined,
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 5 : undefined
+  };
+
+  return (
+    <div
+      className={`habit-sortable${isDragging ? " is-dragging" : ""}`}
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+    >
+      <Card
+        className={`habit-list-card color-${habit.color}${selected ? " is-active" : ""}${habit.archivedAt ? " is-archived" : ""}${isDragging ? " is-dragging" : ""}`}
+        onClick={() => onSelect(habit.id)}
+        pattern="default"
+      >
+        <button className="habit-list-main" type="button" onClick={() => onSelect(habit.id)}>
+          <HabitIconBadge habit={habit} />
+          <span>
+            <strong>{habit.title}</strong>
+            <small>{scheduleLabel(habit)}</small>
+          </span>
+        </button>
+        <div className="habit-card-stats">
+          <span><Flame size={14} /> {habit.stats.currentStreak}{habit.stats.currentStreakUnit}</span>
+          <span>{habit.stats.monthCompletionRate}%</span>
+        </div>
+        <div className="habit-card-actions" onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
+          <Button
+            aria-label={!habit.todayPlanned ? `今日${habit.title}非计划` : habit.todayChecked ? `取消今日${habit.title}打卡` : `今日${habit.title}打卡`}
+            className={habit.todayChecked ? "habit-check-button is-checked" : "habit-check-button"}
+            disabled={!habit.todayPlanned || Boolean(habit.archivedAt)}
+            icon={habit.todayChecked ? <Check size={16} /> : habit.todayPlanned ? <Plus size={16} /> : <Flame size={16} />}
+            size="small"
+            type={habit.todayChecked ? "primary" : "default"}
+            onClick={() => onToggleToday(habit)}
+          />
+          <Button aria-label={`编辑${habit.title}`} icon={<Edit3 size={15} />} size="small" type="default" onClick={() => onBeginEdit(habit)} />
+        </div>
+      </Card>
+    </div>
+  );
+}
+
 export function HabitPanel({ createOpen, showArchived, onCreateOpenChange }: HabitPanelProps) {
   const [habits, setHabits] = useState<ApiHabit[]>([]);
   const [selectedId, setSelectedId] = useState<string>("");
@@ -222,6 +283,10 @@ export function HabitPanel({ createOpen, showArchived, onCreateOpenChange }: Hab
   const [iconPickerOpen, setIconPickerOpen] = useState(false);
   const [iconQuery, setIconQuery] = useState("");
   const [visibleIconCount, setVisibleIconCount] = useState(iconPageSize);
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
   const selectedHabit = useMemo(() => habits.find((habit) => habit.id === selectedId) ?? null, [habits, selectedId]);
   const modalOpen = createOpen || Boolean(editingHabit);
   const archiveActionLabel = selectedHabit?.archivedAt ? "取消归档" : "归档";
@@ -440,6 +505,37 @@ export function HabitPanel({ createOpen, showArchived, onCreateOpenChange }: Hab
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "日志保存失败");
     }
+  }
+
+  async function persistHabitOrder(nextHabits: ApiHabit[]) {
+    setMessage("");
+    try {
+      await api.updateHabitOrder({ orderedIds: nextHabits.map((habit) => habit.id) });
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "排序保存失败");
+      await loadHabits(selectedId);
+    }
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    const activeId = String(event.active.id);
+    const overId = event.over?.id ? String(event.over.id) : "";
+    if (!overId || activeId === overId) {
+      return;
+    }
+
+    const oldIndex = habits.findIndex((habit) => habit.id === activeId);
+    const newIndex = habits.findIndex((habit) => habit.id === overId);
+    if (oldIndex < 0 || newIndex < 0) {
+      return;
+    }
+
+    const nextHabits = arrayMove(habits, oldIndex, newIndex).map((habit, index) => ({
+      ...habit,
+      sortOrder: (index + 1) * 1000
+    }));
+    setHabits(nextHabits);
+    void persistHabitOrder(nextHabits);
   }
 
   return (
@@ -664,41 +760,23 @@ export function HabitPanel({ createOpen, showArchived, onCreateOpenChange }: Hab
       <section className="habit-panel">
         <aside className="habit-list-panel">
           {message ? <div className="inline-alert">{message}</div> : null}
-          <div className="habit-list" aria-busy={loading}>
-            {habits.length === 0 && !loading ? <Card className="empty-state" type="dashed">暂无习惯</Card> : null}
-            {habits.map((habit) => (
-              <Card
-                className={`habit-list-card color-${habit.color}${selectedId === habit.id ? " is-active" : ""}${habit.archivedAt ? " is-archived" : ""}`}
-                key={habit.id}
-                onClick={() => setSelectedId(habit.id)}
-                pattern="default"
-              >
-                <button className="habit-list-main" type="button" onClick={() => setSelectedId(habit.id)}>
-                  <HabitIconBadge habit={habit} />
-                  <span>
-                    <strong>{habit.title}</strong>
-                    <small>{scheduleLabel(habit)}</small>
-                  </span>
-                </button>
-                <div className="habit-card-stats">
-                  <span><Flame size={14} /> {habit.stats.currentStreak}{habit.stats.currentStreakUnit}</span>
-                  <span>{habit.stats.monthCompletionRate}%</span>
-                </div>
-                <div className="habit-card-actions" onClick={(event) => event.stopPropagation()}>
-                  <Button
-                    aria-label={!habit.todayPlanned ? `今日${habit.title}非计划` : habit.todayChecked ? `取消今日${habit.title}打卡` : `今日${habit.title}打卡`}
-                    className={habit.todayChecked ? "habit-check-button is-checked" : "habit-check-button"}
-                    disabled={!habit.todayPlanned || Boolean(habit.archivedAt)}
-                    icon={habit.todayChecked ? <Check size={16} /> : habit.todayPlanned ? <Plus size={16} /> : <Flame size={16} />}
-                    size="small"
-                    type={habit.todayChecked ? "primary" : "default"}
-                    onClick={() => void toggleToday(habit)}
+          <DndContext collisionDetection={closestCenter} sensors={sensors} onDragEnd={handleDragEnd}>
+            <SortableContext items={habits.map((habit) => habit.id)} strategy={rectSortingStrategy}>
+              <div className="habit-list" aria-busy={loading}>
+                {habits.length === 0 && !loading ? <Card className="empty-state" type="dashed">暂无习惯</Card> : null}
+                {habits.map((habit) => (
+                  <SortableHabitCard
+                    habit={habit}
+                    key={habit.id}
+                    selected={selectedId === habit.id}
+                    onBeginEdit={beginEdit}
+                    onSelect={setSelectedId}
+                    onToggleToday={(nextHabit) => void toggleToday(nextHabit)}
                   />
-                  <Button aria-label={`编辑${habit.title}`} icon={<Edit3 size={15} />} size="small" type="default" onClick={() => beginEdit(habit)} />
-                </div>
-              </Card>
-            ))}
-          </div>
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
         </aside>
 
         <section className="habit-detail-panel" aria-busy={detailLoading}>

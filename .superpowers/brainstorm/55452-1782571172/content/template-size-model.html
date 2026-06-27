@@ -1,0 +1,61 @@
+<h2>打印模板与尺寸模型</h2>
+<p class="subtitle">首版提供四个模板、常见纸宽预设、自定义尺寸和基础文字配置。</p>
+
+<div class="cards">
+  <div class="card" data-choice="daily-list" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">清单模板</div>
+        <div class="mockup-body">
+          <div class="placeholder">□ 写周报<br>□ 复盘需求<br>□ 买打印纸</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body"><h3>清单</h3><p>适合待办列表，强调勾选框和紧凑间距。</p></div>
+  </div>
+  <div class="card" data-choice="memo-note" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">便签模板</div>
+        <div class="mockup-body">
+          <div class="placeholder">标题<br><br>正文内容按段落打印，保留基础列表和加粗。</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body"><h3>便签</h3><p>适合备忘录，保留标题和简化富文本。</p></div>
+  </div>
+  <div class="card" data-choice="compact" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">省纸模板</div>
+        <div class="mockup-body">
+          <div class="placeholder">紧凑行距 / 小字号 / 少装饰</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body"><h3>省纸</h3><p>适合长清单或小纸宽。</p></div>
+  </div>
+  <div class="card" data-choice="decorated" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">装饰模板</div>
+        <div class="mockup-body">
+          <div class="placeholder">日期、分隔线、轻量边框，用于更像便签纸的输出。</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body"><h3>装饰</h3><p>保留可爱感，但仍以黑白热敏打印为主。</p></div>
+  </div>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">弹窗配置</div>
+  <div class="mockup-body">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="placeholder">纸张宽度：57mm / 58mm / 76mm / 80mm / 自定义</div>
+      <div class="placeholder">字号：小 / 标准 / 大 / 自定义 px</div>
+      <div class="placeholder">边距：窄 / 标准 / 宽</div>
+      <div class="placeholder">有效期：默认 24 小时</div>
+    </div>
+  </div>
+</div>

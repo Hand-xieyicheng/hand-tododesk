@@ -15,8 +15,8 @@ import { PomodoroView } from "./components/PomodoroView";
 import { PrintShareDialog } from "./components/PrintShareDialog";
 import { ProfileCenter } from "./components/ProfileCenter";
 import { ResetPasswordView } from "./components/ResetPasswordView";
+import { SidebarLogo } from "./components/SidebarLogo";
 import { TaskPanel } from "./components/TaskPanel";
-import todoDeskLogo from "./assets/tododesk-logo.png";
 import { applyDisplaySize, normalizeDisplaySize } from "./lib/displaySize";
 import { emitDesktopSyncEvent, listenDesktopSyncEvents } from "./lib/desktopSync";
 import { defaultFloatingCardThemeId } from "./lib/floatingCardThemes";
@@ -59,6 +59,7 @@ const defaultThemePreference: ApiThemePreference = {
   taskViewMode: "list",
   taskCardDisplayMode: "full",
   floatingCardThemeId: defaultFloatingCardThemeId,
+  floatingCardViewMode: "list",
   appCloseBehavior: "hide",
   displaySize: "default",
   visibleSidebarModules: defaultVisibleSidebarModules,
@@ -658,7 +659,7 @@ export function App() {
             type="button"
             onClick={() => handleSidebarCollapsedChanged(!sidebarCollapsed)}
           >
-            <img className="brand-logo sidebar-brand-logo" src={todoDeskLogo} alt="小柴记" />
+            <SidebarLogo className="sidebar-brand-logo" />
           </button>
         </div>
 

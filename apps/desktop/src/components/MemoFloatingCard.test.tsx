@@ -62,6 +62,7 @@ const themePreference: ApiThemePreference = {
   taskViewMode: "list",
   taskCardDisplayMode: "title",
   floatingCardThemeId: "black-snow",
+  floatingCardViewMode: "list",
   appCloseBehavior: "hide",
   displaySize: "default",
   visibleSidebarModules: defaultVisibleSidebarModules,

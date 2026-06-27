@@ -29,6 +29,7 @@ const currentPreference = {
   taskViewMode: "list",
   taskCardDisplayMode: "full",
   floatingCardThemeId: "warm-paper",
+  floatingCardViewMode: "list",
   appCloseBehavior: "hide",
   displaySize: "default",
   visibleSidebarModules: "tasks,memos,anniversaries,habits,calendar,pomodoro",
@@ -67,6 +68,7 @@ describe("preference routes", () => {
       themeId: "warm-paper",
       taskCardDisplayMode: "full",
       floatingCardThemeId: "warm-paper",
+      floatingCardViewMode: "list",
       appCloseBehavior: "hide",
       visibleSidebarModules: ["tasks", "memos", "anniversaries", "habits", "calendar", "pomodoro"],
       sidebarCollapsed: false,
@@ -113,6 +115,7 @@ describe("preference routes", () => {
       "list",
       "full",
       "warm-paper",
+      "list",
       "hide",
       "default",
       "tasks,memos,anniversaries,habits,calendar,pomodoro",
@@ -141,6 +144,7 @@ describe("preference routes", () => {
       "list",
       "title",
       "warm-paper",
+      "list",
       "hide",
       "default",
       "tasks,memos,anniversaries,habits,calendar,pomodoro",
@@ -180,6 +184,7 @@ describe("preference routes", () => {
       "list",
       "full",
       "black-snow",
+      "list",
       "hide",
       "default",
       "tasks,memos,anniversaries,habits,calendar,pomodoro",
@@ -197,6 +202,47 @@ describe("preference routes", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
       floatingCardThemeId: "warm-paper"
+    });
+  });
+
+  it("saves selected floating card view mode", async () => {
+    db.queryOne.mockResolvedValue(currentPreference);
+
+    const response = await injectPreference("PUT", { floatingCardViewMode: "tag" });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      floatingCardViewMode: "tag",
+      taskViewMode: "list"
+    });
+    expect(db.execute).toHaveBeenLastCalledWith(expect.stringContaining("floatingCardViewMode"), [
+      "user-1",
+      "peach",
+      "app-teal",
+      true,
+      "sea",
+      true,
+      "list",
+      "full",
+      "warm-paper",
+      "tag",
+      "hide",
+      "default",
+      "tasks,memos,anniversaries,habits,calendar,pomodoro",
+      false,
+      false,
+      "system"
+    ]);
+  });
+
+  it("falls back to list floating card view mode for invalid stored values", async () => {
+    db.queryOne.mockResolvedValue({ ...currentPreference, floatingCardViewMode: "board" });
+
+    const response = await injectPreference("GET");
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      floatingCardViewMode: "list"
     });
   });
 
@@ -219,6 +265,7 @@ describe("preference routes", () => {
       "list",
       "full",
       "warm-paper",
+      "list",
       "hide",
       "default",
       "tasks,memos,anniversaries,habits,calendar,pomodoro",
@@ -247,6 +294,7 @@ describe("preference routes", () => {
       "list",
       "full",
       "warm-paper",
+      "list",
       "hide",
       "default",
       "tasks,memos,anniversaries,habits,calendar,pomodoro",
@@ -286,6 +334,7 @@ describe("preference routes", () => {
       "list",
       "full",
       "warm-paper",
+      "list",
       "quit",
       "default",
       "tasks,memos,anniversaries,habits,calendar,pomodoro",
@@ -325,6 +374,7 @@ describe("preference routes", () => {
       "list",
       "full",
       "warm-paper",
+      "list",
       "hide",
       "default",
       "tasks,memos,anniversaries,habits,calendar,pomodoro",
@@ -353,6 +403,7 @@ describe("preference routes", () => {
       "list",
       "full",
       "warm-paper",
+      "list",
       "hide",
       "default",
       "memos,tasks",
@@ -381,6 +432,7 @@ describe("preference routes", () => {
       "list",
       "full",
       "warm-paper",
+      "list",
       "hide",
       "default",
       "",

@@ -19,6 +19,7 @@ import {
 	  defaultThemeId,
 	  displaySizeValues,
 	  floatingCardThemeIdValues,
+	  floatingCardViewModeValues,
 	  fontFamilyValues,
   footerTypeValues,
   habitColorValues,
@@ -97,6 +98,7 @@ describe("profile schemas", () => {
 	    expect(taskViewModeValues).toEqual(["list", "quadrant", "kanban"]);
 	    expect(taskCardDisplayModeValues).toEqual(["full", "title"]);
 	    expect(floatingCardThemeIdValues).toEqual(expectedThemeIds);
+    expect(floatingCardViewModeValues).toEqual(["list", "quadrant", "tag"]);
     expect(appCloseBehaviorValues).toEqual(["hide", "quit"]);
     expect(displaySizeValues).toEqual(["small", "default", "large"]);
     expect(fontFamilyValues).toEqual([
@@ -137,6 +139,9 @@ describe("profile schemas", () => {
     expect(updateThemePreferenceRequestSchema.safeParse({ taskCardDisplayMode: "compact" }).success).toBe(false);
     expect(updateThemePreferenceRequestSchema.parse({ floatingCardThemeId: "black-snow" })).toEqual({ floatingCardThemeId: "black-snow" });
     expect(updateThemePreferenceRequestSchema.safeParse({ floatingCardThemeId: "custom" }).success).toBe(false);
+    expect(updateThemePreferenceRequestSchema.parse({ floatingCardViewMode: "quadrant" })).toEqual({ floatingCardViewMode: "quadrant" });
+    expect(updateThemePreferenceRequestSchema.parse({ floatingCardViewMode: "tag" })).toEqual({ floatingCardViewMode: "tag" });
+    expect(updateThemePreferenceRequestSchema.safeParse({ floatingCardViewMode: "board" }).success).toBe(false);
     expect(updateThemePreferenceRequestSchema.parse({ appCloseBehavior: "hide" })).toEqual({ appCloseBehavior: "hide" });
     expect(updateThemePreferenceRequestSchema.parse({ appCloseBehavior: "quit" })).toEqual({ appCloseBehavior: "quit" });
     expect(updateThemePreferenceRequestSchema.safeParse({ appCloseBehavior: "close" }).success).toBe(false);

@@ -57,4 +57,27 @@ describe("task styles", () => {
     expect(floatingDraggingCardRule).toContain("!important");
     expect(floatingDraggingTitleRule).toContain("var(--floating-card-task-drag-text");
   });
+
+  it("keeps floating toolbar controls on one row at narrow card widths", () => {
+    const iconButtonRule = getRule(".floating-toolbar > button:not(.floating-toolbar-primary)");
+    const mediaStart = styles.indexOf("@media (max-width: 620px)");
+    const nextMediaStart = styles.indexOf("@media", mediaStart + 1);
+    const narrowToolbarRule = mediaStart >= 0
+      ? styles.slice(mediaStart, nextMediaStart >= 0 ? nextMediaStart : undefined)
+      : "";
+
+    expect(iconButtonRule).toContain("width: calc(38px * var(--app-ui-scale))");
+    expect(iconButtonRule).toContain("min-width: calc(38px * var(--app-ui-scale))");
+    expect(iconButtonRule).toContain("height: calc(38px * var(--app-ui-scale))");
+    expect(iconButtonRule).toContain("min-height: calc(38px * var(--app-ui-scale))");
+    expect(narrowToolbarRule).toContain(".floating-toolbar");
+    expect(narrowToolbarRule).toContain("grid-template-columns: minmax(0, 1fr) repeat(3, calc(34px * var(--app-ui-scale)))");
+    expect(narrowToolbarRule).toContain(".floating-toolbar-primary");
+    expect(narrowToolbarRule).toContain(".floating-toolbar > button:not(.floating-toolbar-primary)");
+    expect(narrowToolbarRule).toContain("width: calc(34px * var(--app-ui-scale))");
+    expect(narrowToolbarRule).toContain("min-width: calc(34px * var(--app-ui-scale))");
+    expect(narrowToolbarRule).toContain("height: calc(34px * var(--app-ui-scale))");
+    expect(narrowToolbarRule).toContain("min-height: calc(34px * var(--app-ui-scale))");
+    expect(narrowToolbarRule).not.toContain("grid-column: 1 / -1");
+  });
 });

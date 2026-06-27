@@ -50,6 +50,37 @@ describe("sidebar styles", () => {
     expect(collapsedLogoRule).not.toContain("display: none");
   });
 
+  it("runs logo animations every 4 seconds while keeping only the button hover lift", () => {
+    const eyeRule = getRule(".sidebar-logo-eye");
+    const browRule = getRule(".sidebar-logo-brow");
+    const checkRule = getRule(".sidebar-logo-check");
+    const brandButtonRule = getRule(".sidebar-brand-button");
+    const brandButtonHoverRule = getRule(".sidebar-brand-button:hover");
+
+    expect(eyeRule).toContain("animation: sidebar-logo-blink 4s ease-in-out infinite");
+    expect(browRule).not.toContain("animation:");
+    expect(styles).not.toContain("sidebar-logo-brow-raise");
+    expect(checkRule).toContain("animation: sidebar-logo-check-draw 4s ease-in-out infinite");
+    expect(styles).toContain("84%,\n  100% {\n    stroke-dashoffset: 1;");
+    expect(styles).toContain("animation: sidebar-logo-left-ear-wiggle 4s ease-in-out infinite");
+    expect(styles).toContain("animation: sidebar-logo-right-ear-wiggle 4s ease-in-out infinite");
+    expect(styles).not.toContain(".sidebar-brand-button:hover .sidebar-logo");
+    expect(styles).not.toContain(".sidebar-brand-button:focus-visible .sidebar-logo");
+    expect(brandButtonRule).toContain("transition: transform 160ms ease, filter 160ms ease");
+    expect(brandButtonHoverRule).toContain("filter: saturate(1.04)");
+    expect(brandButtonHoverRule).toContain("transform: translateY(-1px)");
+  });
+
+  it("matches the default macOS desktop collapsed sidebar width and logo placement", () => {
+    const defaultMacCollapsedShellRule = getRuleContaining(':root[data-display-size="default"] .app-shell.is-macos-desktop.is-sidebar-collapsed');
+    const fallbackMacCollapsedShellRule = getRuleContaining(":root:not([data-display-size]) .app-shell.is-macos-desktop.is-sidebar-collapsed");
+    const macCollapsedBrandRule = getRuleContaining(".app-shell.is-macos-desktop.is-sidebar-collapsed .app-brand");
+
+    expect(defaultMacCollapsedShellRule).toContain("--app-sidebar-collapsed-width: calc(82px * var(--app-ui-scale))");
+    expect(fallbackMacCollapsedShellRule).toContain("--app-sidebar-collapsed-width: calc(82px * var(--app-ui-scale))");
+    expect(macCollapsedBrandRule).toContain("justify-content: flex-end");
+  });
+
   it("routes interactive text colors through theme variables instead of direct primary mixes", () => {
     const navHoverRule = getRule(".nav-button:hover");
     const collapsedNavIconHoverRule = getRule(".app-shell.is-sidebar-collapsed .nav-button:hover .nav-button-icon");

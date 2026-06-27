@@ -1,0 +1,56 @@
+<h2>咕咕机打印链接方案</h2>
+<p class="subtitle">重点差异在链接内容是实时读取、生成快照，还是前端编码。</p>
+
+<div class="cards">
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">A. 推荐：后端临时 token + 服务端渲染</div>
+        <div class="mockup-body">
+          <div class="mock-nav">待办/备忘录页面 → 打印弹窗 → 生成链接</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:12px">
+            <div class="placeholder">PrintShare 记录<br>token / 类型 / 配置 / 24h</div>
+            <div class="placeholder">公开打印页<br>/print/:token</div>
+            <div class="placeholder">第三方 App<br>打开网页并打印</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>后端临时链接</h3>
+      <p>最适合公开临时链接。可过期、可撤销、可统计失败，并且第三方 App 不需要登录。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">B. 后端快照链接</div>
+        <div class="mockup-body">
+          <div class="mock-nav">生成时复制内容 → 固化 HTML/JSON → 打印页</div>
+          <div class="placeholder" style="margin-top:12px">原待办/备忘录之后变化，不影响已生成链接</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>生成快照</h3>
+      <p>打印内容稳定，但数据会复制一份；适合将来做打印历史或凭证。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">C. 前端编码链接</div>
+        <div class="mockup-body">
+          <div class="mock-nav">把内容和配置放进 URL</div>
+          <div class="placeholder" style="margin-top:12px">无需新增数据表，但链接可能过长，撤销和过期弱</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>纯前端链接</h3>
+      <p>实现轻，但不适合备忘录富文本和公开链接治理。</p>
+    </div>
+  </div>
+</div>

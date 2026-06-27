@@ -1,0 +1,35 @@
+<h2>后端接口与数据模型</h2>
+<p class="subtitle">新增 PrintShare 表；创建时清理当前用户过期数据；公开页只读 token。</p>
+
+<div class="mockup">
+  <div class="mockup-header">PrintShare</div>
+  <div class="mockup-body">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="placeholder">id / userId / tokenHash</div>
+      <div class="placeholder">sourceType: tasks | memo</div>
+      <div class="placeholder">sourceJson: 当前筛选或 memoId</div>
+      <div class="placeholder">configJson: 模板和尺寸</div>
+      <div class="placeholder">expiresAt / revokedAt</div>
+      <div class="placeholder">createdAt / updatedAt / lastAccessedAt</div>
+    </div>
+  </div>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">API 合约</div>
+  <div class="mockup-body">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="placeholder">POST /print-shares<br>登录态创建，返回 URL</div>
+      <div class="placeholder">GET /print-shares<br>可选，用于后续管理</div>
+      <div class="placeholder">DELETE /print-shares/:id<br>撤销链接</div>
+      <div class="placeholder">GET /print/:token<br>公开 HTML 打印页</div>
+    </div>
+  </div>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">错误处理</div>
+  <div class="mockup-body">
+    <div class="placeholder">过期 / 已撤销 / 不存在 → 返回轻量错误网页，不暴露用户信息。</div>
+  </div>
+</div>

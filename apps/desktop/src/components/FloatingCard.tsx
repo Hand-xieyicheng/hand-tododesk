@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties, FormEvent, ReactNode } from "react";
-import { closestCenter, DndContext, KeyboardSensor, PointerSensor, type DragEndEvent, useSensor, useSensors } from "@dnd-kit/core";
+import { closestCenter, DndContext, KeyboardSensor, PointerSensor, type DragEndEvent, type DragStartEvent, useDroppable, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { defaultThemeId, defaultVisibleSidebarModules, sortTasksForDisplay, type ApiTag, type ApiTask, type ApiThemePreference, type CreateTaskRequest, type FloatingCardThemeId, type TaskCardDisplayMode, type TaskPriority, type TaskStatus, type UpdateTaskRequest } from "@todo/shared";
+import { defaultThemeId, defaultVisibleSidebarModules, sortTasksForDisplay, type ApiTag, type ApiTask, type ApiThemePreference, type CreateTaskRequest, type FloatingCardThemeId, type FloatingCardViewMode, type TaskCardDisplayMode, type TaskPriority, type TaskStatus, type UpdateTaskRequest } from "@todo/shared";
 import { Button, Card, Input, Select, Tooltip } from "animal-island-ui";
-import { Check, Eye, EyeOff, Pencil, Plus, RefreshCw, Save, X } from "lucide-react";
+import { Check, Eye, EyeOff, LayoutGrid, List, Pencil, Plus, RefreshCw, Save, Tags, X } from "lucide-react";
 import { api } from "../api/client";
 import { emitDesktopSyncEvent, listenDesktopSyncEvents } from "../lib/desktopSync";
 import { applyDisplaySize } from "../lib/displaySize";
@@ -43,6 +43,15 @@ const priorityOrder: TaskPriority[] = [
 
 const priorityOptions = priorityOrder.map((priority) => ({ key: priority, label: priorityLabels[priority] }));
 const noTagSelectValue = "__none__";
+const otherTagGroupId = "__other__";
+
+const floatingCardViewModeLabels: Record<FloatingCardViewMode, string> = {
+  list: "默认列表",
+  quadrant: "四象限列表",
+  tag: "标签列表"
+};
+
+const floatingCardViewModeOrder: FloatingCardViewMode[] = ["list", "quadrant", "tag"];
 
 const defaultThemePreference: ApiThemePreference = {
   themeId: defaultThemeId,
@@ -54,6 +63,7 @@ const defaultThemePreference: ApiThemePreference = {
   taskViewMode: "list",
   taskCardDisplayMode: "full",
   floatingCardThemeId: defaultFloatingCardThemeId,
+  floatingCardViewMode: "list",
   appCloseBehavior: "hide",
   displaySize: "default",
   visibleSidebarModules: defaultVisibleSidebarModules,
@@ -85,21 +95,151 @@ function dueAtToIso(value: string) {
   return value ? new Date(value).toISOString() : null;
 }
 
+type FloatingTaskGroupView = Exclude<FloatingCardViewMode, "list">;
+
 type FloatingTaskDragData = {
   type: "floating-task";
   taskId: string;
+  view: FloatingCardViewMode;
+  groupId: string;
+  priority?: TaskPriority;
+  tagId?: string | null;
+};
+
+type FloatingTaskGroupDropData = {
+  type: "floating-task-group-drop";
+  view: FloatingTaskGroupView;
+  groupId: string;
+  priority?: TaskPriority;
+  tagId?: string | null;
 };
 
 function isFloatingTaskDragData(value: unknown): value is FloatingTaskDragData {
   return Boolean(value && typeof value === "object" && (value as FloatingTaskDragData).type === "floating-task" && typeof (value as FloatingTaskDragData).taskId === "string");
 }
 
-interface SortableFloatingTaskProps {
-  children: ReactNode;
-  task: ApiTask;
+function isFloatingTaskGroupDropData(value: unknown): value is FloatingTaskGroupDropData {
+  return Boolean(value && typeof value === "object" && (value as FloatingTaskGroupDropData).type === "floating-task-group-drop");
 }
 
-function SortableFloatingTask({ children, task }: SortableFloatingTaskProps) {
+function nextFloatingCardViewMode(current: FloatingCardViewMode) {
+  const index = floatingCardViewModeOrder.indexOf(current);
+  return floatingCardViewModeOrder[(index + 1) % floatingCardViewModeOrder.length] ?? "list";
+}
+
+function getTagGroupId(tagId: string | null) {
+  return tagId ?? otherTagGroupId;
+}
+
+interface FloatingTaskGroup {
+  id: string;
+  title: string;
+  tasks: ApiTask[];
+  view: FloatingTaskGroupView;
+  priority?: TaskPriority;
+  tagId?: string | null;
+}
+
+function buildQuadrantGroups(tasks: ApiTask[]): FloatingTaskGroup[] {
+  return priorityOrder.map((priority) => ({
+    id: priority,
+    priority,
+    tasks: tasks.filter((task) => task.priority === priority),
+    title: priorityLabels[priority],
+    view: "quadrant"
+  }));
+}
+
+function buildTagGroups(tasks: ApiTask[], tags: ApiTag[]): FloatingTaskGroup[] {
+  const tagGroups: FloatingTaskGroup[] = tags.map((tag) => ({
+    id: tag.id,
+    tagId: tag.id,
+    tasks: [],
+    title: tag.name,
+    view: "tag"
+  }));
+  const otherGroup: FloatingTaskGroup = {
+    id: otherTagGroupId,
+    tagId: null,
+    tasks: [],
+    title: "其它",
+    view: "tag"
+  };
+  const groupByTagId = new Map(tagGroups.map((group) => [group.tagId, group]));
+
+  for (const task of tasks) {
+    const firstTag = task.tags[0];
+    const group = firstTag ? groupByTagId.get(firstTag.id) ?? otherGroup : otherGroup;
+    group.tasks.push(task);
+  }
+
+  return [...tagGroups, otherGroup];
+}
+
+function moveTaskAcrossGroups(
+  groups: Record<string, ApiTask[]>,
+  groupOrder: string[],
+  activeId: string,
+  targetGroupId: string,
+  overTaskId: string | null,
+  patch: Partial<ApiTask>
+) {
+  let sourceGroupId = "";
+  let sourceIndex = -1;
+  let taskToMove: ApiTask | null = null;
+  for (const groupId of groupOrder) {
+    const index = (groups[groupId] ?? []).findIndex((task) => task.id === activeId);
+    if (index >= 0) {
+      sourceGroupId = groupId;
+      sourceIndex = index;
+      taskToMove = (groups[groupId] ?? [])[index] ?? null;
+      break;
+    }
+  }
+
+  const nextGroups = Object.fromEntries(groupOrder.map((groupId) => {
+    const nextItems = (groups[groupId] ?? []).filter((task) => task.id !== activeId);
+    return [groupId, nextItems];
+  })) as Record<string, ApiTask[]>;
+
+  if (!taskToMove || taskToMove.status === "COMPLETED" || !nextGroups[targetGroupId]) {
+    return null;
+  }
+
+  const targetItems = nextGroups[targetGroupId];
+  const targetOverTask = overTaskId ? (groups[targetGroupId] ?? []).find((task) => task.id === overTaskId) : null;
+  if (targetOverTask?.status === "COMPLETED") {
+    return null;
+  }
+  const overIndexBeforeMove = overTaskId ? (groups[targetGroupId] ?? []).findIndex((task) => task.id === overTaskId) : -1;
+  let insertIndex = overTaskId ? targetItems.findIndex((task) => task.id === overTaskId) : targetItems.length;
+  if (sourceGroupId === targetGroupId && sourceIndex >= 0 && overIndexBeforeMove > sourceIndex) {
+    insertIndex += 1;
+  }
+  if (!overTaskId) {
+    const firstCompletedIndex = targetItems.findIndex((task) => task.status === "COMPLETED");
+    if (firstCompletedIndex >= 0) {
+      insertIndex = firstCompletedIndex;
+    }
+  }
+  targetItems.splice(insertIndex < 0 ? targetItems.length : insertIndex, 0, {
+    ...taskToMove,
+    ...patch
+  });
+
+  return groupOrder.flatMap((groupId) => nextGroups[groupId] ?? []);
+}
+
+interface SortableFloatingTaskProps {
+  children: ReactNode;
+  groupId: string;
+  priority?: TaskPriority;
+  task: ApiTask;
+  tagId?: string | null;
+  view: FloatingCardViewMode;
+}
+
+function SortableFloatingTask({ children, groupId, priority, tagId, task, view }: SortableFloatingTaskProps) {
   const sortDisabled = task.status === "COMPLETED";
   const {
     attributes,
@@ -113,7 +253,11 @@ function SortableFloatingTask({ children, task }: SortableFloatingTaskProps) {
     disabled: sortDisabled,
     data: {
       type: "floating-task",
-      taskId: task.id
+      taskId: task.id,
+      view,
+      groupId,
+      priority,
+      tagId
     } satisfies FloatingTaskDragData
   });
   const style: CSSProperties = {
@@ -137,6 +281,38 @@ function SortableFloatingTask({ children, task }: SortableFloatingTaskProps) {
   );
 }
 
+interface FloatingTaskGroupSectionProps {
+  children: ReactNode;
+  group: FloatingTaskGroup;
+}
+
+function FloatingTaskGroupSection({ children, group }: FloatingTaskGroupSectionProps) {
+  const { isOver, setNodeRef } = useDroppable({
+    id: `floating-${group.view}-${group.id}`,
+    data: {
+      type: "floating-task-group-drop",
+      view: group.view,
+      groupId: group.id,
+      priority: group.priority,
+      tagId: group.tagId
+    } satisfies FloatingTaskGroupDropData
+  });
+
+  return (
+    <section className={`floating-task-group${isOver ? " is-drop-target" : ""}`} ref={setNodeRef}>
+      <header className="floating-task-group-header">
+        <h3>{group.title}</h3>
+        <span>{group.tasks.length}</span>
+      </header>
+      <SortableContext items={group.tasks.map((task) => task.id)} strategy={verticalListSortingStrategy}>
+        <div className="floating-task-list">
+          {children}
+        </div>
+      </SortableContext>
+    </section>
+  );
+}
+
 export function FloatingCard() {
   const tasks = useTaskBoardStore((state) => state.tasks);
   const tags = useTaskBoardStore((state) => state.tags);
@@ -154,12 +330,18 @@ export function FloatingCard() {
   const [showCompletedTasks, setShowCompletedTasks] = useState(defaultThemePreference.showCompletedTasks);
   const [taskCardDisplayMode, setTaskCardDisplayMode] = useState<TaskCardDisplayMode>(defaultThemePreference.taskCardDisplayMode);
   const [floatingCardThemeId, setFloatingCardThemeId] = useState<FloatingCardThemeId>(() => normalizeFloatingCardThemeId(localStorage.getItem("tododesk.floatingCardThemeId")));
+  const [floatingCardViewMode, setFloatingCardViewMode] = useState<FloatingCardViewMode>(() => (
+    floatingCardViewModeOrder.includes(localStorage.getItem("tododesk.floatingCardViewMode") as FloatingCardViewMode)
+      ? localStorage.getItem("tododesk.floatingCardViewMode") as FloatingCardViewMode
+      : defaultThemePreference.floatingCardViewMode
+  ));
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [savingTaskId, setSavingTaskId] = useState<string | null>(null);
   const [savingPreference, setSavingPreference] = useState(false);
   const [formMode, setFormMode] = useState<FormMode | null>(null);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null);
   const [draft, setDraft] = useState<TaskDraft>(() => emptyDraft());
 
   const visibleTasks = useMemo(() => {
@@ -169,9 +351,13 @@ export function FloatingCard() {
     { key: noTagSelectValue, label: "不选择" },
     ...tags.map((tag) => ({ key: tag.id, label: tag.name }))
   ], [tags]);
+  const quadrantGroups = useMemo(() => buildQuadrantGroups(visibleTasks), [visibleTasks]);
+  const tagGroups = useMemo(() => buildTagGroups(visibleTasks, tags), [tags, visibleTasks]);
   const openTaskCount = useMemo(() => tasks.filter((task) => task.status !== "COMPLETED").length, [tasks]);
   const formTitle = formMode === "edit" ? "编辑待办" : "新增待办";
   const showCompletedAction = showCompletedTasks ? "隐藏已完成待办" : "显示已完成待办";
+  const nextViewMode = nextFloatingCardViewMode(floatingCardViewMode);
+  const switchViewAction = `切换为${floatingCardViewModeLabels[nextViewMode]}`;
   const floatingCardStyle = useMemo(() => getFloatingCardThemeStyle(floatingCardThemeId) as CSSProperties, [floatingCardThemeId]);
 
   function applyThemePreference(preference: ApiThemePreference) {
@@ -179,9 +365,11 @@ export function FloatingCard() {
     setShowCompletedTasks(preference.showCompletedTasks);
     setTaskCardDisplayMode(preference.taskCardDisplayMode);
     setFloatingCardThemeId(nextFloatingCardThemeId);
+    setFloatingCardViewMode(preference.floatingCardViewMode);
     localStorage.setItem("tododesk.theme", preference.themeId);
     localStorage.setItem("tododesk.displaySize", preference.displaySize);
     localStorage.setItem("tododesk.floatingCardThemeId", nextFloatingCardThemeId);
+    localStorage.setItem("tododesk.floatingCardViewMode", preference.floatingCardViewMode);
     localStorage.setItem("tododesk.fontFamily", preference.fontFamily);
     applyTheme(preference.themeId);
     applyDisplaySize(preference.displaySize);
@@ -331,26 +519,46 @@ export function FloatingCard() {
     }
   }
 
-  async function persistTaskOrder(nextTasks: ApiTask[]) {
+  async function persistTaskOrder(nextTasks: ApiTask[], update?: { id: string; input: UpdateTaskRequest }) {
     const previousTasks = tasks;
     setTasks(nextTasks);
-    setSavingTaskId("task-order");
+    setSavingTaskId(update?.id ?? "task-order");
     setMessage("");
     try {
+      if (update) {
+        const payload = await api.updateTask(update.id, update.input);
+        upsertTask(payload.task);
+        void emitDesktopSyncEvent({ type: "task:upserted", task: payload.task });
+      }
       await api.updateTaskOrder({ orderedIds: taskOrderIds(nextTasks) });
       void emitDesktopSyncEvent({ type: "task-board:reload-requested" });
     } catch (error) {
       setTasks(previousTasks);
       setMessage(error instanceof Error ? error.message : "排序保存失败");
     } finally {
-      setSavingTaskId((current) => (current === "task-order" ? null : current));
+      setSavingTaskId((current) => (current === (update?.id ?? "task-order") ? null : current));
     }
   }
 
+  function handleTaskSortDragStart(event: DragStartEvent) {
+    const activeData = event.active.data.current;
+    if (isFloatingTaskDragData(activeData)) {
+      setDraggingTaskId(activeData.taskId);
+    }
+  }
+
+  function handleTaskSortDragCancel() {
+    setDraggingTaskId(null);
+  }
+
   function handleTaskSortDragEnd(event: DragEndEvent) {
+    setDraggingTaskId(null);
     const activeData = event.active.data.current;
     const overData = event.over?.data.current;
     if (!isFloatingTaskDragData(activeData) || !isFloatingTaskDragData(overData)) {
+      return;
+    }
+    if (activeData.view !== "list") {
       return;
     }
     const nextVisibleTasks = moveTaskInList(visibleTasks, activeData.taskId, overData.taskId);
@@ -359,6 +567,58 @@ export function FloatingCard() {
     }
 
     void persistTaskOrder(applyVisibleTaskOrder(tasks, visibleTasks, nextVisibleTasks));
+  }
+
+  function handleGroupedTaskSortDragEnd(event: DragEndEvent) {
+    setDraggingTaskId(null);
+    const activeData = event.active.data.current;
+    const overData = event.over?.data.current;
+    if (!isFloatingTaskDragData(activeData) || !overData) {
+      return;
+    }
+
+    if (activeData.view === "quadrant") {
+      const targetPriority = isFloatingTaskDragData(overData) && overData.view === "quadrant"
+        ? overData.priority
+        : isFloatingTaskGroupDropData(overData) && overData.view === "quadrant" ? overData.priority : undefined;
+      if (!targetPriority) {
+        return;
+      }
+      const overTaskId = isFloatingTaskDragData(overData) ? overData.taskId : null;
+      const groups = Object.fromEntries(quadrantGroups.map((group) => [group.id, group.tasks])) as Record<string, ApiTask[]>;
+      const groupOrder = quadrantGroups.map((group) => group.id);
+      const nextVisibleTasks = moveTaskAcrossGroups(groups, groupOrder, activeData.taskId, targetPriority, overTaskId, { priority: targetPriority });
+      if (!nextVisibleTasks) {
+        return;
+      }
+      const update = activeData.priority !== targetPriority
+        ? { id: activeData.taskId, input: { priority: targetPriority } satisfies UpdateTaskRequest }
+        : undefined;
+      void persistTaskOrder(applyVisibleTaskOrder(tasks, visibleTasks, nextVisibleTasks), update);
+      return;
+    }
+
+    if (activeData.view === "tag") {
+      const targetTagId = isFloatingTaskDragData(overData) && overData.view === "tag"
+        ? overData.tagId ?? null
+        : isFloatingTaskGroupDropData(overData) && overData.view === "tag" ? overData.tagId ?? null : undefined;
+      if (targetTagId === undefined) {
+        return;
+      }
+      const targetGroupId = getTagGroupId(targetTagId);
+      const overTaskId = isFloatingTaskDragData(overData) ? overData.taskId : null;
+      const groups = Object.fromEntries(tagGroups.map((group) => [group.id, group.tasks])) as Record<string, ApiTask[]>;
+      const groupOrder = tagGroups.map((group) => group.id);
+      const nextTags = targetTagId ? tags.filter((tag) => tag.id === targetTagId).slice(0, 1) : [];
+      const nextVisibleTasks = moveTaskAcrossGroups(groups, groupOrder, activeData.taskId, targetGroupId, overTaskId, { tags: nextTags });
+      if (!nextVisibleTasks) {
+        return;
+      }
+      const update = activeData.tagId !== targetTagId
+        ? { id: activeData.taskId, input: { tagId: targetTagId } satisfies UpdateTaskRequest }
+        : undefined;
+      void persistTaskOrder(applyVisibleTaskOrder(tasks, visibleTasks, nextVisibleTasks), update);
+    }
   }
 
   async function toggleShowCompletedTasks(next: boolean) {
@@ -377,6 +637,166 @@ export function FloatingCard() {
     }
   }
 
+  async function toggleFloatingCardViewMode() {
+    const previous = floatingCardViewMode;
+    const next = nextFloatingCardViewMode(previous);
+    setFloatingCardViewMode(next);
+    setSavingPreference(true);
+    setMessage("");
+    try {
+      const preference = await api.setThemePreference({ floatingCardViewMode: next });
+      applyThemePreference(preference);
+      void emitDesktopSyncEvent({ type: "preference:changed", preference });
+    } catch (error) {
+      setFloatingCardViewMode(previous);
+      setMessage(error instanceof Error ? error.message : "固定卡片视图保存失败");
+    } finally {
+      setSavingPreference(false);
+    }
+  }
+
+  function renderViewModeIcon() {
+    if (floatingCardViewMode === "quadrant") {
+      return <LayoutGrid size={16} />;
+    }
+    if (floatingCardViewMode === "tag") {
+      return <Tags size={16} />;
+    }
+    return <List size={16} />;
+  }
+
+  function renderFloatingTask(task: ApiTask, options: { groupId: string; priority?: TaskPriority; showTagMeta: boolean; tagId?: string | null; view: FloatingCardViewMode }) {
+    const isCompleted = task.status === "COMPLETED";
+    const titleOnly = taskCardDisplayMode === "title";
+    const statusAction = isCompleted ? "重置为未完成" : "完成";
+    const nextStatus: TaskStatus = isCompleted ? "TODO" : "COMPLETED";
+    const dueAtLabel = task.dueAt ? new Date(task.dueAt).toLocaleString() : "无截止时间";
+    const recurrenceLabel = task.recurrenceRule?.frequency ?? null;
+    const tagMeta = options.showTagMeta ? task.tags.map((tag) => <span key={tag.id}>#{tag.name}</span>) : null;
+    const fullContent = (
+      <div className="floating-task-tooltip-content">
+        <strong>{task.title}</strong>
+        <p>{task.notes || "无备注"}</p>
+        <div className="floating-task-tooltip-meta">
+          <span>{priorityLabels[task.priority]}</span>
+          <span>{dueAtLabel}</span>
+          {recurrenceLabel ? <span>{recurrenceLabel}</span> : null}
+          <span>{task.pomodoroCompletedCount} 个番茄</span>
+          {tagMeta}
+        </div>
+      </div>
+    );
+    const copy = (
+      <div className="floating-task-copy">
+        <strong className="floating-task-title">{task.title}</strong>
+        {titleOnly ? null : (
+          <>
+            <div className="floating-task-meta">
+              <span>{priorityLabels[task.priority]}</span>
+              <span>{dueAtLabel}</span>
+              {tagMeta}
+            </div>
+            {task.notes ? <p className="floating-task-notes">{task.notes}</p> : null}
+          </>
+        )}
+      </div>
+    );
+
+    return (
+      <SortableFloatingTask
+        groupId={options.groupId}
+        key={task.id}
+        priority={options.priority}
+        tagId={options.tagId}
+        task={task}
+        view={options.view}
+      >
+        <Card className={`${isCompleted ? "floating-task is-completed" : "floating-task"}${titleOnly ? " is-title-only" : ""}`} pattern="default">
+          <button
+            aria-checked={isCompleted}
+            aria-label={statusAction}
+            className="floating-task-checkbox"
+            disabled={savingTaskId === task.id}
+            role="checkbox"
+            title={statusAction}
+            type="button"
+            onClick={() => void setTaskStatus(task, nextStatus)}
+          >
+            {isCompleted ? <Check size={14} /> : null}
+          </button>
+          {titleOnly ? (
+            <Tooltip className="floating-task-tooltip" placement="top-start" title={fullContent} trigger="hover" variant="default">
+              {copy}
+            </Tooltip>
+          ) : copy}
+          <div className="floating-task-actions">
+            <Button
+              aria-label="编辑"
+              disabled={savingTaskId === task.id}
+              icon={<Pencil size={15} />}
+              size="small"
+              title="编辑"
+              type="default"
+              onClick={() => beginEdit(task)}
+            />
+          </div>
+        </Card>
+      </SortableFloatingTask>
+    );
+  }
+
+  function renderGroupedTaskView(groups: FloatingTaskGroup[]) {
+    const visibleGroups = groups.filter((group) => group.tasks.length > 0 || draggingTaskId);
+    return (
+      <DndContext
+        collisionDetection={closestCenter}
+        sensors={taskSortSensors}
+        onDragCancel={handleTaskSortDragCancel}
+        onDragEnd={handleGroupedTaskSortDragEnd}
+        onDragStart={handleTaskSortDragStart}
+      >
+        <section className={`floating-task-group-list is-${floatingCardViewMode}`} aria-busy={loading}>
+          {visibleTasks.length === 0 && !loading ? <Card className="empty-state" type="dashed">暂无待办</Card> : null}
+          {visibleGroups.map((group) => (
+            <FloatingTaskGroupSection group={group} key={group.id}>
+              {group.tasks.length === 0 ? <div className="floating-task-group-empty" aria-hidden="true" /> : null}
+              {group.tasks.map((task) => renderFloatingTask(task, {
+                groupId: group.id,
+                priority: group.priority,
+                showTagMeta: group.view !== "tag",
+                tagId: group.tagId,
+                view: group.view
+              }))}
+            </FloatingTaskGroupSection>
+          ))}
+        </section>
+      </DndContext>
+    );
+  }
+
+  function renderDefaultTaskList() {
+    return (
+      <DndContext
+        collisionDetection={closestCenter}
+        sensors={taskSortSensors}
+        onDragCancel={handleTaskSortDragCancel}
+        onDragEnd={handleTaskSortDragEnd}
+        onDragStart={handleTaskSortDragStart}
+      >
+        <SortableContext items={visibleTasks.map((task) => task.id)} strategy={verticalListSortingStrategy}>
+          <section className="floating-task-list" aria-busy={loading}>
+            {visibleTasks.length === 0 && !loading ? <Card className="empty-state" type="dashed">暂无待办</Card> : null}
+            {visibleTasks.map((task) => renderFloatingTask(task, {
+              groupId: "list",
+              showTagMeta: true,
+              view: "list"
+            }))}
+          </section>
+        </SortableContext>
+      </DndContext>
+    );
+  }
+
   return (
     <div className="floating-card" style={floatingCardStyle}>
       <FloatingWindowHeader />
@@ -384,6 +804,17 @@ export function FloatingCard() {
         <Button className="floating-toolbar-primary" icon={<Plus size={15} />} size="small" type="default" onClick={beginCreate}>
           新增
         </Button>
+        <Button
+          aria-label={switchViewAction}
+          className="floating-view-mode-button"
+          disabled={savingPreference}
+          icon={renderViewModeIcon()}
+          loading={savingPreference}
+          size="small"
+          title={switchViewAction}
+          type="default"
+          onClick={() => void toggleFloatingCardViewMode()}
+        />
         <Button
           aria-label={showCompletedAction}
           disabled={savingPreference}
@@ -445,84 +876,7 @@ export function FloatingCard() {
 
         {message ? <div className="inline-alert">{message}</div> : null}
 
-        <DndContext collisionDetection={closestCenter} sensors={taskSortSensors} onDragEnd={handleTaskSortDragEnd}>
-          <SortableContext items={visibleTasks.map((task) => task.id)} strategy={verticalListSortingStrategy}>
-            <section className="floating-task-list" aria-busy={loading}>
-              {visibleTasks.length === 0 && !loading ? <Card className="empty-state" type="dashed">暂无待办</Card> : null}
-              {visibleTasks.map((task) => {
-                const isCompleted = task.status === "COMPLETED";
-                const titleOnly = taskCardDisplayMode === "title";
-                const statusAction = isCompleted ? "重置为未完成" : "完成";
-                const nextStatus: TaskStatus = isCompleted ? "TODO" : "COMPLETED";
-                const dueAtLabel = task.dueAt ? new Date(task.dueAt).toLocaleString() : "无截止时间";
-                const recurrenceLabel = task.recurrenceRule?.frequency ?? null;
-                const fullContent = (
-                  <div className="floating-task-tooltip-content">
-                    <strong>{task.title}</strong>
-                    <p>{task.notes || "无备注"}</p>
-                    <div className="floating-task-tooltip-meta">
-                      <span>{priorityLabels[task.priority]}</span>
-                      <span>{dueAtLabel}</span>
-                      {recurrenceLabel ? <span>{recurrenceLabel}</span> : null}
-                      <span>{task.pomodoroCompletedCount} 个番茄</span>
-                      {task.tags.map((tag) => <span key={tag.id}>#{tag.name}</span>)}
-                    </div>
-                  </div>
-                );
-                const copy = (
-                  <div className="floating-task-copy">
-                    <strong className="floating-task-title">{task.title}</strong>
-                    {titleOnly ? null : (
-                      <>
-                        <div className="floating-task-meta">
-                          <span>{priorityLabels[task.priority]}</span>
-                          <span>{dueAtLabel}</span>
-                          {task.tags.map((tag) => <span key={tag.id}>#{tag.name}</span>)}
-                        </div>
-                        {task.notes ? <p className="floating-task-notes">{task.notes}</p> : null}
-                      </>
-                    )}
-                  </div>
-                );
-
-                return (
-                  <SortableFloatingTask key={task.id} task={task}>
-                    <Card className={`${isCompleted ? "floating-task is-completed" : "floating-task"}${titleOnly ? " is-title-only" : ""}`} pattern="default">
-                      <button
-                        aria-checked={isCompleted}
-                        aria-label={statusAction}
-                        className="floating-task-checkbox"
-                        disabled={savingTaskId === task.id}
-                        role="checkbox"
-                        title={statusAction}
-                        type="button"
-                        onClick={() => void setTaskStatus(task, nextStatus)}
-                      >
-                        {isCompleted ? <Check size={14} /> : null}
-                      </button>
-                      {titleOnly ? (
-                        <Tooltip className="floating-task-tooltip" placement="top-start" title={fullContent} trigger="hover" variant="default">
-                          {copy}
-                        </Tooltip>
-                      ) : copy}
-                      <div className="floating-task-actions">
-                        <Button
-                          aria-label="编辑"
-                          disabled={savingTaskId === task.id}
-                          icon={<Pencil size={15} />}
-                          size="small"
-                          title="编辑"
-                          type="default"
-                          onClick={() => beginEdit(task)}
-                        />
-                      </div>
-                    </Card>
-                  </SortableFloatingTask>
-                );
-              })}
-            </section>
-          </SortableContext>
-        </DndContext>
+        {floatingCardViewMode === "list" ? renderDefaultTaskList() : renderGroupedTaskView(floatingCardViewMode === "quadrant" ? quadrantGroups : tagGroups)}
       </main>
     </div>
   );

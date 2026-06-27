@@ -1,0 +1,26 @@
+<h2>推荐方案：临时公开打印链接</h2>
+<p class="subtitle">入口默认隐藏，由个人中心启用；生成链接时清理该用户已过期记录。</p>
+
+<div class="mockup">
+  <div class="mockup-header">用户路径</div>
+  <div class="mockup-body">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px">
+      <div class="placeholder">个人中心<br>启用打印按钮</div>
+      <div class="placeholder">待办/备忘录<br>显示打印图标</div>
+      <div class="placeholder">弹窗配置<br>模板 / 纸张 / 字号</div>
+      <div class="placeholder">生成链接<br>复制到第三方 App</div>
+    </div>
+  </div>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">后端数据流</div>
+  <div class="mockup-body">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+      <div class="placeholder">POST /print-shares<br>先删除当前用户已过期记录</div>
+      <div class="placeholder">创建 PrintShare<br>token / source / config / expiresAt</div>
+      <div class="placeholder">GET /print/:token<br>公开访问，校验未过期未撤销</div>
+    </div>
+    <div class="placeholder" style="margin-top:12px">打印页访问时读取当前待办/备忘录数据，并按创建链接时的页面范围与打印配置渲染。</div>
+  </div>
+</div>

@@ -310,6 +310,7 @@ model UserThemePreference {
   taskViewMode       String   @default("list")
   taskCardDisplayMode String   @default("full")
   floatingCardThemeId String   @default("warm-paper")
+  floatingCardViewMode String   @default("list")
   appCloseBehavior   String   @default("hide")
   displaySize        String   @default("default")
   visibleSidebarModules String @default("tasks,memos,anniversaries,habits,calendar,pomodoro")

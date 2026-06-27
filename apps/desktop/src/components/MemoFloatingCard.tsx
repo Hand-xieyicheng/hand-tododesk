@@ -26,6 +26,7 @@ const defaultThemePreference: ApiThemePreference = {
   taskViewMode: "list",
   taskCardDisplayMode: "full",
   floatingCardThemeId: defaultFloatingCardThemeId,
+  floatingCardViewMode: "list",
   appCloseBehavior: "hide",
   displaySize: "default",
   visibleSidebarModules: defaultVisibleSidebarModules,

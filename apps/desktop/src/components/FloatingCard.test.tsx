@@ -18,8 +18,11 @@ const apiMock = vi.hoisted(() => ({
 
 const dndMock = vi.hoisted(() => ({
   draggables: new Map<string, { data: unknown; disabled?: boolean }>(),
+  droppables: new Map<string, { data: unknown }>(),
   handlers: {} as {
+    onDragCancel?: () => void;
     onDragEnd?: (event: { active: { id: string; data: { current: unknown } }; over: { id: string; data: { current: unknown } } | null }) => void | Promise<void>;
+    onDragStart?: (event: { active: { id: string; data: { current: unknown } } }) => void | Promise<void>;
   }
 }));
 
@@ -47,13 +50,20 @@ vi.mock("@tauri-apps/api/core", () => tauriCoreMock);
 vi.mock("@dnd-kit/core", async () => {
   const React = await import("react");
   return {
-    DndContext: ({ children, onDragEnd }: any) => {
-      dndMock.handlers = { onDragEnd };
+    DndContext: ({ children, onDragCancel, onDragEnd, onDragStart }: any) => {
+      dndMock.handlers = { onDragCancel, onDragEnd, onDragStart };
       return React.createElement("div", { "data-testid": "floating-dnd-context" }, children);
     },
     KeyboardSensor: function KeyboardSensor() {},
     PointerSensor: function PointerSensor() {},
     closestCenter: vi.fn(),
+    useDroppable: ({ data, id }: any) => {
+      dndMock.droppables.set(String(id), { data });
+      return {
+        isOver: false,
+        setNodeRef: vi.fn()
+      };
+    },
     useSensor: vi.fn((sensor, options) => ({ options, sensor })),
     useSensors: vi.fn((...sensors) => sensors)
   };
@@ -145,6 +155,7 @@ const titlePreference: ApiThemePreference = {
   taskViewMode: "list",
   taskCardDisplayMode: "title",
   floatingCardThemeId: "black-snow",
+  floatingCardViewMode: "list",
   appCloseBehavior: "hide",
   displaySize: "default",
   visibleSidebarModules: defaultVisibleSidebarModules,
@@ -181,6 +192,25 @@ async function dropTaskOnTask(activeId: string, overId: string) {
   });
 }
 
+async function startTaskDrag(activeId: string) {
+  const draggable = dndMock.draggables.get(activeId);
+  await dndMock.handlers.onDragStart?.({
+    active: { id: activeId, data: { current: draggable?.data } }
+  });
+}
+
+async function dropTaskOnGroup(activeId: string, predicate: (data: any) => boolean) {
+  const draggable = dndMock.draggables.get(activeId);
+  const droppable = [...dndMock.droppables.entries()].find(([, target]) => predicate(target.data));
+  if (!droppable) {
+    throw new Error("Expected matching droppable");
+  }
+  await dndMock.handlers.onDragEnd?.({
+    active: { id: activeId, data: { current: draggable?.data } },
+    over: { id: droppable[0], data: { current: droppable[1].data } }
+  });
+}
+
 describe("FloatingCard", () => {
   let alwaysOnTop = false;
 
@@ -189,6 +219,7 @@ describe("FloatingCard", () => {
     localStorage.clear();
     useTaskBoardStore.getState().reset();
     dndMock.draggables.clear();
+    dndMock.droppables.clear();
     dndMock.handlers = {};
     alwaysOnTop = false;
     apiMock.tasks.mockResolvedValue({ tasks: [task] });
@@ -226,6 +257,137 @@ describe("FloatingCard", () => {
     const card = container.querySelector(".floating-card");
     expect(card).toHaveStyle("--floating-card-background: #111827");
     expect(card).toHaveStyle("--floating-card-text: #ffffff");
+  });
+
+  it("cycles the floating card view mode without changing the main task view mode", async () => {
+    apiMock.setThemePreference.mockResolvedValue({
+      ...titlePreference,
+      floatingCardViewMode: "quadrant"
+    });
+    render(<FloatingCard />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "切换为四象限列表" }));
+
+    await waitFor(() => expect(apiMock.setThemePreference).toHaveBeenCalledWith({ floatingCardViewMode: "quadrant" }));
+    expect(apiMock.setThemePreference).not.toHaveBeenCalledWith(expect.objectContaining({ taskViewMode: expect.any(String) }));
+    expect(screen.getByRole("button", { name: "切换为标签列表" })).toBeInTheDocument();
+  });
+
+  it("places the floating view switch immediately after the add button", async () => {
+    const { container } = render(<FloatingCard />);
+
+    await screen.findByRole("button", { name: "新增" });
+
+    const toolbarButtons = [...container.querySelectorAll<HTMLButtonElement>(".floating-toolbar button")];
+    expect(toolbarButtons.map((button) => button.textContent || button.getAttribute("aria-label"))).toEqual([
+      "新增",
+      "切换为四象限列表",
+      "隐藏已完成待办",
+      "刷新待办"
+    ]);
+  });
+
+  it("groups floating tasks by non-empty quadrants", async () => {
+    apiMock.getThemePreference.mockResolvedValue({
+      ...titlePreference,
+      floatingCardViewMode: "quadrant"
+    });
+    apiMock.tasks.mockResolvedValue({
+      tasks: [
+        task,
+        taskWith({
+          id: "task-urgent",
+          title: "处理紧急账单",
+          priority: "IMPORTANT_URGENT"
+        })
+      ]
+    });
+
+    render(<FloatingCard />);
+
+    expect(await screen.findByRole("heading", { name: "重要且紧急" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "重要不紧急" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "不重要但紧急" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "不重要不紧急" })).not.toBeInTheDocument();
+  });
+
+  it("groups floating tasks by tag and keeps tag labels out of the task cards", async () => {
+    apiMock.getThemePreference.mockResolvedValue({
+      ...titlePreference,
+      floatingCardViewMode: "tag",
+      taskCardDisplayMode: "full"
+    });
+    apiMock.tasks.mockResolvedValue({
+      tasks: [
+        task,
+        taskWith({
+          id: "task-untagged",
+          title: "无标签事项",
+          tags: []
+        })
+      ]
+    });
+
+    const { container } = render(<FloatingCard />);
+
+    expect(await screen.findByRole("heading", { name: "财务" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "其它" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "生活" })).not.toBeInTheDocument();
+    expect(container.querySelector(".floating-task-list")).not.toHaveTextContent("#财务");
+  });
+
+  it("shows empty quadrant drop targets while dragging and saves priority when dropped across groups", async () => {
+    apiMock.getThemePreference.mockResolvedValue({
+      ...titlePreference,
+      floatingCardViewMode: "quadrant"
+    });
+    apiMock.updateTask.mockResolvedValue({
+      task: taskWith({ priority: "IMPORTANT_URGENT" })
+    });
+    render(<FloatingCard />);
+
+    await waitFor(() => expect(dndMock.draggables.has("task-1")).toBe(true));
+    expect(screen.queryByRole("heading", { name: "重要且紧急" })).not.toBeInTheDocument();
+
+    await act(async () => {
+      await startTaskDrag("task-1");
+    });
+
+    expect(screen.getByRole("heading", { name: "重要且紧急" })).toBeInTheDocument();
+
+    await act(async () => {
+      await dropTaskOnGroup("task-1", (data) => data?.type === "floating-task-group-drop" && data?.priority === "IMPORTANT_URGENT");
+    });
+
+    await waitFor(() => expect(apiMock.updateTask).toHaveBeenCalledWith("task-1", { priority: "IMPORTANT_URGENT" }));
+    await waitFor(() => expect(apiMock.updateTaskOrder).toHaveBeenCalledWith({ orderedIds: ["task-1"] }));
+  });
+
+  it("shows empty tag drop targets while dragging and clears tags when dropped on Other", async () => {
+    apiMock.getThemePreference.mockResolvedValue({
+      ...titlePreference,
+      floatingCardViewMode: "tag"
+    });
+    apiMock.updateTask.mockResolvedValue({
+      task: taskWith({ tags: [] })
+    });
+    render(<FloatingCard />);
+
+    await waitFor(() => expect(dndMock.draggables.has("task-1")).toBe(true));
+    expect(screen.queryByRole("heading", { name: "其它" })).not.toBeInTheDocument();
+
+    await act(async () => {
+      await startTaskDrag("task-1");
+    });
+
+    expect(screen.getByRole("heading", { name: "其它" })).toBeInTheDocument();
+
+    await act(async () => {
+      await dropTaskOnGroup("task-1", (data) => data?.type === "floating-task-group-drop" && data?.view === "tag" && data?.tagId === null);
+    });
+
+    await waitFor(() => expect(apiMock.updateTask).toHaveBeenCalledWith("task-1", { tagId: null }));
+    await waitFor(() => expect(apiMock.updateTaskOrder).toHaveBeenCalledWith({ orderedIds: ["task-1"] }));
   });
 
   it("completes an unfinished floating task from the left checkbox", async () => {

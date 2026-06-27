@@ -248,7 +248,7 @@ textarea:focus-visible,
 
 :root:not([data-display-size]) .app-shell.is-macos-desktop.is-sidebar-collapsed,
 :root[data-display-size="default"] .app-shell.is-macos-desktop.is-sidebar-collapsed {
-  --app-sidebar-collapsed-width: 88px;
+  --app-sidebar-collapsed-width: calc(82px * var(--app-ui-scale));
   --app-sidebar-width: var(--app-sidebar-collapsed-width);
 }
 
@@ -343,7 +343,139 @@ textarea:focus-visible,
 .sidebar-brand-logo {
   width: calc(106px * var(--app-ui-scale));
   filter: drop-shadow(0 5px 0 var(--color-shadow)) drop-shadow(0 12px 18px var(--color-soft-shadow));
+  line-height: 0;
   transition: width 180ms ease, opacity 160ms ease, transform 180ms ease;
+}
+
+.sidebar-logo-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.sidebar-logo-eye {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: sidebar-logo-blink 4s ease-in-out infinite;
+  will-change: transform;
+}
+
+.sidebar-logo-ear {
+  transform-box: fill-box;
+  transform-origin: center 78%;
+  will-change: transform;
+}
+
+.sidebar-logo-ear-left {
+  animation: sidebar-logo-left-ear-wiggle 4s ease-in-out infinite;
+}
+
+.sidebar-logo-ear-right {
+  animation: sidebar-logo-right-ear-wiggle 4s ease-in-out infinite;
+}
+
+.sidebar-logo-check {
+  transform-box: fill-box;
+  transform-origin: center;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+  animation: sidebar-logo-check-draw 4s ease-in-out infinite;
+  will-change: stroke-dashoffset, transform;
+}
+
+@keyframes sidebar-logo-blink {
+  0%,
+  18%,
+  34%,
+  100% {
+    transform: scaleY(1);
+  }
+
+  24%,
+  28% {
+    transform: scaleY(0.08);
+  }
+}
+
+@keyframes sidebar-logo-check-draw {
+  0%,
+  12% {
+    stroke-dashoffset: 1;
+    transform: scale(0.94);
+  }
+
+  28% {
+    stroke-dashoffset: 0;
+    transform: scale(1.06);
+  }
+
+  42%,
+  68% {
+    stroke-dashoffset: 0;
+    transform: scale(1);
+  }
+
+  84%,
+  100% {
+    stroke-dashoffset: 1;
+    transform: scale(0.96);
+  }
+}
+
+@keyframes sidebar-logo-left-ear-wiggle {
+  0%,
+  10%,
+  52%,
+  100% {
+    transform: rotate(0deg) translateY(0);
+  }
+
+  18% {
+    transform: rotate(-3deg) translateY(-1px);
+  }
+
+  28% {
+    transform: rotate(2deg) translateY(1px);
+  }
+
+  38% {
+    transform: rotate(-1.5deg) translateY(0);
+  }
+}
+
+@keyframes sidebar-logo-right-ear-wiggle {
+  0%,
+  16%,
+  58%,
+  100% {
+    transform: rotate(0deg) translateY(0);
+  }
+
+  24% {
+    transform: rotate(3deg) translateY(-1px);
+  }
+
+  34% {
+    transform: rotate(-2deg) translateY(1px);
+  }
+
+  44% {
+    transform: rotate(1.5deg) translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-logo-eye,
+  .sidebar-logo-ear,
+  .sidebar-logo-check {
+    animation: none;
+  }
+
+  .sidebar-logo-check {
+    stroke-dashoffset: 0;
+    transform: none;
+  }
 }
 
 .brand-mark {
@@ -406,6 +538,7 @@ textarea:focus-visible,
 }
 
 .app-shell.is-macos-desktop.is-sidebar-collapsed .app-brand {
+  justify-content: flex-end;
   min-height: calc(var(--app-titlebar-drag-height) + calc(46px * var(--app-ui-scale)));
 }
 
@@ -3285,6 +3418,11 @@ textarea::placeholder {
   padding-right: 4px;
 }
 
+.habit-sortable {
+  min-width: 0;
+  touch-action: none;
+}
+
 .habit-list-card {
   --habit-accent: var(--color-primary);
   display: grid;
@@ -3292,7 +3430,16 @@ textarea::placeholder {
   padding: calc(10px * var(--app-ui-scale)) !important;
   border: 1px solid color-mix(in srgb, var(--habit-accent) 24%, var(--color-border)) !important;
   background: color-mix(in srgb, var(--habit-accent) 8%, var(--color-surface)) !important;
-  cursor: pointer;
+  cursor: grab !important;
+  user-select: none;
+}
+
+.habit-list-card:active {
+  cursor: grabbing !important;
+}
+
+.habit-list-card.is-dragging {
+  box-shadow: 0 8px 0 var(--color-shadow), 0 18px 28px color-mix(in srgb, var(--color-shadow) 68%, transparent);
 }
 
 .habit-list-card:hover {
@@ -3318,7 +3465,7 @@ textarea::placeholder {
   background: transparent;
   color: inherit;
   text-align: left;
-  cursor: pointer;
+  cursor: inherit;
 }
 
 .habit-list-main strong,
@@ -5505,7 +5652,7 @@ textarea::placeholder {
 }
 
 .landing-title {
-  margin: 0 !important;
+  margin: 0 20px !important;
   font-size: 76px !important;
   line-height: 0.96 !important;
   text-shadow: 0 5px 0 var(--color-shadow);
@@ -6121,7 +6268,7 @@ body .primary-button[class*="animal-btn"] {
 }
 
 .auth-page-logo {
-  width: clamp(128px, 13vw, 186px);
+  width: clamp(90px, 8vw, 120px);
   max-width: calc(100vw - 36px);
 }
 
@@ -6455,7 +6602,7 @@ body .primary-button[class*="animal-btn"] {
 .floating-toolbar {
   z-index: 20;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) calc(38px * var(--app-ui-scale)) calc(38px * var(--app-ui-scale));
+  grid-template-columns: minmax(0, 1fr) repeat(3, calc(38px * var(--app-ui-scale)));
   gap: calc(8px * var(--app-ui-scale));
   align-items: center;
   padding: calc(10px * var(--app-ui-scale)) calc(10px * var(--app-ui-scale)) calc(8px * var(--app-ui-scale));
@@ -6569,12 +6716,33 @@ body .primary-button[class*="animal-btn"] {
 .floating-toolbar > button:not(.floating-toolbar-primary) {
   width: calc(38px * var(--app-ui-scale)) !important;
   min-width: calc(38px * var(--app-ui-scale)) !important;
+  height: calc(38px * var(--app-ui-scale)) !important;
+  min-height: calc(38px * var(--app-ui-scale)) !important;
   padding: 0 !important;
 }
 
 .floating-toolbar-primary {
   min-width: 0 !important;
   padding: 0 calc(13px * var(--app-ui-scale)) !important;
+}
+
+@media (max-width: 620px) {
+  .floating-toolbar {
+    grid-template-columns: minmax(0, 1fr) repeat(3, calc(34px * var(--app-ui-scale)));
+    gap: calc(6px * var(--app-ui-scale));
+  }
+
+  .floating-toolbar-primary {
+    min-width: 0 !important;
+    padding: 0 calc(10px * var(--app-ui-scale)) !important;
+  }
+
+  .floating-toolbar > button:not(.floating-toolbar-primary) {
+    width: calc(34px * var(--app-ui-scale)) !important;
+    min-width: calc(34px * var(--app-ui-scale)) !important;
+    height: calc(34px * var(--app-ui-scale)) !important;
+    min-height: calc(34px * var(--app-ui-scale)) !important;
+  }
 }
 
 .floating-toolbar-primary,
@@ -6776,6 +6944,64 @@ body .primary-button[class*="animal-btn"] {
 .floating-task-list {
   display: grid;
   gap: calc(7px * var(--app-ui-scale));
+}
+
+.floating-task-group-list {
+  display: grid;
+  gap: calc(11px * var(--app-ui-scale));
+}
+
+.floating-task-group {
+  display: grid;
+  gap: calc(7px * var(--app-ui-scale));
+  min-width: 0;
+}
+
+.floating-task-group.is-drop-target {
+  border-radius: calc(16px * var(--app-ui-scale));
+  outline: 2px dashed color-mix(in srgb, var(--floating-card-accent) 56%, var(--floating-card-border));
+  outline-offset: calc(3px * var(--app-ui-scale));
+}
+
+.floating-task-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(8px * var(--app-ui-scale));
+  min-width: 0;
+  padding: 0 calc(2px * var(--app-ui-scale));
+}
+
+.floating-task-group-header h3 {
+  overflow: hidden;
+  margin: 0;
+  color: color-mix(in srgb, var(--floating-card-text) 86%, var(--floating-card-muted));
+  font-size: calc(12px * var(--app-ui-scale));
+  font-weight: 900;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.floating-task-group-header span {
+  display: grid;
+  min-width: calc(22px * var(--app-ui-scale));
+  height: calc(22px * var(--app-ui-scale));
+  padding: 0 calc(7px * var(--app-ui-scale));
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--floating-card-border) 64%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--floating-card-surface) 80%, transparent);
+  color: var(--floating-card-muted);
+  font-size: calc(11px * var(--app-ui-scale));
+  font-weight: 900;
+}
+
+.floating-task-group-empty {
+  min-height: calc(38px * var(--app-ui-scale));
+  border: 1px dashed color-mix(in srgb, var(--floating-card-border) 54%, transparent);
+  border-radius: calc(14px * var(--app-ui-scale));
+  background: color-mix(in srgb, var(--floating-card-surface) 42%, transparent);
 }
 
 .floating-task-sortable {

@@ -107,6 +107,7 @@ const mockThemePreference: ApiThemePreference = {
   taskViewMode: "list",
   taskCardDisplayMode: "full",
   floatingCardThemeId: "warm-paper",
+  floatingCardViewMode: "list",
   appCloseBehavior: "hide",
   displaySize: "default",
   visibleSidebarModules: ["tasks", "memos", "anniversaries", "habits", "calendar", "pomodoro"],
@@ -151,6 +152,27 @@ describe("App sidebar", () => {
 
     const collapsedLogoToggle = screen.getByRole("button", { name: "展开侧边栏" });
     expect(within(collapsedLogoToggle).getByRole("img", { name: "小柴记" })).toBeInTheDocument();
+  });
+
+  it("renders the sidebar logo as inline SVG with animated facial targets", async () => {
+    render(
+      <MemoryRouter initialEntries={["/tasks"]}>
+        <App />
+      </MemoryRouter>
+    );
+
+    const logoToggle = screen.getByRole("button", { name: "收起侧边栏" });
+    await waitFor(() => expect(localStorage.getItem("tododesk.theme")).toBe(mockThemePreference.themeId));
+
+    const logo = within(logoToggle).getByRole("img", { name: "小柴记" });
+    expect(logo).toHaveClass("sidebar-brand-logo");
+    expect(logo).toHaveAttribute("data-logo-format", "svg");
+    expect(logo.querySelector("svg")).toHaveClass("sidebar-logo-svg");
+    expect(logo.querySelectorAll(".sidebar-logo-eye")).toHaveLength(2);
+    expect(logo.querySelectorAll(".sidebar-logo-brow")).toHaveLength(2);
+    expect(logo.querySelector(".sidebar-logo-ear-left")).toBeInTheDocument();
+    expect(logo.querySelector(".sidebar-logo-ear-right")).toBeInTheDocument();
+    expect(logo.querySelector(".sidebar-logo-check")).toBeInTheDocument();
   });
 
   it("hides task print entry by default", async () => {

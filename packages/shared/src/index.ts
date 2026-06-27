@@ -104,6 +104,7 @@ export const printPaperWidthModeValues = ["preset", "custom"] as const;
 export const printFontSizeModeValues = ["small", "normal", "large", "custom"] as const;
 export const printMarginModeValues = ["narrow", "normal", "wide"] as const;
 export const printSourceTypeValues = ["tasks", "memo"] as const;
+export const floatingCardViewModeValues = ["list", "quadrant", "tag"] as const;
 export const appCloseBehaviorValues = ["hide", "quit"] as const;
 export const displaySizeValues = ["small", "default", "large"] as const;
 export const sidebarModuleValues = ["tasks", "memos", "anniversaries", "habits", "calendar", "pomodoro"] as const;
@@ -445,6 +446,7 @@ export const updateThemePreferenceRequestSchema = z
     taskViewMode: z.enum(taskViewModeValues).optional(),
     taskCardDisplayMode: z.enum(taskCardDisplayModeValues).optional(),
     floatingCardThemeId: z.enum(floatingCardThemeIdValues).optional(),
+    floatingCardViewMode: z.enum(floatingCardViewModeValues).optional(),
     appCloseBehavior: z.enum(appCloseBehaviorValues).optional(),
     displaySize: z.enum(displaySizeValues).optional(),
     visibleSidebarModules: z.array(z.enum(sidebarModuleValues)).optional(),
@@ -461,6 +463,7 @@ export const updateThemePreferenceRequestSchema = z
     value.taskViewMode ||
     value.taskCardDisplayMode ||
     value.floatingCardThemeId ||
+    value.floatingCardViewMode ||
     value.appCloseBehavior ||
     value.displaySize ||
     value.visibleSidebarModules !== undefined ||
@@ -562,6 +565,7 @@ export type TaskViewMode = (typeof taskViewModeValues)[number];
 export type TaskCardDisplayMode = (typeof taskCardDisplayModeValues)[number];
 export type PrintTemplateId = (typeof printTemplateIdValues)[number];
 export type FloatingCardThemeId = (typeof floatingCardThemeIdValues)[number];
+export type FloatingCardViewMode = (typeof floatingCardViewModeValues)[number];
 export type AppCloseBehavior = (typeof appCloseBehaviorValues)[number];
 export type DisplaySize = (typeof displaySizeValues)[number];
 export type SidebarModule = (typeof sidebarModuleValues)[number];
@@ -592,6 +596,7 @@ export interface ApiThemePreference {
   taskViewMode: TaskViewMode;
   taskCardDisplayMode: TaskCardDisplayMode;
   floatingCardThemeId: FloatingCardThemeId;
+  floatingCardViewMode: FloatingCardViewMode;
   appCloseBehavior: AppCloseBehavior;
   displaySize: DisplaySize;
   visibleSidebarModules: SidebarModule[];
