@@ -216,6 +216,7 @@ export function App() {
   } as CSSProperties;
   const appShellClassName = `app-shell${sidebarCollapsed ? " is-sidebar-collapsed" : ""}${isMacosDesktopRuntime() ? " is-macos-desktop" : ""}`;
   const effectiveTaskViewMode: TaskViewMode = featureFlags.taskQuadrant ? taskViewMode : "list";
+  const taskPrintTagFilter = effectiveTaskViewMode === "kanban" ? allTagsFilterValue : taskTagFilter;
   const showCompletedTasksAction = showCompletedTasks ? "隐藏已完成事项" : "显示已完成事项";
   const showArchivedHabitsAction = habitShowArchived ? "隐藏归档" : "显示归档";
   const sidebarToggleAction = sidebarCollapsed ? "展开侧边栏" : "收起侧边栏";
@@ -906,7 +907,7 @@ export function App() {
             open={taskPrintDialogOpen}
             sourceType="tasks"
             source={{
-              tagFilter: taskTagFilter,
+              tagFilter: taskPrintTagFilter,
               showCompletedTasks,
               viewMode: effectiveTaskViewMode
             }}

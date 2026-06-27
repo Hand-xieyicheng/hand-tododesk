@@ -16,7 +16,13 @@ vi.mock("animal-island-ui", async () => {
     ),
     Footer: () => <div />,
     Loading: () => <div />,
-    Select: () => <div />,
+    Select: ({ onChange, options = [], value }: any) => (
+      <select aria-label="标签" value={value} onChange={(event) => onChange?.(event.target.value)}>
+        {options.map((option: any) => (
+          <option key={option.key ?? option.value} value={option.key ?? option.value}>{option.label}</option>
+        ))}
+      </select>
+    ),
     Title: ({ children }: { children: React.ReactNode }) => <h1>{children}</h1>,
     Tooltip: ({ children, className, title }: { children: React.ReactNode; className?: string; title?: React.ReactNode }) => (
       <span className={className} data-tooltip-title={String(title ?? "")}>
@@ -170,5 +176,29 @@ describe("App sidebar", () => {
     expect(printButton).toBeInTheDocument();
     fireEvent.click(printButton);
     expect(await screen.findByRole("dialog", { name: "便签打印" })).toHaveTextContent("__all__:true:list");
+  });
+
+  it("prints all tasks in kanban after a hidden tag filter was selected", async () => {
+    vi.mocked(api.getThemePreference).mockResolvedValue({ ...mockThemePreference, printButtonEnabled: true });
+    vi.mocked(api.setThemePreference).mockImplementation(async (input) => ({
+      ...mockThemePreference,
+      printButtonEnabled: true,
+      ...input
+    }));
+    vi.mocked(api.tags).mockResolvedValue({ tags: [{ id: "tag-1", name: "工作" }] });
+
+    render(
+      <MemoryRouter initialEntries={["/tasks"]}>
+        <App />
+      </MemoryRouter>
+    );
+
+    fireEvent.change(await screen.findByRole("combobox", { name: "标签" }), { target: { value: "tag-1" } });
+    fireEvent.click(screen.getByRole("button", { name: "看板" }));
+
+    await waitFor(() => expect(screen.queryByRole("combobox", { name: "标签" })).not.toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "便签打印" }));
+
+    expect(await screen.findByRole("dialog", { name: "便签打印" })).toHaveTextContent("__all__:true:kanban");
   });
 });
