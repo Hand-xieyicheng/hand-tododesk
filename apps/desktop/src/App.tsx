@@ -69,6 +69,7 @@ const defaultThemePreference: ApiThemePreference = {
 
 const allTagsFilterValue = "__all__";
 const untaggedTagsFilterValue = "__untagged__";
+const authRoute = "/auth";
 
 const dragIgnoredTargetSelector = [
   "a",
@@ -91,8 +92,12 @@ function getSavedSidebarCollapsed() {
   return localStorage.getItem("tododesk.sidebarCollapsed") === "true";
 }
 
+function isTauriDesktopRuntime() {
+  return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+}
+
 function isMacosDesktopRuntime() {
-  if (typeof window === "undefined" || !("__TAURI_INTERNALS__" in window)) {
+  if (!isTauriDesktopRuntime()) {
     return false;
   }
 
@@ -243,9 +248,14 @@ export function App() {
   const forcedUpdateMessage = updateRequired
     ? `当前版本 ${updater.currentVersion} 低于最低支持版本 ${appBootstrap?.desktop.minimumVersion}，请尽快更新。`
     : "";
+  const unauthenticatedEntryPath = isTauriDesktopRuntime() ? authRoute : "/";
 
   const navigateToView = useCallback((view: View, replace = false) => {
     navigate(viewRoutes[view], { replace });
+  }, [navigate]);
+
+  const navigateToUnauthenticatedEntry = useCallback((replace = false) => {
+    navigate(isTauriDesktopRuntime() ? authRoute : "/", { replace });
   }, [navigate]);
 
   function applyThemePreference(preference: ApiThemePreference) {
@@ -315,6 +325,7 @@ export function App() {
         setUser(null);
         resetTaskBoard();
         setTaskTagFilter(allTagsFilterValue);
+        navigateToUnauthenticatedEntry(true);
       } else {
         setMessage(error instanceof Error ? error.message : "加载失败");
       }
@@ -343,7 +354,7 @@ export function App() {
       setUser(null);
       resetTaskBoard();
       setTaskTagFilter(allTagsFilterValue);
-      navigateToView("tasks", true);
+      navigateToUnauthenticatedEntry(true);
       setMessage("");
       setLoading(false);
       setEntryLoading(false);
@@ -351,7 +362,7 @@ export function App() {
 
     window.addEventListener(authSessionExpiredEvent, handleSessionExpired);
     return () => window.removeEventListener(authSessionExpiredEvent, handleSessionExpired);
-  }, [navigateToView]);
+  }, [navigateToUnauthenticatedEntry, resetTaskBoard]);
 
   useEffect(() => {
     let cancelled = false;
@@ -450,7 +461,7 @@ export function App() {
     setUser(null);
     resetTaskBoard();
     setTaskTagFilter(allTagsFilterValue);
-    navigateToView("tasks", true);
+    navigateToUnauthenticatedEntry(true);
   }
 
   function handleUserChanged(nextUser: ApiUser) {
@@ -462,7 +473,7 @@ export function App() {
     setUser(null);
     resetTaskBoard();
     setTaskTagFilter(allTagsFilterValue);
-    navigateToView("tasks", true);
+    navigateToUnauthenticatedEntry(true);
   }
 
   function handlePasswordResetCompleted() {
@@ -651,11 +662,11 @@ export function App() {
   if (!user) {
     return (
       <Routes>
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/auth" element={<AuthView onAuthed={handleAuthed} />} />
+        <Route path="/" element={isTauriDesktopRuntime() ? <Navigate to={authRoute} replace /> : <LandingPage />} />
+        <Route path={authRoute} element={<AuthView onAuthed={handleAuthed} />} />
         <Route path="/register" element={<AuthView initialMode="register" onAuthed={handleAuthed} />} />
         <Route path="/reset-password" element={<ResetPasswordView onSessionCleared={handlePasswordResetCompleted} />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<Navigate to={unauthenticatedEntryPath} replace />} />
       </Routes>
     );
   }

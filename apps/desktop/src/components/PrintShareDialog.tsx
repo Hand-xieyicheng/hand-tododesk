@@ -150,7 +150,7 @@ export function PrintShareDialog(props: PrintShareDialogProps) {
     marginMode,
     expiresInHours
   }), [expiresInHours, fontSizeMode, marginMode, paperWidthMm, paperWidthMode, templateId]);
-  const previewWidthPx = paperWidthMm * 2;
+  const previewWidth = `${paperWidthMm}mm`;
   const previewClassName = [
     "print-share-preview-paper",
     previewTemplateClassNames[templateId],
@@ -372,7 +372,7 @@ export function PrintShareDialog(props: PrintShareDialogProps) {
           {error ? <p className="print-share-error" role="alert">{error}</p> : null}
           <div className="print-share-preview">
             <h3 className="print-share-preview-title">预览模版</h3>
-            <div className={previewClassName} style={{ width: previewWidthPx }}>
+            <div className={previewClassName} style={{ width: previewWidth }}>
               <div className="print-share-paper-width-ruler">
                 <span aria-label="当前预览纸宽">{paperWidthMm}mm</span>
               </div>

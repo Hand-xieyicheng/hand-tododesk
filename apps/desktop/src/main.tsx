@@ -6,19 +6,23 @@ import { Cursor } from "animal-island-ui";
 import { App } from "./App";
 import { FloatingCard } from "./components/FloatingCard";
 import { MemoFloatingCard } from "./components/MemoFloatingCard";
-import { normalizeResetPasswordHashRoute } from "./lib/routing";
+import { PublicPrintPage } from "./components/PublicPrintPage";
+import { normalizeResetPasswordHashRoute, printTokenFromPathname } from "./lib/routing";
 import "./styles.css";
 
 const root = createRoot(document.getElementById("root")!);
 const search = new URLSearchParams(window.location.search);
 const windowMode = search.get("window");
 const memoId = search.get("memoId");
+const printToken = printTokenFromPathname(window.location.pathname);
 normalizeResetPasswordHashRoute(window.location, window.history);
 
 root.render(
   <React.StrictMode>
     <Cursor>
-      {windowMode === "floating" ? (
+      {printToken ? (
+        <PublicPrintPage token={printToken} />
+      ) : windowMode === "floating" ? (
         <FloatingCard />
       ) : windowMode === "memo" ? (
         <MemoFloatingCard memoId={memoId} />

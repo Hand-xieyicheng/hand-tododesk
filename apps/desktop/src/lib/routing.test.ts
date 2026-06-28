@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { normalizeResetPasswordHashRoute } from "./routing";
+import { normalizeResetPasswordHashRoute, printTokenFromPathname } from "./routing";
 
 describe("routing", () => {
   it("converts legacy reset-password path links to the hash route", () => {
@@ -22,5 +22,12 @@ describe("routing", () => {
 
     expect(redirected).toBe(false);
     expect(replaceState).not.toHaveBeenCalled();
+  });
+
+  it("extracts public print tokens from top-level paths", () => {
+    expect(printTokenFromPathname("/print/abc_123-token")).toBe("abc_123-token");
+    expect(printTokenFromPathname("/print/abc_123-token/")).toBe("abc_123-token");
+    expect(printTokenFromPathname("/#/print/abc_123-token")).toBeNull();
+    expect(printTokenFromPathname("/tasks")).toBeNull();
   });
 });

@@ -1,12 +1,11 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { imageSize } from "image-size";
-
-const dirname = path.dirname(fileURLToPath(import.meta.url));
+import { ensureUploadDirectory, legacyPublicUploadDirectory, uploadDirectory } from "./upload-storage.js";
 
 export const AVATAR_MAX_BYTES = 2 * 1024 * 1024;
-export const avatarDirectory = path.resolve(dirname, "../../public/avatar");
+export const avatarDirectory = uploadDirectory("avatar");
+const legacyAvatarDirectory = legacyPublicUploadDirectory("avatar");
 
 const avatarExtensions = {
   "image/png": "png",
@@ -43,7 +42,7 @@ export function assertSquareAvatar(buffer: Buffer) {
 }
 
 export async function ensureAvatarDirectory() {
-  await fs.mkdir(avatarDirectory, { recursive: true });
+  await ensureUploadDirectory(avatarDirectory, legacyAvatarDirectory);
 }
 
 export async function removeAvatarFile(avatarPath: string | null | undefined) {

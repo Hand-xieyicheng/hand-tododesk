@@ -7,7 +7,8 @@ export default defineConfig({
       APP_ORIGIN: "http://localhost:8090",
       DATABASE_URL: "mysql://test:test@127.0.0.1:3306/tododesk_test",
       JWT_SECRET: "tododesk-test-jwt-secret",
-      NODE_ENV: "test"
+      NODE_ENV: "test",
+      UPLOAD_STORAGE_DIR: ".tmp/test-uploads"
     },
     environment: "node",
     include: ["src/**/*.test.ts"]

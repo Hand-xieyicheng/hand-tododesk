@@ -95,6 +95,11 @@ function resolveApiBaseUrl() {
 const API_BASE_URL = resolveApiBaseUrl();
 export const authSessionExpiredEvent = "tododesk:auth-session-expired";
 
+export function apiUrl(path: string) {
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  return `${API_BASE_URL}${normalizedPath}`;
+}
+
 interface RequestOptions {
   retry?: boolean;
   includeAuth?: boolean;
@@ -168,7 +173,7 @@ async function request<T>(path: string, init: RequestInit = {}, options: Request
     headers.set("Authorization", `Bearer ${accessToken}`);
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(apiUrl(path), {
     ...init,
     headers
   }).catch((error: unknown) => {
@@ -190,6 +195,16 @@ async function request<T>(path: string, init: RequestInit = {}, options: Request
   }
 
   return parseResponse<T>(response);
+}
+
+export async function fetchPublicPrintHtml(token: string) {
+  const response = await fetch(apiUrl(`/print/${encodeURIComponent(token)}`), {
+    credentials: "omit"
+  });
+  if (!response.ok) {
+    throw new ApiError("打印链接不可用", response.status);
+  }
+  return response.text();
 }
 
 let refreshAccessTokenPromise: Promise<boolean> | null = null;

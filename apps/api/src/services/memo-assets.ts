@@ -1,13 +1,12 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { imageSize } from "image-size";
 import { config } from "../config.js";
-
-const dirname = path.dirname(fileURLToPath(import.meta.url));
+import { ensureUploadDirectory, legacyPublicUploadDirectory, uploadDirectory } from "./upload-storage.js";
 
 export const MEMO_ASSET_MAX_BYTES = 10 * 1024 * 1024;
-export const memoAssetDirectory = path.resolve(dirname, "../../public/memo-assets");
+export const memoAssetDirectory = uploadDirectory("memo-assets");
+const legacyMemoAssetDirectory = legacyPublicUploadDirectory("memo-assets");
 
 const memoAssetExtensions = {
   "image/png": "png",
@@ -49,7 +48,7 @@ export function readMemoImageDimensions(buffer: Buffer, mimetype: string) {
 }
 
 export async function ensureMemoAssetDirectory() {
-  await fs.mkdir(memoAssetDirectory, { recursive: true });
+  await ensureUploadDirectory(memoAssetDirectory, legacyMemoAssetDirectory);
 }
 
 export async function removeMemoAssetFile(filename: string | null | undefined) {

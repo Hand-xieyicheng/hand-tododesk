@@ -3,18 +3,27 @@ import type { ApiTask, ApiThemePreference } from "@todo/shared";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
-import { api } from "./api/client";
+import { api, authSessionExpiredEvent } from "./api/client";
 
 vi.mock("animal-island-ui", async () => {
   const React = await import("react");
   return {
-    Button: ({ block: _block, children, className, icon, type: _type, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { block?: boolean; icon?: React.ReactNode; type?: string }) => (
-      <button className={className} {...props}>
+    Button: ({ block: _block, children, className, htmlType, icon, loading: _loading, type: _type, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { block?: boolean; htmlType?: React.ButtonHTMLAttributes<HTMLButtonElement>["type"]; icon?: React.ReactNode; loading?: boolean; type?: string }) => (
+      <button className={className} type={htmlType} {...props}>
         {icon}
         {children}
       </button>
     ),
+    Card: ({ children, className, pattern: _pattern, ...props }: React.HTMLAttributes<HTMLDivElement> & { pattern?: string }) => (
+      <div className={className} {...props}>
+        {children}
+      </div>
+    ),
+    Divider: ({ type: _type, ...props }: React.HTMLAttributes<HTMLHRElement> & { type?: string }) => <hr {...props} />,
     Footer: () => <div />,
+    Input: ({ allowClear: _allowClear, shadow: _shadow, ...props }: React.InputHTMLAttributes<HTMLInputElement> & { allowClear?: boolean; shadow?: boolean }) => (
+      <input {...props} />
+    ),
     Loading: () => <div />,
     Select: ({ onChange, options = [], value }: any) => (
       <select aria-label="标签" value={value} onChange={(event) => onChange?.(event.target.value)}>
@@ -147,6 +156,7 @@ function createTask(overrides: Partial<ApiTask> = {}): ApiTask {
 describe("App sidebar", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    Reflect.deleteProperty(window, "__TAURI_INTERNALS__");
     localStorage.clear();
     localStorage.setItem("tododesk.user", JSON.stringify(mockUser));
 
@@ -159,6 +169,53 @@ describe("App sidebar", () => {
     }));
     vi.mocked(api.tags).mockResolvedValue({ tags: [] });
     vi.mocked(api.tasks).mockResolvedValue({ tasks: [] });
+  });
+
+  it("opens the login screen instead of the landing page for unauthenticated desktop windows", async () => {
+    Reflect.set(window, "__TAURI_INTERNALS__", {});
+    localStorage.removeItem("tododesk.user");
+
+    const { container } = render(
+      <MemoryRouter initialEntries={["/"]}>
+        <App />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => expect(container.querySelector(".auth-screen")).toBeInTheDocument());
+    expect(screen.getByText("记住密码")).toBeInTheDocument();
+    expect(container.querySelector(".landing-page")).not.toBeInTheDocument();
+  });
+
+  it("sends expired desktop sessions to login instead of the landing page", async () => {
+    Reflect.set(window, "__TAURI_INTERNALS__", {});
+
+    const { container } = render(
+      <MemoryRouter initialEntries={["/tasks"]}>
+        <App />
+      </MemoryRouter>
+    );
+
+    await screen.findByRole("button", { name: "收起侧边栏" });
+    window.dispatchEvent(new Event(authSessionExpiredEvent));
+
+    await waitFor(() => expect(container.querySelector(".auth-screen")).toBeInTheDocument());
+    expect(container.querySelector(".landing-page")).not.toBeInTheDocument();
+  });
+
+  it("sends desktop logout to login instead of the landing page", async () => {
+    Reflect.set(window, "__TAURI_INTERNALS__", {});
+
+    const { container } = render(
+      <MemoryRouter initialEntries={["/tasks"]}>
+        <App />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: "退出登录" }));
+
+    await waitFor(() => expect(api.logout).toHaveBeenCalled());
+    await waitFor(() => expect(container.querySelector(".auth-screen")).toBeInTheDocument());
+    expect(container.querySelector(".landing-page")).not.toBeInTheDocument();
   });
 
   it("toggles the sidebar from the logo and keeps the logo visible when collapsed", async () => {

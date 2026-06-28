@@ -9,3 +9,10 @@ export function normalizeResetPasswordHashRoute(
   }
   return false;
 }
+
+export function printTokenFromPathname(pathname: string) {
+  const normalizedPathname = pathname.replace(/\/+$/, "");
+  const match = /^\/print\/([^/?#]+)$/.exec(normalizedPathname);
+  const token = match?.[1];
+  return token ? decodeURIComponent(token) : null;
+}

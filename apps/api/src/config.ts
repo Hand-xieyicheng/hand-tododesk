@@ -1,3 +1,5 @@
+import os from "node:os";
+import path from "node:path";
 import dotenv from "dotenv";
 import { z } from "zod";
 
@@ -18,13 +20,14 @@ const envSchema = z.object({
     .optional()
     .default("http://127.0.0.1:8090,http://tauri.localhost,https://tauri.localhost,tauri://localhost"),
   API_PUBLIC_URL: z.string().url().default("http://localhost:4020"),
-  API_VERSION: z.string().min(1).default(process.env.npm_package_version ?? "0.2.19"),
+  API_VERSION: z.string().min(1).default(process.env.npm_package_version ?? "0.2.20"),
   DESKTOP_MIN_VERSION: z.string().min(1).default("0.1.0"),
-  DESKTOP_LATEST_VERSION: z.string().min(1).default("0.2.19"),
+  DESKTOP_LATEST_VERSION: z.string().min(1).default("0.2.20"),
   DESKTOP_UPDATE_ENDPOINT: z
     .string()
     .url()
     .default("https://github.com/Hand-xieyicheng/hand-tododesk/releases/latest/download/latest.json"),
+  UPLOAD_STORAGE_DIR: z.string().min(1).default(path.resolve(os.homedir(), ".tododesk", "uploads")),
   FEATURE_FLAGS_JSON: z.string().optional().default(""),
   DB_HOST: z.string().optional(),
   DB_PORT: z.coerce.number().int().min(1).max(65535).optional(),
@@ -47,6 +50,7 @@ const parsedConfig = envSchema.parse(process.env);
 
 export const config = {
   ...parsedConfig,
+  UPLOAD_STORAGE_DIR: path.resolve(parsedConfig.UPLOAD_STORAGE_DIR),
   REFRESH_TOKEN_TTL_HOURS: parsedConfig.REFRESH_TOKEN_TTL_HOURS ?? (parsedConfig.REFRESH_TOKEN_TTL_DAYS ? parsedConfig.REFRESH_TOKEN_TTL_DAYS * 24 : 24)
 };
 

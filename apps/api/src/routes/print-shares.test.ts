@@ -99,9 +99,10 @@ describe("print share routes", () => {
     expect(response.statusCode).toBe(201);
     expect(response.json().printShare).toMatchObject({
       id: "print-share-1",
-      url: expect.stringMatching(/^http:\/\/localhost:4020\/print\/[A-Za-z0-9_-]+$/),
+      url: expect.stringMatching(/^http:\/\/localhost:8090\/print\/[A-Za-z0-9_-]+$/),
       expiresAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/)
     });
+    expect(response.json().printShare.url).not.toContain("localhost:4020");
     expect(db.execute).toHaveBeenNthCalledWith(
       1,
       "DELETE FROM `PrintShare` WHERE `userId` = ? AND `expiresAt` < NOW(3)",

@@ -101,8 +101,11 @@ API_VERSION=0.2.0
 DESKTOP_MIN_VERSION=0.1.0
 DESKTOP_LATEST_VERSION=0.2.0
 DESKTOP_UPDATE_ENDPOINT=https://github.com/Hand-xieyicheng/hand-tododesk/releases/latest/download/latest.json
+UPLOAD_STORAGE_DIR=/var/lib/tododesk/uploads
 FEATURE_FLAGS_JSON={"calendar":true,"pomodoro":true,"taskQuadrant":true,"floatingCard":true}
 ```
+
+`UPLOAD_STORAGE_DIR` 用于保存用户上传的头像和备忘录图片。生产环境必须指向发布目录之外的持久化目录或挂载卷，例如 `/var/lib/tododesk/uploads`；发版时不要删除该目录。服务启动时会尝试把旧版 `apps/api/public/avatar` 和 `apps/api/public/memo-assets` 中已有的文件复制到新的持久化目录。
 
 ## macOS 使用教程
 

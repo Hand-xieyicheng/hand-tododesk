@@ -351,7 +351,7 @@ async function getSharedMemo(share: PrintShareRow, source: PrintMemoSource) {
 }
 
 function publicPrintUrl(token: string) {
-  return new URL(`/print/${token}`, config.API_PUBLIC_URL).toString();
+  return new URL(`/print/${encodeURIComponent(token)}`, config.APP_ORIGIN).toString();
 }
 
 export async function printShareRoutes(app: FastifyInstance) {

@@ -178,18 +178,18 @@ describe("PrintShareDialog", () => {
     render(<PrintShareDialog open preview={{ tasks: [createTask()] }} source={source} sourceType="tasks" onClose={vi.fn()} />);
 
     const paper = screen.getByText("待办预览").closest(".print-share-preview-paper");
-    expect(paper).toHaveStyle({ width: "116px" });
+    expect(paper).toHaveStyle({ width: "58mm" });
     expect(screen.getByLabelText("当前预览纸宽")).toHaveTextContent("58mm");
 
     fireEvent.change(screen.getByLabelText("纸宽"), { target: { value: "80" } });
 
-    expect(paper).toHaveStyle({ width: "160px" });
+    expect(paper).toHaveStyle({ width: "80mm" });
     expect(screen.getByLabelText("当前预览纸宽")).toHaveTextContent("80mm");
 
     fireEvent.change(screen.getByLabelText("纸宽"), { target: { value: "custom" } });
     fireEvent.change(screen.getByLabelText("自定义纸宽"), { target: { value: "120" } });
 
-    expect(paper).toHaveStyle({ width: "240px" });
+    expect(paper).toHaveStyle({ width: "120mm" });
     expect(screen.getByLabelText("当前预览纸宽")).toHaveTextContent("120mm");
   });
 
@@ -373,7 +373,10 @@ describe("PrintShareDialog", () => {
     />);
 
     const preview = screen.getByRole("region", { name: "打印预览" });
+    const previewPaper = preview.querySelector(".print-share-preview-paper") as HTMLElement | null;
     expect(preview).toContainElement(screen.getByRole("heading", { name: "预览模版" }));
+    expect(previewPaper).not.toBeNull();
+    expect(previewPaper?.style.width).toBe("58mm");
     expect(preview).toHaveTextContent("真实待办一");
     expect(preview).toHaveTextContent("真实备注一");
     expect(preview).not.toHaveTextContent("真实待办二");
@@ -389,6 +392,7 @@ describe("PrintShareDialog", () => {
     fireEvent.change(screen.getByLabelText("字号"), { target: { value: "large" } });
     fireEvent.change(screen.getByLabelText("边距"), { target: { value: "wide" } });
 
+    expect(previewPaper?.style.width).toBe("62mm");
     expect(screen.queryByLabelText("当前预览配置")).not.toBeInTheDocument();
     expect(preview).not.toHaveTextContent("装饰样式");
     expect(screen.getByLabelText("当前预览纸宽")).toHaveTextContent("62mm");
