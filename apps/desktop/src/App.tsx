@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CSSProperties, PointerEvent } from "react";
-import { defaultAppFeatureFlags, defaultThemeId, defaultVisibleSidebarModules, normalizeThemeId, type ApiThemePreference, type ApiUser, type AppBootstrapResponse, type AppCloseBehavior, type AppFeatureFlags, type DisplaySize, type FloatingCardThemeId, type FontFamily, type FooterType as AppFooterType, type SidebarModule, type TaskCardDisplayMode, type TaskViewMode, type ThemeId, type TitleColor } from "@todo/shared";
+import { defaultAppFeatureFlags, defaultThemeId, defaultVisibleSidebarModules, normalizeThemeId, sortTasksForDisplay, type ApiTask, type ApiThemePreference, type ApiUser, type AppBootstrapResponse, type AppCloseBehavior, type AppFeatureFlags, type DisplaySize, type FloatingCardThemeId, type FontFamily, type FooterType as AppFooterType, type SidebarModule, type TaskCardDisplayMode, type TaskViewMode, type ThemeId, type TitleColor } from "@todo/shared";
 import { Button, Footer, Loading, Select, Title, Tooltip } from "animal-island-ui";
 import { Bell, CalendarDays, CheckSquare2, Clock3, Eye, EyeOff, Flame, Hourglass, Kanban, LayoutGrid, ListTodo, LogOut, NotebookPen, Pin, Plus, Printer, Tags, UserRound } from "lucide-react";
 import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
@@ -124,6 +124,16 @@ function viewFromPathname(pathname: string): View {
   return "tasks";
 }
 
+function taskMatchesPrintTagFilter(task: ApiTask, filter: string) {
+  if (filter === allTagsFilterValue) {
+    return true;
+  }
+  if (filter === untaggedTagsFilterValue) {
+    return task.tags.length === 0;
+  }
+  return task.tags.some((tag) => tag.id === filter);
+}
+
 async function startWindowDrag(event: PointerEvent<HTMLElement>) {
   if (event.button !== 0 || isDragIgnoredTarget(event.target)) {
     return;
@@ -218,6 +228,14 @@ export function App() {
   const appShellClassName = `app-shell${sidebarCollapsed ? " is-sidebar-collapsed" : ""}${isMacosDesktopRuntime() ? " is-macos-desktop" : ""}`;
   const effectiveTaskViewMode: TaskViewMode = featureFlags.taskQuadrant ? taskViewMode : "list";
   const taskPrintTagFilter = effectiveTaskViewMode === "kanban" ? allTagsFilterValue : taskTagFilter;
+  const taskPrintPreviewTasks = useMemo(
+    () => sortTasksForDisplay(
+      tasks
+        .filter((task) => task.status !== "COMPLETED")
+        .filter((task) => taskMatchesPrintTagFilter(task, taskPrintTagFilter))
+    ),
+    [taskPrintTagFilter, tasks]
+  );
   const showCompletedTasksAction = showCompletedTasks ? "隐藏已完成事项" : "显示已完成事项";
   const showArchivedHabitsAction = habitShowArchived ? "隐藏归档" : "显示归档";
   const sidebarToggleAction = sidebarCollapsed ? "展开侧边栏" : "收起侧边栏";
@@ -791,7 +809,7 @@ export function App() {
                   </div>
                 ) : null}
                 {printButtonEnabled ? (
-                  <Button aria-label="便签打印" className="ghost-button" icon={<Printer size={14} />} size="small" type="default" onClick={() => setTaskPrintDialogOpen(true)}>
+                  <Button aria-label="便签打印" className="task-print-button" icon={<Printer size={14} />} size="small" type="default" onClick={() => setTaskPrintDialogOpen(true)}>
                     打印
                   </Button>
                 ) : null}
@@ -906,10 +924,11 @@ export function App() {
         {printButtonEnabled ? (
           <PrintShareDialog
             open={taskPrintDialogOpen}
+            preview={{ tasks: taskPrintPreviewTasks }}
             sourceType="tasks"
             source={{
               tagFilter: taskPrintTagFilter,
-              showCompletedTasks,
+              showCompletedTasks: false,
               viewMode: effectiveTaskViewMode
             }}
             onClose={() => setTaskPrintDialogOpen(false)}

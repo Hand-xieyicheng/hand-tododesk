@@ -1,55 +1,65 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
-import { Button, Input, Modal } from "animal-island-ui";
+import { Button, Input, Modal, Select } from "animal-island-ui";
+import { Copy } from "lucide-react";
 import type {
   ApiPrintShare,
+  ApiTask,
   CreatePrintShareRequest,
   PrintMemoSource,
   PrintShareConfig,
   PrintTasksSource
 } from "@todo/shared";
 import { api } from "../api/client";
+import { isRichContentEmpty, sanitizeRichHtml } from "../lib/memoRichText";
 
 type PrintShareDialogProps =
-  | { open: boolean; sourceType: "tasks"; source: PrintTasksSource; onClose(): void }
-  | { open: boolean; sourceType: "memo"; source: PrintMemoSource; onClose(): void };
+  | { open: boolean; sourceType: "tasks"; source: PrintTasksSource; preview: { tasks: ApiTask[] }; onClose(): void }
+  | { open: boolean; sourceType: "memo"; source: PrintMemoSource; preview: { title: string; contentHtml: string }; onClose(): void };
 
 type PrintTemplateId = PrintShareConfig["templateId"];
 type PrintPaperWidthMode = PrintShareConfig["paperWidthMode"];
 type PrintFontSizeMode = PrintShareConfig["fontSizeMode"];
 type PrintMarginMode = PrintShareConfig["marginMode"];
 
-const templateOptions: Array<{ value: PrintTemplateId; label: string }> = [
-  { value: "checklist", label: "清单模板" },
-  { value: "memo", label: "备忘录模板" },
-  { value: "compact", label: "紧凑模板" },
-  { value: "decorated", label: "装饰模板" }
+const templateOptions: Array<{ key: PrintTemplateId; label: string }> = [
+  { key: "checklist", label: "标准样式" },
+  { key: "memo", label: "便签样式" },
+  { key: "compact", label: "紧凑样式" },
+  { key: "decorated", label: "装饰样式" }
 ];
 
 const paperOptions = [
-  { value: "58", label: "58mm" },
-  { value: "80", label: "80mm" },
-  { value: "custom", label: "自定义" }
+  { key: "58", label: "58mm" },
+  { key: "80", label: "80mm" },
+  { key: "custom", label: "自定义" }
 ];
 
-const fontSizeOptions: Array<{ value: PrintFontSizeMode; label: string }> = [
-  { value: "small", label: "小字" },
-  { value: "normal", label: "标准" },
-  { value: "large", label: "大字" }
+const fontSizeOptions: Array<{ key: PrintFontSizeMode; label: string }> = [
+  { key: "small", label: "小字" },
+  { key: "normal", label: "标准" },
+  { key: "large", label: "大字" }
 ];
 
-const marginOptions: Array<{ value: PrintMarginMode; label: string }> = [
-  { value: "narrow", label: "窄边距" },
-  { value: "normal", label: "标准" },
-  { value: "wide", label: "宽边距" }
+const marginOptions: Array<{ key: PrintMarginMode; label: string }> = [
+  { key: "narrow", label: "窄边距" },
+  { key: "normal", label: "标准" },
+  { key: "wide", label: "宽边距" }
 ];
 
 const expiryOptions = [
-  { value: "1", label: "1 小时" },
-  { value: "24", label: "24 小时" },
-  { value: "72", label: "3 天" },
-  { value: "168", label: "7 天" }
+  { key: "1", label: "1 小时" },
+  { key: "24", label: "24 小时" },
+  { key: "72", label: "3 天" },
+  { key: "168", label: "7 天" }
 ];
+
+const previewTemplateClassNames: Record<PrintTemplateId, string> = {
+  checklist: "print-template-checklist",
+  compact: "print-template-compact",
+  decorated: "print-template-decorated",
+  memo: "print-template-memo"
+};
 
 function defaultTemplateFor(sourceType: PrintShareDialogProps["sourceType"]): PrintTemplateId {
   return sourceType === "memo" ? "memo" : "checklist";
@@ -140,13 +150,31 @@ export function PrintShareDialog(props: PrintShareDialogProps) {
     marginMode,
     expiresInHours
   }), [expiresInHours, fontSizeMode, marginMode, paperWidthMm, paperWidthMode, templateId]);
+  const previewWidthPx = paperWidthMm * 2;
+  const previewClassName = [
+    "print-share-preview-paper",
+    previewTemplateClassNames[templateId],
+    `is-font-${fontSizeMode}`,
+    `is-margin-${marginMode}`
+  ].join(" ");
+  const previewTitle = props.sourceType === "memo" ? "备忘录预览" : "待办预览";
+  const previewTasks = props.sourceType === "tasks"
+    ? props.preview.tasks.filter((task) => task.status !== "COMPLETED")
+    : [];
+  const memoPreviewTitle = props.sourceType === "memo" ? props.preview.title.trim() || "未命名备忘录" : "";
+  const memoPreviewHtml = props.sourceType === "memo" ? props.preview.contentHtml : "";
+  const sanitizedMemoPreviewHtml = useMemo(() => sanitizeRichHtml(memoPreviewHtml), [memoPreviewHtml]);
+  const memoPreviewEmpty = props.sourceType === "memo" && isRichContentEmpty(sanitizedMemoPreviewHtml);
 
   async function generateLink() {
     let input: CreatePrintShareRequest;
     if (props.sourceType === "tasks") {
       input = {
         sourceType: "tasks",
-        source: props.source,
+        source: {
+          ...props.source,
+          showCompletedTasks: false
+        },
         config
       };
     } else {
@@ -276,31 +304,23 @@ export function PrintShareDialog(props: PrintShareDialogProps) {
     >
       <div className="print-share-dialog">
         <section className="print-share-config" aria-label="打印配置">
-          <label htmlFor={`${fieldIdPrefix}-template`}>
-            模板
-            <select
-              className="print-share-native-select"
-              id={`${fieldIdPrefix}-template`}
+          <label>
+            样式模版
+            <Select
+              aria-label="样式模版"
+              options={templateOptions}
               value={templateId}
-              onChange={(event) => handleTemplateChange(event.target.value)}
-            >
-              {templateOptions.map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
+              onChange={handleTemplateChange}
+            />
           </label>
-          <label htmlFor={`${fieldIdPrefix}-paper`}>
+          <label>
             纸宽
-            <select
-              className="print-share-native-select"
-              id={`${fieldIdPrefix}-paper`}
+            <Select
+              aria-label="纸宽"
+              options={paperOptions}
               value={paperWidthMode === "custom" ? "custom" : String(paperWidthMm)}
-              onChange={(event) => handlePaperChange(event.target.value)}
-            >
-              {paperOptions.map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
+              onChange={handlePaperChange}
+            />
           </label>
           {paperWidthMode === "custom" ? (
             <label htmlFor={`${fieldIdPrefix}-custom-paper`}>
@@ -316,65 +336,101 @@ export function PrintShareDialog(props: PrintShareDialogProps) {
               />
             </label>
           ) : null}
-          <label htmlFor={`${fieldIdPrefix}-font-size`}>
+          <label>
             字号
-            <select
-              className="print-share-native-select"
-              id={`${fieldIdPrefix}-font-size`}
+            <Select
+              aria-label="字号"
+              options={fontSizeOptions}
               value={fontSizeMode}
-              onChange={(event) => handleFontSizeChange(event.target.value)}
-            >
-              {fontSizeOptions.map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
+              onChange={handleFontSizeChange}
+            />
           </label>
-          <label htmlFor={`${fieldIdPrefix}-margin`}>
+          <label>
             边距
-            <select
-              className="print-share-native-select"
-              id={`${fieldIdPrefix}-margin`}
+            <Select
+              aria-label="边距"
+              options={marginOptions}
               value={marginMode}
-              onChange={(event) => handleMarginChange(event.target.value)}
-            >
-              {marginOptions.map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
+              onChange={handleMarginChange}
+            />
           </label>
-          <label htmlFor={`${fieldIdPrefix}-expiry`}>
+          <label>
             有效期
-            <select
-              className="print-share-native-select"
-              id={`${fieldIdPrefix}-expiry`}
+            <Select
+              aria-label="有效期"
+              options={expiryOptions}
               value={String(expiresInHours)}
-              onChange={(event) => handleExpiryChange(event.target.value)}
-            >
-              {expiryOptions.map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
+              onChange={handleExpiryChange}
+            />
           </label>
           <Button type="primary" loading={generating} disabled={generating} onClick={generateLink}>
             生成链接
           </Button>
         </section>
 
-        <section className="print-share-result" aria-label="分享结果">
+        <section className="print-share-result" aria-label="打印预览">
           {error ? <p className="print-share-error" role="alert">{error}</p> : null}
+          <div className="print-share-preview">
+            <h3 className="print-share-preview-title">预览模版</h3>
+            <div className={previewClassName} style={{ width: previewWidthPx }}>
+              <div className="print-share-paper-width-ruler">
+                <span aria-label="当前预览纸宽">{paperWidthMm}mm</span>
+              </div>
+              <h3>{previewTitle}</h3>
+              <div className="print-share-preview-scroll">
+                {props.sourceType === "tasks" ? (
+                  previewTasks.length > 0 ? (
+                    <ul className="print-share-preview-task-list">
+                      {previewTasks.map((task) => (
+                        <li key={task.id} className={task.status === "COMPLETED" ? "is-completed" : undefined}>
+                          <span className="box" />
+                          <span className="print-share-preview-task-copy">
+                            <span>{task.title}</span>
+                            {task.notes ? <small>{task.notes}</small> : null}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="print-share-preview-empty">暂无待办</p>
+                  )
+                ) : (
+                  <>
+                    <h4 className="print-share-preview-memo-title">{memoPreviewTitle}</h4>
+                    {memoPreviewEmpty ? (
+                      <p className="print-share-preview-empty">暂无内容</p>
+                    ) : (
+                      <div
+                        className="print-share-preview-memo-content"
+                        dangerouslySetInnerHTML={{ __html: sanitizedMemoPreviewHtml }}
+                      />
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
           {printShare ? (
-            <>
+            <div className="print-share-generated">
               <label>
                 链接
-                <Input aria-label="生成的打印分享链接" readOnly value={printShare.url} />
+                <span className="print-share-link-field">
+                  <Input aria-label="生成的打印分享链接" readOnly value={printShare.url} />
+                  {copyMessage ? <span className="print-share-copy-message" role="status">{copyMessage}</span> : null}
+                  <Button
+                    aria-label="复制链接"
+                    className="print-share-link-copy-button"
+                    icon={<Copy size={15} />}
+                    size="small"
+                    title="复制链接"
+                    type="text"
+                    onClick={copyLink}
+                  />
+                </span>
               </label>
-              <Button type="default" onClick={copyLink}>
-                复制链接
-              </Button>
-              {copyMessage ? <p className="print-share-copy-message">{copyMessage}</p> : null}
-            </>
+            </div>
           ) : (
-            <p className="inline-muted">生成后可复制链接到咕咕机或浏览器打印。</p>
+            <p className="inline-muted">生成链接后会显示在预览下方。</p>
           )}
         </section>
       </div>

@@ -734,6 +734,10 @@ export function MemoPanel({ printButtonEnabled = false }: MemoPanelProps) {
       {selectedMemo ? (
         <PrintShareDialog
           open={printDialogOpen}
+          preview={{
+            title,
+            contentHtml: latestEditorHtml
+          }}
           sourceType="memo"
           source={{ memoId: selectedMemo.id }}
           onClose={() => setPrintDialogOpen(false)}

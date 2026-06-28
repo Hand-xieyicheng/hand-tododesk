@@ -36,6 +36,106 @@ describe("task styles", () => {
     expect(tagMaintenanceHoverRule).not.toContain("#fff");
   });
 
+  it("keeps the task print button aligned with topbar action sizing", () => {
+    const printButtonRule = getRuleContaining(".task-print-button,");
+    const printButtonContentRule = getRule(".task-print-button > span");
+    const printButtonIconRule = getRuleContaining('.task-print-button [class*="animal-btn-icon"]');
+
+    expect(printButtonRule).toContain("height: var(--topbar-action-height)");
+    expect(printButtonRule).toContain("min-height: var(--topbar-action-height)");
+    expect(printButtonRule).toContain("padding: 0 calc(11px * var(--app-ui-scale))");
+    expect(printButtonRule).toContain("font-size: calc(13px * var(--app-ui-scale))");
+    expect(printButtonContentRule).toContain("gap: calc(6px * var(--app-ui-scale))");
+    expect(printButtonIconRule).toContain("width: calc(15px * var(--app-ui-scale))");
+    expect(printButtonIconRule).toContain("height: calc(15px * var(--app-ui-scale))");
+  });
+
+  it("keeps the print share dialog full width with equal columns", () => {
+    const dialogRule = getRule(".print-share-dialog");
+    const modalBodyRule = getRuleContaining('.print-share-modal [class*="animal-body"]');
+
+    expect(modalBodyRule).toContain("width: 100%");
+    expect(dialogRule).toContain("width: 100%");
+    expect(dialogRule).toContain("grid-template-columns: repeat(2, minmax(0, 1fr))");
+  });
+
+  it("allows print share select popups to escape modal and preview clipping", () => {
+    const modalClipRule = getRuleContaining('.print-share-modal [class*="animal-modalClipped"]');
+    const modalClipBackgroundRule = getRuleContaining('.print-share-modal [class*="animal-modalClipped"]::before');
+    const configRule = getRule(".print-share-config");
+    const resultRule = getRule(".print-share-result");
+
+    expect(modalClipRule).toContain("overflow: visible");
+    expect(modalClipRule).toContain("clip-path: none");
+    expect(modalClipBackgroundRule).toContain('clip-path: url("#animal-modal-clip")');
+    expect(configRule).toContain("position: relative");
+    expect(configRule).toContain("z-index: 2");
+    expect(resultRule).toContain("position: relative");
+    expect(resultRule).toContain("z-index: 1");
+  });
+
+  it("keeps the print share copy action inside the generated link field", () => {
+    const linkFieldRule = getRule(".print-share-link-field");
+    const linkFieldInputRule = getRule(".print-share-link-field input");
+    const copyButtonRule = getRuleContaining(".print-share-link-copy-button,");
+
+    expect(linkFieldRule).toContain("position: relative");
+    expect(linkFieldInputRule).toContain("padding-right:");
+    expect(copyButtonRule).toContain("position: absolute");
+    expect(copyButtonRule).toContain("right:");
+    expect(copyButtonRule).toContain("top: 50%");
+    expect(copyButtonRule).toContain("transform: translateY(-50%)");
+  });
+
+  it("slides the print share copy feedback upward above the inline icon", () => {
+    const copyMessageRule = getRule(".print-share-copy-message");
+    const keyframesRule = getRuleContaining("@keyframes print-share-copy-message-rise");
+
+    expect(copyMessageRule).toContain("position: absolute");
+    expect(copyMessageRule).toContain("right:");
+    expect(copyMessageRule).toContain("bottom: calc(100% +");
+    expect(copyMessageRule).toContain("transform:");
+    expect(copyMessageRule).toContain("pointer-events: none");
+    expect(copyMessageRule).toContain("animation: print-share-copy-message-rise");
+    expect(keyframesRule).toContain("translateY(");
+    expect(keyframesRule).toContain("opacity:");
+  });
+
+  it("lets the print share preview fill remaining height and scroll overflowing data", () => {
+    const dialogRule = getRule(".print-share-dialog");
+    const resultRule = getRule(".print-share-result");
+    const previewRule = getRule(".print-share-preview");
+    const paperRule = getRule(".print-share-preview-paper");
+    const scrollRule = getRule(".print-share-preview-scroll");
+
+    expect(dialogRule).toContain("min-height: 0");
+    expect(dialogRule).toContain("height: min(");
+    expect(dialogRule).toContain("100dvh");
+    expect(resultRule).toContain("grid-template-rows: minmax(0, 1fr) auto");
+    expect(resultRule).toContain("min-height: 0");
+    expect(resultRule).toContain("overflow: hidden");
+    expect(previewRule).toContain("grid-template-rows: auto minmax(0, 1fr)");
+    expect(previewRule).toContain("min-height: 0");
+    expect(previewRule).toContain("overflow: hidden");
+    expect(paperRule).toContain("height: 100%");
+    expect(paperRule).toContain("overflow: hidden");
+    expect(scrollRule).toContain("flex: 1 1 auto");
+    expect(scrollRule).toContain("min-height: 0");
+    expect(scrollRule).toContain("overflow-y: auto");
+    expect(styles).not.toContain(".print-share-preview-meta");
+  });
+
+  it("shows a paper width ruler inside the print share preview paper", () => {
+    const rulerRule = getRule(".print-share-paper-width-ruler");
+    const rulerLineRule = getRuleContaining(".print-share-paper-width-ruler::before,");
+
+    expect(rulerRule).toContain("flex: 0 0 auto");
+    expect(rulerRule).toContain("display: flex");
+    expect(rulerRule).toContain("font-size:");
+    expect(rulerLineRule).toContain("content:");
+    expect(rulerLineRule).toContain("border-top:");
+  });
+
   it("does not use primary color directly as text because white ink primary is white", () => {
     expect(styles).not.toMatch(/(?:^|[;{]\s*)color:\s*var\(--color-primary\)/m);
   });

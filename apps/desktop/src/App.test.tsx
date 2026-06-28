@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import type { ApiThemePreference } from "@todo/shared";
+import type { ApiTask, ApiThemePreference } from "@todo/shared";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
@@ -70,7 +70,16 @@ vi.mock("./components/PomodoroView", () => ({
 }));
 
 vi.mock("./components/PrintShareDialog", () => ({
-  PrintShareDialog: ({ open, source }: any) => open ? <div role="dialog" aria-label="便签打印">{source.tagFilter}:{String(source.showCompletedTasks)}:{source.viewMode}</div> : null
+  PrintShareDialog: ({ open, preview, source }: any) => open ? (
+    <div role="dialog" aria-label="便签打印">
+      <span data-testid="print-source">{source.tagFilter}:{String(source.showCompletedTasks)}:{source.viewMode}</span>
+      <ul>
+        {(preview?.tasks ?? []).map((task: ApiTask) => (
+          <li key={task.id}>{task.title}</li>
+        ))}
+      </ul>
+    </div>
+  ) : null
 }));
 
 vi.mock("./components/ProfileCenter", () => ({
@@ -114,6 +123,26 @@ const mockThemePreference: ApiThemePreference = {
   sidebarCollapsed: false,
   fontFamily: "system"
 };
+
+function createTask(overrides: Partial<ApiTask> = {}): ApiTask {
+  return {
+    id: "task-1",
+    title: "未完成打印项",
+    notes: null,
+    dueAt: null,
+    priority: "IMPORTANT_NOT_URGENT",
+    status: "TODO",
+    sortOrder: null,
+    createdAt: "2026-06-28T00:00:00.000Z",
+    updatedAt: "2026-06-28T00:00:00.000Z",
+    completedAt: null,
+    recurrenceRule: null,
+    tags: [],
+    pomodoroCompletedCount: 0,
+    pomodoroCompletedMinutes: 0,
+    ...overrides
+  };
+}
 
 describe("App sidebar", () => {
   beforeEach(() => {
@@ -197,7 +226,30 @@ describe("App sidebar", () => {
     const printButton = await screen.findByRole("button", { name: "便签打印" });
     expect(printButton).toBeInTheDocument();
     fireEvent.click(printButton);
-    expect(await screen.findByRole("dialog", { name: "便签打印" })).toHaveTextContent("__all__:true:list");
+    expect(await screen.findByTestId("print-source")).toHaveTextContent("__all__:false:list");
+  });
+
+  it("prints only incomplete tasks even when completed tasks are visible", async () => {
+    vi.mocked(api.getThemePreference).mockResolvedValue({ ...mockThemePreference, printButtonEnabled: true, showCompletedTasks: true });
+    vi.mocked(api.tasks).mockResolvedValue({
+      tasks: [
+        createTask({ id: "task-open", title: "未完成打印项", status: "TODO" }),
+        createTask({ id: "task-done", title: "已完成打印项", status: "COMPLETED", completedAt: "2026-06-28T02:00:00.000Z" })
+      ]
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/tasks"]}>
+        <App />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: "便签打印" }));
+
+    const printDialog = await screen.findByRole("dialog", { name: "便签打印" });
+    expect(within(printDialog).getByText("未完成打印项")).toBeInTheDocument();
+    expect(within(printDialog).queryByText("已完成打印项")).not.toBeInTheDocument();
+    expect(screen.getByTestId("print-source")).toHaveTextContent("__all__:false:list");
   });
 
   it("prints all tasks in kanban after a hidden tag filter was selected", async () => {
@@ -221,6 +273,6 @@ describe("App sidebar", () => {
     await waitFor(() => expect(screen.queryByRole("combobox", { name: "标签" })).not.toBeInTheDocument());
     fireEvent.click(screen.getByRole("button", { name: "便签打印" }));
 
-    expect(await screen.findByRole("dialog", { name: "便签打印" })).toHaveTextContent("__all__:true:kanban");
+    expect(await screen.findByTestId("print-source")).toHaveTextContent("__all__:false:kanban");
   });
 });

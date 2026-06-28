@@ -1313,6 +1313,28 @@ textarea:focus-visible,
   white-space: nowrap;
 }
 
+.task-print-button,
+.task-print-button[class*="animal-btn-"] {
+  height: var(--topbar-action-height) !important;
+  min-height: var(--topbar-action-height) !important;
+  padding: 0 calc(11px * var(--app-ui-scale)) !important;
+  border-radius: 999px !important;
+  font-size: calc(13px * var(--app-ui-scale)) !important;
+  line-height: 1 !important;
+  white-space: nowrap;
+}
+
+.task-print-button > span {
+  gap: calc(6px * var(--app-ui-scale));
+}
+
+.task-print-button [class*="animal-btn-icon"],
+.task-print-button svg {
+  width: calc(15px * var(--app-ui-scale));
+  height: calc(15px * var(--app-ui-scale));
+  flex: 0 0 auto;
+}
+
 .task-tag-maintenance-button:hover:not(:disabled),
 .task-tag-maintenance-button:focus-visible,
 .task-tag-maintenance-button[class*="animal-btn-"]:hover:not(:disabled),
@@ -1884,6 +1906,7 @@ textarea:focus-visible,
 .habit-modal [class*="animal-modalClipped"],
 .task-detail-modal [class*="animal-modalClipped"],
 .tag-maintenance-modal [class*="animal-modalClipped"],
+.print-share-modal [class*="animal-modalClipped"],
 .profile-security-dialog [class*="animal-modalClipped"],
 .confirm-dialog [class*="animal-modalClipped"] {
   position: relative;
@@ -1898,6 +1921,7 @@ textarea:focus-visible,
 .habit-modal [class*="animal-modalClipped"]::before,
 .task-detail-modal [class*="animal-modalClipped"]::before,
 .tag-maintenance-modal [class*="animal-modalClipped"]::before,
+.print-share-modal [class*="animal-modalClipped"]::before,
 .profile-security-dialog [class*="animal-modalClipped"]::before,
 .confirm-dialog [class*="animal-modalClipped"]::before {
   position: absolute;
@@ -1914,9 +1938,16 @@ textarea:focus-visible,
 .habit-modal [class*="animal-body"],
 .task-detail-modal [class*="animal-body"],
 .tag-maintenance-modal [class*="animal-body"],
+.print-share-modal [class*="animal-body"],
 .profile-security-dialog [class*="animal-body"],
 .confirm-dialog [class*="animal-body"] {
+  width: 100%;
   overflow: visible;
+}
+
+.print-share-modal [class*="animal-body"] {
+  align-items: stretch;
+  min-height: 0;
 }
 
 .tag-maintenance-content {
@@ -1983,16 +2014,32 @@ textarea:focus-visible,
 }
 
 .print-share-dialog {
+  width: 100%;
+  height: min(calc(100dvh - 176px), calc(640px * var(--app-ui-scale)));
+  min-height: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.9fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
 }
 
-.print-share-config,
-.print-share-result {
+.print-share-config {
+  position: relative;
+  z-index: 2;
   display: grid;
   gap: 12px;
   align-content: start;
+}
+
+.print-share-result {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-content: stretch;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
 }
 
 .print-share-config label,
@@ -2002,24 +2049,253 @@ textarea:focus-visible,
   font-size: 13px;
 }
 
-.print-share-native-select {
+.print-share-preview {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  justify-items: center;
+  align-items: stretch;
+  gap: calc(10px * var(--app-ui-scale));
+  min-height: 0;
+  height: 100%;
+  padding: calc(12px * var(--app-ui-scale));
+  border: 1px solid color-mix(in srgb, var(--color-border) 66%, transparent);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--color-surface) 78%, var(--color-background));
+  overflow: hidden;
+}
+
+.print-share-preview-title {
+  justify-self: stretch;
+  margin: 0;
+  color: var(--color-muted);
+  font-size: calc(13px * var(--app-ui-scale));
+  font-weight: 900;
+  line-height: 1.2;
+  text-align: left;
+}
+
+.print-share-preview-paper {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  max-width: 100%;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--color-border) 88%, #111827);
+  background: #fff;
+  color: #111827;
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--color-shadow) 14%, transparent);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 13px;
+  line-height: 1.45;
+  overflow: hidden;
+}
+
+.print-share-preview-paper h3 {
+  flex: 0 0 auto;
+  margin: 0 0 8px;
+  font-size: 1.2em;
+  line-height: 1.25;
+}
+
+.print-share-paper-width-ruler {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 5px;
+  margin: 0 0 8px;
+  color: #6b7280;
+  font-size: 0.78em;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.print-share-paper-width-ruler::before,
+.print-share-paper-width-ruler::after {
+  flex: 1 1 auto;
+  min-width: 8px;
+  border-top: 1px solid #d1d5db;
+  content: "";
+}
+
+.print-share-preview-task-list {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.print-share-preview-task-list li {
+  display: grid;
+  grid-template-columns: 13px 1fr;
+  gap: 6px;
+  padding: 5px 0;
+  border-bottom: 1px dashed #d1d5db;
+}
+
+.print-share-preview-task-list li:last-child {
+  border-bottom: 0;
+}
+
+.print-share-preview-task-list .box {
+  width: 11px;
+  height: 11px;
+  margin-top: 3px;
+  border: 1px solid #111827;
+}
+
+.print-share-preview-task-list li.is-completed {
+  color: #6b7280;
+  text-decoration: line-through;
+}
+
+.print-share-preview-task-list li.is-completed .box::after {
+  display: block;
+  color: #111827;
+  font-size: 10px;
+  line-height: 9px;
+  text-align: center;
+  content: "✓";
+}
+
+.print-share-preview-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.print-share-preview-task-copy {
+  display: grid;
+  gap: 2px;
+}
+
+.print-share-preview-task-copy small {
+  color: #4b5563;
+  font-size: 0.86em;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.print-share-preview-empty {
+  margin: 0;
+  color: #6b7280;
+}
+
+.print-share-preview-memo-title {
+  margin: 0 0 8px;
+  font-size: 1.05em;
+  line-height: 1.35;
+}
+
+.print-share-preview-memo-content {
+  display: grid;
+  gap: 6px;
+}
+
+.print-share-preview-memo-content :where(p, ul, ol, blockquote, pre, table) {
+  margin: 0;
+}
+
+.print-share-preview-memo-content :where(img, table) {
+  max-width: 100%;
+}
+
+.print-share-preview-paper.print-template-compact {
+  line-height: 1.25;
+}
+
+.print-share-preview-paper.print-template-compact h3 {
+  margin-bottom: 5px;
+  font-size: 1.05em;
+}
+
+.print-share-preview-paper.print-template-compact .print-share-preview-task-list li {
+  grid-template-columns: 10px 1fr;
+  gap: 4px;
+  padding: 2px 0;
+}
+
+.print-share-preview-paper.print-template-compact .print-share-preview-task-list .box {
+  width: 9px;
+  height: 9px;
+  margin-top: 2px;
+}
+
+.print-share-preview-paper.print-template-decorated {
+  border-color: #111827;
+}
+
+.print-share-preview-paper.print-template-decorated h3 {
+  margin-bottom: 10px;
+  padding-bottom: 5px;
+  text-align: center;
+  border-bottom: 1px solid #111827;
+}
+
+.print-share-preview-paper.print-template-decorated h3::before,
+.print-share-preview-paper.print-template-decorated h3::after {
+  content: "·";
+  padding: 0 4px;
+}
+
+.print-share-preview-paper.is-font-small {
+  font-size: 12px;
+}
+
+.print-share-preview-paper.is-font-large {
+  font-size: 16px;
+}
+
+.print-share-preview-paper.is-margin-narrow {
+  padding: 8px;
+}
+
+.print-share-preview-paper.is-margin-wide {
+  padding: 20px;
+}
+
+.print-share-generated {
+  display: grid;
+  gap: calc(10px * var(--app-ui-scale));
+}
+
+.print-share-link-field {
+  position: relative;
+  display: block;
   width: 100%;
-  min-height: 36px;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--color-surface) 92%, var(--color-background));
-  color: var(--color-text);
-  font: inherit;
-  padding: 6px 10px;
 }
 
-.print-share-native-select:focus-visible {
-  outline: 3px solid color-mix(in srgb, var(--color-primary) 48%, #ffffff);
-  outline-offset: 2px;
+.print-share-link-field input {
+  padding-right: calc(44px * var(--app-ui-scale)) !important;
 }
 
-.print-share-error,
-.print-share-copy-message {
+.print-share-link-copy-button,
+.print-share-link-copy-button[class*="animal-btn-"] {
+  position: absolute !important;
+  top: 50%;
+  right: calc(8px * var(--app-ui-scale));
+  z-index: 2;
+  width: calc(28px * var(--app-ui-scale)) !important;
+  min-width: calc(28px * var(--app-ui-scale)) !important;
+  height: calc(28px * var(--app-ui-scale)) !important;
+  min-height: calc(28px * var(--app-ui-scale)) !important;
+  padding: 0 !important;
+  border-radius: 999px !important;
+  transform: translateY(-50%);
+  box-shadow: none !important;
+}
+
+.print-share-link-copy-button [class*="animal-btn-icon"],
+.print-share-link-copy-button svg {
+  width: calc(15px * var(--app-ui-scale));
+  height: calc(15px * var(--app-ui-scale));
+  flex: 0 0 auto;
+}
+
+.print-share-error {
   margin: 0;
   font-size: 13px;
 }
@@ -2029,7 +2305,35 @@ textarea:focus-visible,
 }
 
 .print-share-copy-message {
+  position: absolute;
+  right: calc(6px * var(--app-ui-scale));
+  bottom: calc(100% + calc(4px * var(--app-ui-scale)));
+  z-index: 3;
+  margin: 0;
+  padding: calc(2px * var(--app-ui-scale)) calc(7px * var(--app-ui-scale));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-surface) 94%, var(--color-background));
   color: var(--color-emphasis-text);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--color-shadow) 18%, transparent);
+  font-size: calc(12px * var(--app-ui-scale));
+  font-weight: 900;
+  line-height: 1.25;
+  pointer-events: none;
+  transform: translateY(0);
+  white-space: nowrap;
+  animation: print-share-copy-message-rise 180ms ease-out both;
+}
+
+@keyframes print-share-copy-message-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @media (max-width: 720px) {
