@@ -14,15 +14,16 @@ if (!process.env.DATABASE_URL && process.env.DB_HOST && process.env.DB_PORT && p
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().min(1).max(65535).default(4020),
+  HOST: z.string().min(1).default("127.0.0.1"),
   APP_ORIGIN: z.string().url().default("http://localhost:8090"),
   EXTRA_APP_ORIGINS: z
     .string()
     .optional()
     .default("http://127.0.0.1:8090,http://tauri.localhost,https://tauri.localhost,tauri://localhost"),
   API_PUBLIC_URL: z.string().url().default("http://localhost:4020"),
-  API_VERSION: z.string().min(1).default(process.env.npm_package_version ?? "0.2.20"),
+  API_VERSION: z.string().min(1).default(process.env.npm_package_version ?? "0.2.21"),
   DESKTOP_MIN_VERSION: z.string().min(1).default("0.1.0"),
-  DESKTOP_LATEST_VERSION: z.string().min(1).default("0.2.20"),
+  DESKTOP_LATEST_VERSION: z.string().min(1).default("0.2.21"),
   DESKTOP_UPDATE_ENDPOINT: z
     .string()
     .url()
