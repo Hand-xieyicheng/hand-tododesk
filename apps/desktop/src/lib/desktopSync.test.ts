@@ -6,6 +6,18 @@ import {
   listenDesktopSyncEvents
 } from "./desktopSync";
 
+const memo = {
+  id: "memo-1",
+  title: "同步备忘录",
+  excerpt: "同步摘要",
+  isPinned: false,
+  archivedAt: null,
+  createdAt: "2026-06-17T08:00:00.000Z",
+  updatedAt: "2026-06-17T08:00:00.000Z",
+  contentHtml: "<p>同步正文</p>",
+  assets: []
+};
+
 const tauriEventMock = vi.hoisted(() => ({
   emit: vi.fn(async () => {
     throw new Error("Tauri event API unavailable");
@@ -65,6 +77,39 @@ describe("desktopSync", () => {
       sourceId: "another-window",
       taskId: "task-2",
       type: "task:deleted"
+    });
+
+    unsubscribe();
+  });
+
+  it("handles external memo upsert and delete events", () => {
+    const listener = vi.fn();
+    const unsubscribe = listenDesktopSyncEvents(listener);
+
+    window.dispatchEvent(new CustomEvent(desktopSyncBrowserEventName, {
+      detail: {
+        memo,
+        sourceId: "memo-card",
+        type: "memo:upserted"
+      }
+    }));
+    window.dispatchEvent(new CustomEvent(desktopSyncBrowserEventName, {
+      detail: {
+        memoId: "memo-1",
+        sourceId: "memo-card",
+        type: "memo:deleted"
+      }
+    }));
+
+    expect(listener).toHaveBeenCalledWith({
+      memo,
+      sourceId: "memo-card",
+      type: "memo:upserted"
+    });
+    expect(listener).toHaveBeenCalledWith({
+      memoId: "memo-1",
+      sourceId: "memo-card",
+      type: "memo:deleted"
     });
 
     unsubscribe();

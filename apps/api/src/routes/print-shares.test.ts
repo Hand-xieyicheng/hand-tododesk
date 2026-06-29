@@ -37,8 +37,6 @@ const taskPrintSource = {
 
 const printConfig = {
   templateId: "checklist",
-  paperWidthMode: "preset",
-  paperWidthMm: 58,
   fontSizeMode: "normal",
   marginMode: "normal",
   expiresInHours: 24
@@ -156,7 +154,10 @@ describe("print share routes", () => {
     expect(response.body).toContain("整理热敏纸采购");
     expect(response.body).toContain("采购");
     expect(response.body).toContain("@media print");
-    expect(response.body).toContain("58mm");
+    expect(response.body).toContain("main { width: 100%;");
+    expect(response.body).toContain("@page { size: auto; margin: 0; }");
+    expect(response.body).not.toContain("--paper-width");
+    expect(response.body).not.toContain("58mm");
     expect(response.body).not.toContain("todo@example.com");
     expect(db.execute).toHaveBeenCalledWith("UPDATE `PrintShare` SET `lastAccessedAt` = NOW(3), `updatedAt` = NOW(3) WHERE `id` = ?", ["share-1"]);
   });

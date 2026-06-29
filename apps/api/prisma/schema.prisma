@@ -112,6 +112,7 @@ model Task {
   userId            String
   title             String
   notes             String?            @db.Text
+  startAt           DateTime?
   dueAt             DateTime?
   priority          TaskPriority       @default(IMPORTANT_NOT_URGENT)
   status            TaskStatus         @default(TODO)

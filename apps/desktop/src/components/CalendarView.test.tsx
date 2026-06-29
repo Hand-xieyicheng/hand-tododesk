@@ -47,6 +47,7 @@ const calendarPayload: CalendarResponse = {
         id: "task-1",
         title: "整理计划",
         notes: null,
+        startAt: null,
         dueAt: "2026-06-25T10:00:00.000Z",
         priority: "IMPORTANT_NOT_URGENT",
         status: "TODO",

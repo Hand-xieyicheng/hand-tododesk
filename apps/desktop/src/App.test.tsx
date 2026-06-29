@@ -66,9 +66,24 @@ vi.mock("./components/CalendarView", () => ({
   CalendarView: () => <div />
 }));
 
-vi.mock("./components/HabitPanel", () => ({
-  HabitPanel: () => <div />
-}));
+vi.mock("./components/HabitPanel", async () => {
+  const React = await import("react");
+  return {
+    HabitPanel: ({ onDetailModeChange, returnToListSignal }: any) => {
+      React.useEffect(() => {
+        if (returnToListSignal > 0) {
+          onDetailModeChange?.(false);
+        }
+      }, [onDetailModeChange, returnToListSignal]);
+
+      return (
+        <div data-testid="habit-panel" data-return-signal={returnToListSignal ?? 0}>
+          <button type="button" onClick={() => onDetailModeChange?.(true)}>模拟进入习惯详情</button>
+        </div>
+      );
+    }
+  };
+});
 
 vi.mock("./components/MemoPanel", () => ({
   MemoPanel: () => <div />
@@ -138,6 +153,7 @@ function createTask(overrides: Partial<ApiTask> = {}): ApiTask {
     id: "task-1",
     title: "未完成打印项",
     notes: null,
+    startAt: null,
     dueAt: null,
     priority: "IMPORTANT_NOT_URGENT",
     status: "TODO",
@@ -331,5 +347,64 @@ describe("App sidebar", () => {
     fireEvent.click(screen.getByRole("button", { name: "便签打印" }));
 
     expect(await screen.findByTestId("print-source")).toHaveTextContent("__all__:false:kanban");
+  });
+
+  it("syncs multi-device profile settings from the profile header action", async () => {
+    const syncedUser = {
+      ...mockUser,
+      name: "远端昵称"
+    };
+    const syncedPreference: ApiThemePreference = {
+      ...mockThemePreference,
+      themeId: "navy",
+      displaySize: "large",
+      fontFamily: "nanxi-xin-yuanti",
+      visibleSidebarModules: ["memos"],
+      sidebarCollapsed: true
+    };
+
+    render(
+      <MemoryRouter initialEntries={["/profile"]}>
+        <App />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => expect(api.getThemePreference).toHaveBeenCalledTimes(1));
+    vi.mocked(api.currentUser).mockResolvedValueOnce({ user: syncedUser });
+    vi.mocked(api.getThemePreference).mockResolvedValueOnce(syncedPreference);
+
+    fireEvent.click(screen.getByRole("button", { name: "同步配置" }));
+
+    await waitFor(() => expect(api.getThemePreference).toHaveBeenCalledTimes(2));
+    expect(api.currentUser).toHaveBeenCalledTimes(2);
+    expect(localStorage.getItem("tododesk.theme")).toBe("navy");
+    expect(localStorage.getItem("tododesk.displaySize")).toBe("large");
+    expect(localStorage.getItem("tododesk.fontFamily")).toBe("nanxi-xin-yuanti");
+    expect(localStorage.getItem("tododesk.sidebarCollapsed")).toBe("true");
+    expect(screen.getByRole("button", { name: "展开侧边栏" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "待办事项" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "备忘录" })).toBeInTheDocument();
+    expect(screen.getByText("多端配置已同步")).toBeInTheDocument();
+  });
+
+  it("shows a habit list return action only while the habit detail page is active", async () => {
+    render(
+      <MemoryRouter initialEntries={["/habits"]}>
+        <App />
+      </MemoryRouter>
+    );
+
+    await screen.findByRole("button", { name: "显示归档" });
+    expect(screen.queryByRole("button", { name: "返回习惯列表" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "模拟进入习惯详情" }));
+
+    const returnButton = await screen.findByRole("button", { name: "返回习惯列表" });
+    expect(returnButton).toBeInTheDocument();
+
+    fireEvent.click(returnButton);
+
+    await waitFor(() => expect(screen.queryByRole("button", { name: "返回习惯列表" })).not.toBeInTheDocument());
+    expect(screen.getByTestId("habit-panel")).toHaveAttribute("data-return-signal", "1");
   });
 });

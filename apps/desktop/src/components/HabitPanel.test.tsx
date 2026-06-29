@@ -167,6 +167,14 @@ function createDeferred<T>() {
   return { promise, reject, resolve };
 }
 
+function getHabitListTitle(container: HTMLElement, title: string) {
+  return within(container.querySelector(".habit-list") as HTMLElement).getByText(title);
+}
+
+function selectHabitFromList(container: HTMLElement, title = habit.title) {
+  fireEvent.click(getHabitListTitle(container, title));
+}
+
 describe("HabitPanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -189,11 +197,66 @@ describe("HabitPanel", () => {
     expect(screen.getByText("主题颜色")).toBeInTheDocument();
   });
 
-  it("renders detail stats, calendar, logs, and checks in today", async () => {
-    render(<HabitPanel createOpen={false} showArchived={false} onCreateOpenChange={vi.fn()} />);
+  it("uses Ant Design date pickers and submits an empty end date as open-ended", async () => {
+    apiMock.createHabit.mockResolvedValue({ habit });
+    render(<HabitPanel createOpen showArchived={false} onCreateOpenChange={vi.fn()} />);
+
+    expect(document.querySelectorAll(".habit-date-picker.ant-picker")).toHaveLength(2);
+    expect(screen.getByLabelText("结束日期")).toHaveValue("");
+    expect(screen.getByLabelText("结束日期")).toHaveAttribute("placeholder", "无期限");
+
+    fireEvent.change(screen.getByLabelText("习惯名称"), { target: { value: "读书" } });
+    fireEvent.click(screen.getByRole("button", { name: "添加" }));
+
+    await waitFor(() => expect(apiMock.createHabit).toHaveBeenCalledWith(expect.objectContaining({
+      title: "读书",
+      startDate: today,
+      endDate: null
+    })));
+  });
+
+  it("opens on the habit card collection and loads detail only after a card is selected", async () => {
+    const { container } = render(<HabitPanel createOpen={false} showArchived={false} onCreateOpenChange={vi.fn()} />);
 
     await waitFor(() => expect(apiMock.habits).toHaveBeenCalledWith(false));
-    await waitFor(() => expect(screen.getAllByText("学习日语").length).toBeGreaterThan(0));
+    await waitFor(() => expect(getHabitListTitle(container, "学习日语")).toBeInTheDocument());
+
+    expect(apiMock.habitDetail).not.toHaveBeenCalled();
+    expect(screen.queryByText("月完成率")).not.toBeInTheDocument();
+    expect(container.querySelector(".habit-panel")).toHaveClass("is-collection");
+
+    selectHabitFromList(container, "学习日语");
+
+    await waitFor(() => expect(apiMock.habitDetail).toHaveBeenCalledWith("habit-1", today.slice(0, 7)));
+    expect(await screen.findByText("月完成率")).toBeInTheDocument();
+    expect(container.querySelector(".habit-panel")).toHaveClass("is-detail");
+  });
+
+  it("returns to the habit card collection when the parent sends a list return signal", async () => {
+    const { container, rerender } = render(
+      <HabitPanel createOpen={false} returnToListSignal={0} showArchived={false} onCreateOpenChange={vi.fn()} />
+    );
+
+    await waitFor(() => expect(getHabitListTitle(container, "学习日语")).toBeInTheDocument());
+    selectHabitFromList(container, "学习日语");
+
+    await waitFor(() => expect(container.querySelector(".habit-panel")).toHaveClass("is-detail"));
+    expect(screen.getByText("月完成率")).toBeInTheDocument();
+
+    rerender(
+      <HabitPanel createOpen={false} returnToListSignal={1} showArchived={false} onCreateOpenChange={vi.fn()} />
+    );
+
+    await waitFor(() => expect(container.querySelector(".habit-panel")).toHaveClass("is-collection"));
+    expect(screen.queryByText("月完成率")).not.toBeInTheDocument();
+  });
+
+  it("renders detail stats, calendar, logs, and checks in today", async () => {
+    const { container } = render(<HabitPanel createOpen={false} showArchived={false} onCreateOpenChange={vi.fn()} />);
+
+    await waitFor(() => expect(apiMock.habits).toHaveBeenCalledWith(false));
+    await waitFor(() => expect(getHabitListTitle(container, "学习日语")).toBeInTheDocument());
+    selectHabitFromList(container, "学习日语");
 
     await waitFor(() => expect(screen.getByText("月完成率")).toBeInTheDocument());
     expect(screen.getByText("记录日志")).toBeInTheDocument();
@@ -208,7 +271,9 @@ describe("HabitPanel", () => {
   it("renders semantic tooltips for detail action icons", async () => {
     const { container } = render(<HabitPanel createOpen={false} showArchived={false} onCreateOpenChange={vi.fn()} />);
 
-    await waitFor(() => expect(screen.getAllByText("学习日语").length).toBeGreaterThan(0));
+    await waitFor(() => expect(getHabitListTitle(container, "学习日语")).toBeInTheDocument());
+    selectHabitFromList(container, "学习日语");
+    await waitFor(() => expect(screen.getByText("月完成率")).toBeInTheDocument());
 
     const detailActions = container.querySelector(".habit-detail-actions");
     expect(detailActions).not.toBeNull();
@@ -271,7 +336,7 @@ describe("HabitPanel", () => {
   it("keeps habit list content in place while a list refresh is pending", async () => {
     const { container } = render(<HabitPanel createOpen={false} showArchived={false} onCreateOpenChange={vi.fn()} />);
 
-    await waitFor(() => expect(screen.getAllByText("学习日语").length).toBeGreaterThan(0));
+    await waitFor(() => expect(getHabitListTitle(container, "学习日语")).toBeInTheDocument());
 
     const refresh = createDeferred<{ habits: ApiHabit[] }>();
     apiMock.habits.mockReturnValueOnce(refresh.promise);
@@ -286,12 +351,16 @@ describe("HabitPanel", () => {
     expect(screen.queryByText("加载中...")).not.toBeInTheDocument();
 
     refresh.resolve({ habits: [{ ...habit, todayChecked: true }] });
-    await waitFor(() => expect(apiMock.habitDetail).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.getByRole("button", { name: "取消今日学习日语打卡" })).toBeInTheDocument());
+    expect(apiMock.habitDetail).not.toHaveBeenCalled();
+    expect(container.querySelector(".habit-panel")).toHaveClass("is-collection");
   });
 
   it("keeps habit detail content in place while detail refresh is pending", async () => {
     const { container } = render(<HabitPanel createOpen={false} showArchived={false} onCreateOpenChange={vi.fn()} />);
 
+    await waitFor(() => expect(getHabitListTitle(container, "学习日语")).toBeInTheDocument());
+    selectHabitFromList(container, "学习日语");
     await waitFor(() => expect(screen.getByText("月完成率")).toBeInTheDocument());
 
     const refresh = createDeferred<ApiHabitDetail>();
@@ -319,7 +388,9 @@ describe("HabitPanel", () => {
     try {
       render(<HabitPanel createOpen={false} showArchived={false} onCreateOpenChange={vi.fn()} />);
 
-      await waitFor(() => expect(screen.getAllByText("Coffee Time").length).toBeGreaterThan(0));
+      await waitFor(() => expect(screen.getByRole("button", { name: "Coffee Time 每天" })).toBeInTheDocument());
+      fireEvent.click(screen.getByRole("button", { name: "Coffee Time 每天" }));
+      await waitFor(() => expect(screen.getByRole("button", { name: "删除" })).toBeInTheDocument());
 
       fireEvent.click(screen.getByRole("button", { name: "删除" }));
 

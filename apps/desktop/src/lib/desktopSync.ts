@@ -1,4 +1,4 @@
-import type { ApiTask, ApiThemePreference } from "@todo/shared";
+import type { ApiMemo, ApiTask, ApiThemePreference } from "@todo/shared";
 
 export const desktopSyncTauriEventName = "tododesk:desktop-sync";
 export const desktopSyncBrowserEventName = "tododesk:desktop-sync:fallback";
@@ -18,6 +18,16 @@ export type DesktopSyncEvent =
     preference: ApiThemePreference;
     sourceId: string;
     type: "preference:changed";
+  }
+  | {
+    memo: ApiMemo;
+    sourceId: string;
+    type: "memo:upserted";
+  }
+  | {
+    memoId: string;
+    sourceId: string;
+    type: "memo:deleted";
   }
   | {
     sourceId: string;
@@ -68,6 +78,12 @@ function isDesktopSyncEvent(value: unknown): value is DesktopSyncEvent {
   }
   if (value.type === "preference:changed") {
     return isRecord(value.preference);
+  }
+  if (value.type === "memo:upserted") {
+    return isRecord(value.memo) && typeof value.memo.id === "string";
+  }
+  if (value.type === "memo:deleted") {
+    return typeof value.memoId === "string";
   }
   if (value.type === "task-board:reload-requested") {
     return true;

@@ -19,6 +19,7 @@ type TaskRow = DbRow & {
   userId: string;
   title: string;
   notes: string | null;
+  startAt: Date | string | null;
   dueAt: Date | string | null;
   priority: string;
   status: TaskStatus;
@@ -134,6 +135,7 @@ async function serializeTask(row: TaskRow): Promise<ApiTask> {
     id: row.id,
     title: row.title,
     notes: row.notes,
+    startAt: asDate(row.startAt)?.toISOString() ?? null,
     dueAt: asDate(row.dueAt)?.toISOString() ?? null,
     priority: normalizeTaskPriority(row.priority),
     status: row.status,
@@ -182,6 +184,17 @@ async function upsertRecurrence(taskId: string, recurrenceRule: RecurrenceRuleIn
   );
 }
 
+function selectedTaskDate(input: string | null | undefined, existing: Date | string | null) {
+  if (input === undefined) {
+    return asDate(existing);
+  }
+  return input ? new Date(input) : null;
+}
+
+function taskTimeRangeIsValid(startAt: Date | null, dueAt: Date | null) {
+  return !startAt || !dueAt || startAt.getTime() <= dueAt.getTime();
+}
+
 export async function taskRoutes(app: FastifyInstance) {
   app.get("/tasks", { preHandler: app.authenticate }, async (request) => {
     const rows = await queryRows<TaskRow>(
@@ -217,13 +230,14 @@ export async function taskRoutes(app: FastifyInstance) {
     await transaction(async (connection) => {
       await connection.execute(
         `INSERT INTO \`Task\`
-          (\`id\`, \`userId\`, \`title\`, \`notes\`, \`dueAt\`, \`priority\`, \`status\`, \`completedAt\`, \`updatedAt\`)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(3))`,
+          (\`id\`, \`userId\`, \`title\`, \`notes\`, \`startAt\`, \`dueAt\`, \`priority\`, \`status\`, \`completedAt\`, \`updatedAt\`)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(3))`,
         [
           taskId,
           request.user.id,
           body.title,
           body.notes ?? null,
+          toMysqlDate(body.startAt ? new Date(body.startAt) : null),
           toMysqlDate(body.dueAt ? new Date(body.dueAt) : null),
           body.priority,
           body.status,
@@ -274,12 +288,18 @@ export async function taskRoutes(app: FastifyInstance) {
     if (body.tagId !== undefined && tagId && !(await tagBelongsToUser(tagId, request.user.id))) {
       return reply.code(400).send({ error: "Tag not found" });
     }
+    const nextStartAt = selectedTaskDate(body.startAt, existing.startAt);
+    const nextDueAt = selectedTaskDate(body.dueAt, existing.dueAt);
+    if (!taskTimeRangeIsValid(nextStartAt, nextDueAt)) {
+      return reply.code(400).send({ error: "Start time must not be later than due time" });
+    }
 
     await transaction(async (connection) => {
       await connection.execute(
         `UPDATE \`Task\` SET
           \`title\` = COALESCE(?, \`title\`),
           \`notes\` = ?,
+          \`startAt\` = ?,
           \`dueAt\` = ?,
           \`priority\` = COALESCE(?, \`priority\`),
           \`status\` = COALESCE(?, \`status\`),
@@ -289,6 +309,7 @@ export async function taskRoutes(app: FastifyInstance) {
         [
           body.title ?? null,
           body.notes === undefined ? existing.notes : body.notes,
+          body.startAt === undefined ? existing.startAt : toMysqlDate(body.startAt ? new Date(body.startAt) : null),
           body.dueAt === undefined ? existing.dueAt : toMysqlDate(body.dueAt ? new Date(body.dueAt) : null),
           body.priority ?? null,
           body.status ?? null,

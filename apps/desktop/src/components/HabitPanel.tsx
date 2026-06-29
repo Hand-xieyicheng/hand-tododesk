@@ -2,6 +2,9 @@ import { memo, type CSSProperties, type FormEvent, type ReactNode, useCallback, 
 import { closestCenter, DndContext, KeyboardSensor, PointerSensor, type DragEndEvent, useSensor, useSensors } from "@dnd-kit/core";
 import { arrayMove, rectSortingStrategy, SortableContext, sortableKeyboardCoordinates, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import DatePicker from "antd/es/date-picker";
+import "antd/es/date-picker/style/index";
+import dayjs, { type Dayjs } from "dayjs";
 import {
   habitColorValues,
   habitWeekdayValues,
@@ -34,8 +37,10 @@ import { ConfirmDialog } from "./ConfirmDialog";
 
 interface HabitPanelProps {
   createOpen: boolean;
+  returnToListSignal?: number;
   showArchived: boolean;
   onCreateOpenChange(open: boolean): void;
+  onDetailModeChange?(open: boolean): void;
 }
 
 interface HabitDraft {
@@ -113,6 +118,33 @@ function moveMonth(month: string, delta: number) {
 function monthLabel(month: string) {
   const [year, monthValue] = month.split("-").map(Number);
   return `${year}年${monthValue}月`;
+}
+
+function datePickerValue(value: string): Dayjs | null {
+  if (!value) {
+    return null;
+  }
+  const nextValue = dayjs(`${value}T00:00:00`);
+  return nextValue.isValid() ? nextValue : null;
+}
+
+function parseTypedDateKey(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return "";
+  }
+
+  const match = /^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/.exec(trimmed);
+  if (!match) {
+    return "";
+  }
+
+  const year = match[1] ?? "";
+  const month = match[2] ?? "";
+  const day = match[3] ?? "";
+  const candidate = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+  const parsed = dayjs(`${candidate}T00:00:00`);
+  return parsed.isValid() && parsed.format("YYYY-MM-DD") === candidate ? candidate : "";
 }
 
 function emptyDraft(): HabitDraft {
@@ -206,6 +238,57 @@ const HabitIconOptionButton = memo(function HabitIconOptionButton({ active, icon
   );
 });
 
+interface HabitDatePickerProps {
+  allowClear?: boolean;
+  label: string;
+  placeholder: string;
+  value: string;
+  onChange(value: string): void;
+}
+
+function HabitDatePicker({ allowClear = true, label, placeholder, value, onChange }: HabitDatePickerProps) {
+  function updateFromPicker(nextValue: Dayjs | null) {
+    onChange(nextValue ? nextValue.format("YYYY-MM-DD") : "");
+  }
+
+  function commitTypedValue(nextValue: string) {
+    const parsed = parseTypedDateKey(nextValue);
+    if (parsed || !nextValue.trim()) {
+      onChange(parsed);
+    }
+  }
+
+  return (
+    <label
+      onChangeCapture={(event) => {
+        const target = event.nativeEvent.target;
+        if (target instanceof HTMLInputElement) {
+          commitTypedValue(target.value);
+        }
+      }}
+    >
+      <span>{label}</span>
+      <DatePicker
+        allowClear={allowClear}
+        aria-label={label}
+        className="habit-date-picker"
+        classNames={{ popup: { root: "habit-date-picker-dropdown" } }}
+        format="YYYY/MM/DD"
+        inputReadOnly={false}
+        placeholder={placeholder}
+        showNow={false}
+        styles={{ popup: { root: { zIndex: 2147483000 } } }}
+        value={datePickerValue(value)}
+        onBlur={(event) => {
+          const target = event.target as HTMLInputElement;
+          commitTypedValue(target.value);
+        }}
+        onChange={updateFromPicker}
+      />
+    </label>
+  );
+}
+
 interface SortableHabitCardProps {
   habit: ApiHabit;
   selected: boolean;
@@ -264,7 +347,7 @@ function SortableHabitCard({ habit, selected, onBeginEdit, onSelect, onToggleTod
   );
 }
 
-export function HabitPanel({ createOpen, showArchived, onCreateOpenChange }: HabitPanelProps) {
+export function HabitPanel({ createOpen, returnToListSignal = 0, showArchived, onCreateOpenChange, onDetailModeChange }: HabitPanelProps) {
   const [habits, setHabits] = useState<ApiHabit[]>([]);
   const [selectedId, setSelectedId] = useState<string>("");
   const [detail, setDetail] = useState<ApiHabitDetail | null>(null);
@@ -325,9 +408,7 @@ export function HabitPanel({ createOpen, showArchived, onCreateOpenChange }: Hab
     try {
       const payload = await api.habits(showArchived);
       setHabits(payload.habits);
-      const nextSelectedId = preferredId && payload.habits.some((habit) => habit.id === preferredId)
-        ? preferredId
-        : payload.habits[0]?.id ?? "";
+      const nextSelectedId = preferredId && payload.habits.some((habit) => habit.id === preferredId) ? preferredId : "";
       setSelectedId(nextSelectedId);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "习惯加载失败");
@@ -359,6 +440,22 @@ export function HabitPanel({ createOpen, showArchived, onCreateOpenChange }: Hab
   useEffect(() => {
     void loadDetail();
   }, [selectedId, detailMonth]);
+
+  useEffect(() => {
+    onDetailModeChange?.(Boolean(selectedHabit));
+  }, [onDetailModeChange, selectedHabit]);
+
+  useEffect(() => () => {
+    onDetailModeChange?.(false);
+  }, [onDetailModeChange]);
+
+  useEffect(() => {
+    if (returnToListSignal <= 0) {
+      return;
+    }
+    setSelectedId("");
+    setDetail(null);
+  }, [returnToListSignal]);
 
   useEffect(() => {
     if (createOpen && !editingHabit) {
@@ -394,6 +491,11 @@ export function HabitPanel({ createOpen, showArchived, onCreateOpenChange }: Hab
 
   async function submit(event: FormEvent) {
     event.preventDefault();
+    if (!draft.startDate) {
+      setFormMessage("请选择开始日期");
+      return;
+    }
+
     setSaving(true);
     setFormMessage("");
     try {
@@ -414,14 +516,18 @@ export function HabitPanel({ createOpen, showArchived, onCreateOpenChange }: Hab
 
   async function toggleToday(habit: ApiHabit) {
     const today = toLocalDateKey();
+    const activeDetailId = selectedId;
+    const refreshesCurrentDetail = activeDetailId === habit.id;
     try {
       if (habit.todayChecked) {
         await api.cancelHabitCheckIn(habit.id, today);
       } else {
         await api.checkInHabit(habit.id, today);
       }
-      await loadHabits(habit.id);
-      await loadDetail(habit.id, detailMonth);
+      await loadHabits(activeDetailId);
+      if (refreshesCurrentDetail) {
+        await loadDetail(habit.id, detailMonth);
+      }
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "打卡失败");
     }
@@ -706,14 +812,19 @@ export function HabitPanel({ createOpen, showArchived, onCreateOpenChange }: Hab
             </label>
           ) : null}
           <div className="form-grid">
-            <label>
-              <span>开始日期</span>
-              <Input value={draft.startDate} onChange={(event) => updateDraft({ startDate: event.target.value })} type="date" required shadow />
-            </label>
-            <label>
-              <span>结束日期</span>
-              <Input value={draft.endDate} onChange={(event) => updateDraft({ endDate: event.target.value })} type="date" shadow />
-            </label>
+            <HabitDatePicker
+              allowClear={false}
+              label="开始日期"
+              placeholder="开始日期"
+              value={draft.startDate}
+              onChange={(startDate) => updateDraft({ startDate })}
+            />
+            <HabitDatePicker
+              label="结束日期"
+              placeholder="无期限"
+              value={draft.endDate}
+              onChange={(endDate) => updateDraft({ endDate })}
+            />
           </div>
           <label>
             <span>备注</span>
@@ -757,7 +868,7 @@ export function HabitPanel({ createOpen, showArchived, onCreateOpenChange }: Hab
         onConfirm={() => void confirmDeleteHabit()}
       />
 
-      <section className="habit-panel">
+      <section className={`habit-panel ${selectedHabit ? "is-detail" : "is-collection"}`}>
         <aside className="habit-list-panel">
           {message ? <div className="inline-alert">{message}</div> : null}
           <DndContext collisionDetection={closestCenter} sensors={sensors} onDragEnd={handleDragEnd}>
@@ -779,9 +890,8 @@ export function HabitPanel({ createOpen, showArchived, onCreateOpenChange }: Hab
           </DndContext>
         </aside>
 
-        <section className="habit-detail-panel" aria-busy={detailLoading}>
-          {selectedHabit ? (
-            <>
+        {selectedHabit ? (
+          <section className="habit-detail-panel" aria-busy={detailLoading}>
               <Card className={`habit-detail-header color-${selectedHabit.color}`} pattern="default">
                 <div className="habit-detail-title">
                   <HabitIconBadge habit={selectedHabit} size={24} />
@@ -892,11 +1002,8 @@ export function HabitPanel({ createOpen, showArchived, onCreateOpenChange }: Hab
                   </Card>
                 </>
               ) : null}
-            </>
-          ) : (
-            <Card className="empty-state" type="dashed">选择或新建一个习惯</Card>
-          )}
-        </section>
+          </section>
+        ) : null}
       </section>
     </>
   );

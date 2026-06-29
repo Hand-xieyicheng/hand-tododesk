@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CSSProperties, PointerEvent } from "react";
 import { defaultAppFeatureFlags, defaultThemeId, defaultVisibleSidebarModules, normalizeThemeId, sortTasksForDisplay, type ApiTask, type ApiThemePreference, type ApiUser, type AppBootstrapResponse, type AppCloseBehavior, type AppFeatureFlags, type DisplaySize, type FloatingCardThemeId, type FontFamily, type FooterType as AppFooterType, type SidebarModule, type TaskCardDisplayMode, type TaskViewMode, type ThemeId, type TitleColor } from "@todo/shared";
 import { Button, Footer, Loading, Select, Title, Tooltip } from "animal-island-ui";
-import { Bell, CalendarDays, CheckSquare2, Clock3, Eye, EyeOff, Flame, Hourglass, Kanban, LayoutGrid, ListTodo, LogOut, NotebookPen, Pin, Plus, Printer, Tags, UserRound } from "lucide-react";
+import { Bell, CalendarDays, CheckSquare2, Clock3, Eye, EyeOff, Flame, Hourglass, Kanban, LayoutGrid, List, ListTodo, LogOut, NotebookPen, Pin, Plus, Printer, RefreshCw, Tags, UserRound } from "lucide-react";
 import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { api, ApiError, authSessionExpiredEvent } from "./api/client";
 import { AuthView } from "./components/AuthView";
@@ -168,6 +168,8 @@ export function App() {
   const [taskCreateOpen, setTaskCreateOpen] = useState(false);
   const [anniversaryCreateOpen, setAnniversaryCreateOpen] = useState(false);
   const [habitCreateOpen, setHabitCreateOpen] = useState(false);
+  const [habitDetailOpen, setHabitDetailOpen] = useState(false);
+  const [habitReturnToListSignal, setHabitReturnToListSignal] = useState(0);
   const [habitShowArchived, setHabitShowArchived] = useState(false);
   const [themeId, setThemeId] = useState<ThemeId>(() => normalizeThemeId(localStorage.getItem("tododesk.theme")));
   const [titleColor, setTitleColor] = useState<TitleColor>("app-teal");
@@ -187,6 +189,7 @@ export function App() {
   const [loading, setLoading] = useState(false);
   const [entryLoading, setEntryLoading] = useState(false);
   const [showEntryLoading, setShowEntryLoading] = useState(false);
+  const [profileSyncing, setProfileSyncing] = useState(false);
   const updater = useAppUpdater();
 
   const activeView = viewFromPathname(location.pathname);
@@ -487,6 +490,36 @@ export function App() {
     void emitDesktopSyncEvent({ type: "preference:changed", preference });
   }
 
+  async function syncProfilePreferences() {
+    if (!user || profileSyncing) {
+      return;
+    }
+
+    setProfileSyncing(true);
+    setMessage("");
+    try {
+      const [profile, preference] = await Promise.all([
+        api.currentUser(),
+        api.getThemePreference()
+      ]);
+      handleUserChanged(profile.user);
+      publishThemePreference(preference);
+      setMessage("多端配置已同步");
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        await clearSession();
+        setUser(null);
+        resetTaskBoard();
+        setTaskTagFilter(allTagsFilterValue);
+        navigateToUnauthenticatedEntry(true);
+        return;
+      }
+      setMessage(error instanceof Error ? error.message : "同步配置失败");
+    } finally {
+      setProfileSyncing(false);
+    }
+  }
+
   function handleThemeChanged(next: ThemeId) {
     setThemeId(next);
     localStorage.setItem("tododesk.theme", next);
@@ -767,6 +800,19 @@ export function App() {
             {activeView === "tasks" || activeView === "calendar" || activeView === "pomodoro" ? (
               <span className="status-pill"><Bell size={14} /> {openTasks.length} 个未完成</span>
             ) : null}
+            {activeView === "profile" ? (
+              <Button
+                className="primary-button"
+                disabled={profileSyncing}
+                icon={<RefreshCw size={14} />}
+                loading={profileSyncing}
+                size="small"
+                type="default"
+                onClick={() => void syncProfilePreferences()}
+              >
+                同步配置
+              </Button>
+            ) : null}
             {activeView === "tasks" ? (
               <>
                 {effectiveTaskViewMode === "kanban" ? null : (
@@ -845,6 +891,18 @@ export function App() {
                   >
                     {showArchivedHabitsAction}
                   </Button>
+                  {habitDetailOpen ? (
+                    <Tooltip className="habit-list-return-tooltip" placement="bottom" title="返回习惯列表" trigger="hover" variant="default">
+                      <Button
+                        aria-label="返回习惯列表"
+                        className="habit-list-return"
+                        icon={<List size={14} />}
+                        size="small"
+                        type="default"
+                        onClick={() => setHabitReturnToListSignal((signal) => signal + 1)}
+                      />
+                    </Tooltip>
+                  ) : null}
                   <Button className="primary-button" icon={<Plus size={14} />} size="small" type="default" onClick={() => setHabitCreateOpen(true)}>
                     新增
                   </Button>
@@ -885,7 +943,15 @@ export function App() {
           />
           <Route
             path={viewRoutes.habits}
-            element={featureFlags.habits ? <HabitPanel createOpen={habitCreateOpen} showArchived={habitShowArchived} onCreateOpenChange={setHabitCreateOpen} /> : <Navigate to={viewRoutes.tasks} replace />}
+            element={featureFlags.habits ? (
+              <HabitPanel
+                createOpen={habitCreateOpen}
+                returnToListSignal={habitReturnToListSignal}
+                showArchived={habitShowArchived}
+                onCreateOpenChange={setHabitCreateOpen}
+                onDetailModeChange={setHabitDetailOpen}
+              />
+            ) : <Navigate to={viewRoutes.tasks} replace />}
           />
           <Route
             path={viewRoutes.calendar}

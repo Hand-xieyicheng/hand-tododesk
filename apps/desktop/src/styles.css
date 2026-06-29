@@ -1303,6 +1303,34 @@ textarea:focus-visible,
   white-space: nowrap;
 }
 
+.habit-list-return-tooltip {
+  display: inline-flex;
+  align-items: center;
+}
+
+.habit-list-return {
+  width: var(--topbar-action-height) !important;
+  height: var(--topbar-action-height) !important;
+  min-width: var(--topbar-action-height) !important;
+  min-height: var(--topbar-action-height) !important;
+  padding: 0 !important;
+  border-radius: 999px !important;
+  line-height: 1 !important;
+}
+
+.habit-list-return > span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.habit-list-return [class*="animal-btn-icon"],
+.habit-list-return svg {
+  width: calc(15px * var(--app-ui-scale));
+  height: calc(15px * var(--app-ui-scale));
+  flex: 0 0 auto;
+}
+
 .topbar-actions .primary-button {
   height: var(--topbar-action-height) !important;
   min-height: var(--topbar-action-height) !important;
@@ -2104,6 +2132,7 @@ textarea:focus-visible,
 .print-share-preview-paper {
   display: flex;
   flex-direction: column;
+  width: 100%;
   height: 100%;
   min-height: 0;
   max-width: 100%;
@@ -2123,27 +2152,6 @@ textarea:focus-visible,
   margin: 0 0 8px;
   font-size: 1.2em;
   line-height: 1.25;
-}
-
-.print-share-paper-width-ruler {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: 5px;
-  margin: 0 0 8px;
-  color: #6b7280;
-  font-size: 0.78em;
-  font-weight: 800;
-  line-height: 1;
-  white-space: nowrap;
-}
-
-.print-share-paper-width-ruler::before,
-.print-share-paper-width-ruler::after {
-  flex: 1 1 auto;
-  min-width: 8px;
-  border-top: 1px solid #d1d5db;
-  content: "";
 }
 
 .print-share-preview-task-list {
@@ -2549,6 +2557,219 @@ textarea::placeholder {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: calc(13px * var(--app-ui-scale));
+}
+
+.task-time-range-picker {
+  display: grid;
+  align-content: start;
+  min-width: 0;
+  gap: calc(7px * var(--app-ui-scale));
+}
+
+.form-grid > .task-time-range-picker,
+.floating-form-grid > .task-time-range-picker {
+  grid-column: 1 / -1;
+}
+
+.task-time-range-title {
+  color: var(--color-muted);
+  font-size: calc(12px * var(--app-ui-scale));
+  font-weight: 900;
+  line-height: 1.25;
+}
+
+.task-time-range-popup-anchor {
+  position: relative;
+  min-width: 0;
+}
+
+.task-time-range-quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(8px * var(--app-ui-scale));
+  min-width: 0;
+}
+
+.task-time-range-quick-actions button {
+  font: inherit;
+}
+
+.task-time-range-clear,
+.task-time-range-preset {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: calc(7px * var(--app-ui-scale)) !important;
+  width: auto !important;
+  min-width: 0 !important;
+  min-height: calc(40px * var(--app-ui-scale)) !important;
+  height: calc(40px * var(--app-ui-scale)) !important;
+  padding: 0 calc(13px * var(--app-ui-scale)) !important;
+  border: 0 !important;
+  border-radius: calc(10px * var(--app-ui-scale)) !important;
+  background: color-mix(in srgb, var(--color-surface-strong) 54%, var(--color-surface)) !important;
+  box-shadow: none !important;
+  color: var(--color-text) !important;
+  font-size: calc(18px * var(--app-ui-scale)) !important;
+  font-weight: 900 !important;
+  line-height: 1 !important;
+  letter-spacing: 0 !important;
+  transition: background 140ms ease, color 140ms ease, transform 140ms ease;
+}
+
+.task-time-range-clear {
+  width: calc(42px * var(--app-ui-scale)) !important;
+  padding: 0 !important;
+  color: color-mix(in srgb, var(--color-muted) 80%, var(--color-text)) !important;
+}
+
+.task-time-range-preset:hover,
+.task-time-range-clear:hover,
+.task-time-range-preset:focus-visible,
+.task-time-range-clear:focus-visible {
+  background: color-mix(in srgb, var(--color-primary) 14%, var(--color-surface-strong)) !important;
+  color: var(--color-emphasis-text) !important;
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.task-time-range-preset svg,
+.task-time-range-clear svg {
+  width: calc(18px * var(--app-ui-scale));
+  height: calc(18px * var(--app-ui-scale));
+  flex: 0 0 auto;
+  stroke-width: 2.4;
+}
+
+.task-time-range-preset:nth-of-type(2) svg {
+  color: #2f6dff;
+}
+
+.task-time-range-preset:nth-of-type(3) svg {
+  color: #18bfa8;
+}
+
+.task-time-range-summary {
+  overflow: hidden;
+  margin: 0;
+  color: var(--color-muted);
+  font-size: calc(12px * var(--app-ui-scale));
+  font-weight: 800;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-time-range-custom-panel {
+  display: grid;
+  gap: calc(10px * var(--app-ui-scale));
+  width: min(calc(600px * var(--app-ui-scale)), calc(100vw - 32px));
+  padding: calc(12px * var(--app-ui-scale));
+  border: 1px solid color-mix(in srgb, var(--color-border) 68%, transparent);
+  border-radius: calc(16px * var(--app-ui-scale));
+  background:
+    var(--island-paper-dots) 0 0 / 16px 16px,
+    color-mix(in srgb, var(--color-surface) 94%, var(--color-background));
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--color-shadow) 18%, transparent);
+}
+
+.task-time-range-custom-panel-popup {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  z-index: 1400;
+}
+
+.task-time-range-field {
+  display: grid;
+  gap: calc(6px * var(--app-ui-scale));
+  min-width: 0;
+}
+
+.task-time-range-field > span {
+  color: var(--color-muted);
+  font-size: calc(12px * var(--app-ui-scale));
+  font-weight: 900;
+}
+
+.task-time-range-ant-picker {
+  width: 100%;
+  min-height: calc(38px * var(--app-ui-scale)) !important;
+  border: 2px solid var(--color-border) !important;
+  border-radius: calc(13px * var(--app-ui-scale)) !important;
+  background: color-mix(in srgb, var(--color-background) 84%, var(--color-surface)) !important;
+  box-shadow: 0 2px color-mix(in srgb, var(--color-border) 62%, var(--color-text)) !important;
+}
+
+.task-time-range-ant-picker input {
+  color: var(--color-text) !important;
+  font-size: calc(13px * var(--app-ui-scale));
+  font-weight: 800;
+}
+
+.task-time-range-ant-picker.ant-picker-focused,
+.task-time-range-ant-picker:focus-within {
+  border-color: var(--color-primary) !important;
+}
+
+.habit-date-picker {
+  width: 100%;
+  min-height: calc(48px * var(--app-ui-scale)) !important;
+  border: 2px solid var(--color-border) !important;
+  border-radius: 24px !important;
+  background: color-mix(in srgb, var(--color-background) 84%, var(--color-surface)) !important;
+  box-shadow: 0 3px color-mix(in srgb, var(--color-border) 74%, var(--color-text)) !important;
+}
+
+.habit-date-picker input {
+  color: var(--color-text) !important;
+  font-size: calc(14px * var(--app-ui-scale));
+  font-weight: 800;
+}
+
+.habit-date-picker input::placeholder {
+  color: color-mix(in srgb, var(--color-muted) 72%, var(--color-surface));
+}
+
+.habit-date-picker.ant-picker-focused,
+.habit-date-picker:focus-within {
+  border-color: var(--color-primary) !important;
+}
+
+body .habit-date-picker-dropdown {
+  max-width: calc(100vw - 16px);
+  z-index: 2147483000 !important;
+}
+
+body .habit-date-picker-dropdown .ant-picker-panel-container {
+  max-width: calc(100vw - 16px);
+  overflow-x: auto;
+}
+
+body .task-time-range-ant-dropdown {
+  max-width: calc(100vw - 16px);
+  z-index: 2147483000 !important;
+}
+
+body .task-time-range-ant-dropdown .ant-picker-panel-container {
+  max-width: calc(100vw - 16px);
+  overflow-x: auto;
+}
+
+@media (max-width: 420px) {
+  .task-time-range-custom-panel-popup {
+    left: 50%;
+    width: calc(100vw - 24px);
+    transform: translateX(-50%);
+  }
+
+  body .task-time-range-ant-dropdown,
+  body .habit-date-picker-dropdown {
+    right: 8px !important;
+    left: 8px !important;
+    width: calc(100vw - 16px) !important;
+  }
 }
 
 .task-list {
@@ -3727,6 +3948,17 @@ textarea::placeholder {
   grid-template-columns: minmax(calc(230px * var(--app-ui-scale)), calc(300px * var(--app-ui-scale))) minmax(0, 1fr);
   gap: calc(12px * var(--app-ui-scale));
   min-height: 0;
+  transition:
+    grid-template-columns 360ms cubic-bezier(0.2, 0.78, 0.18, 1),
+    gap 260ms ease;
+}
+
+.habit-panel.is-collection {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.habit-panel.is-detail {
+  grid-template-columns: minmax(calc(230px * var(--app-ui-scale)), calc(300px * var(--app-ui-scale))) minmax(0, 1fr);
 }
 
 .habit-list-panel,
@@ -3749,6 +3981,20 @@ textarea::placeholder {
   padding-right: 4px;
 }
 
+.habit-panel.is-collection .habit-list {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, calc(260px * var(--app-ui-scale))), 1fr));
+  gap: calc(12px * var(--app-ui-scale));
+  padding: 4px calc(8px * var(--app-ui-scale)) calc(12px * var(--app-ui-scale)) 0;
+}
+
+.habit-panel.is-detail .habit-list-panel {
+  animation: habitListCompress 360ms cubic-bezier(0.2, 0.78, 0.18, 1);
+}
+
+.habit-panel.is-detail .habit-list {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .habit-sortable {
   min-width: 0;
   touch-action: none;
@@ -3763,6 +4009,19 @@ textarea::placeholder {
   background: color-mix(in srgb, var(--habit-accent) 8%, var(--color-surface)) !important;
   cursor: grab !important;
   user-select: none;
+  transition:
+    border-color 180ms ease,
+    background 180ms ease,
+    box-shadow 220ms ease,
+    transform 220ms ease;
+}
+
+.habit-panel.is-collection .habit-list-card {
+  min-height: calc(136px * var(--app-ui-scale));
+  align-content: space-between;
+  padding: calc(13px * var(--app-ui-scale)) !important;
+  box-shadow: 0 4px 0 color-mix(in srgb, var(--habit-accent) 18%, var(--color-shadow));
+  animation: habitCollectionCardIn 420ms cubic-bezier(0.2, 0.78, 0.18, 1) both;
 }
 
 .habit-list-card:active {
@@ -3779,6 +4038,7 @@ textarea::placeholder {
 
 .habit-list-card.is-active {
   border-color: var(--habit-accent) !important;
+  box-shadow: 0 5px 0 color-mix(in srgb, var(--habit-accent) 32%, var(--color-shadow));
 }
 
 .habit-list-card.is-archived {
@@ -3913,6 +4173,7 @@ textarea::placeholder {
   gap: calc(10px * var(--app-ui-scale));
   overflow-y: auto;
   padding-right: 4px;
+  animation: habitDetailReveal 380ms cubic-bezier(0.2, 0.78, 0.18, 1) both;
 }
 
 .habit-detail-header {
@@ -4369,8 +4630,59 @@ textarea::placeholder {
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .habit-panel.is-detail {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .habit-panel.is-collection .habit-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .habit-stat-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@keyframes habitCollectionCardIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes habitDetailReveal {
+  from {
+    opacity: 0;
+    transform: translateX(18px) scale(0.992);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes habitListCompress {
+  from {
+    opacity: 0.92;
+    transform: translateX(10px) scale(1.012);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .habit-panel,
+  .habit-list-card,
+  .habit-detail-panel,
+  .habit-panel.is-detail .habit-list-panel {
+    animation: none !important;
+    transition: none !important;
   }
 }
 
@@ -5358,6 +5670,7 @@ textarea::placeholder {
   position: sticky;
   top: calc(14px * var(--app-ui-scale));
   display: grid;
+  min-width: 0;
   justify-items: center;
   gap: calc(10px * var(--app-ui-scale));
   padding: calc(14px * var(--app-ui-scale)) !important;
@@ -5677,6 +5990,8 @@ textarea::placeholder {
 
 .avatar-editor {
   display: grid;
+  min-width: 0;
+  max-width: 100%;
   justify-items: center;
   gap: calc(12px * var(--app-ui-scale));
   width: 100%;
@@ -5684,6 +5999,8 @@ textarea::placeholder {
 
 .avatar-crop-stage {
   position: relative;
+  box-sizing: border-box;
+  max-width: 100%;
   overflow: hidden;
   border: 3px solid color-mix(in srgb, var(--color-surface) 76%, #ffffff);
   border-radius: 50%;
@@ -5709,11 +6026,17 @@ textarea::placeholder {
 }
 
 .avatar-zoom {
+  display: grid;
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  gap: calc(5px * var(--app-ui-scale));
 }
 
 .avatar-zoom input[type="range"] {
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
   accent-color: var(--color-primary);
 }
 
@@ -7220,6 +7543,62 @@ body .primary-button[class*="animal-btn"] {
   opacity: 0.88;
 }
 
+.task-time-range-picker-floating .task-time-range-preset,
+.task-time-range-picker-floating .task-time-range-clear {
+  min-height: calc(36px * var(--app-ui-scale)) !important;
+  height: calc(36px * var(--app-ui-scale)) !important;
+  border: 2px solid var(--floating-card-control-border) !important;
+  border-radius: calc(14px * var(--app-ui-scale)) !important;
+  background: var(--floating-card-control-background) !important;
+  box-shadow: 0 2px 0 var(--floating-card-control-shadow) !important;
+  color: var(--floating-card-control-text) !important;
+  font-size: calc(13px * var(--app-ui-scale)) !important;
+}
+
+.task-time-range-picker-floating .task-time-range-clear {
+  width: calc(38px * var(--app-ui-scale)) !important;
+}
+
+.task-time-range-picker-floating .task-time-range-preset:hover,
+.task-time-range-picker-floating .task-time-range-clear:hover,
+.task-time-range-picker-floating .task-time-range-preset:focus-visible,
+.task-time-range-picker-floating .task-time-range-clear:focus-visible {
+  border-color: color-mix(in srgb, var(--floating-card-control-border-focus) 58%, var(--floating-card-control-border)) !important;
+  background: var(--floating-card-control-background-hover) !important;
+  color: var(--floating-card-control-text) !important;
+}
+
+.task-time-range-picker-floating .task-time-range-summary {
+  color: var(--floating-card-form-label);
+  font-size: calc(11px * var(--app-ui-scale));
+}
+
+.task-time-range-picker-floating .task-time-range-title {
+  color: var(--floating-card-form-label);
+  font-size: calc(12px * var(--app-ui-scale));
+}
+
+.task-time-range-custom-panel-floating {
+  width: min(100%, calc(320px * var(--app-ui-scale)));
+  border-color: var(--floating-card-control-border);
+  background: var(--floating-card-control-background);
+  box-shadow: 0 5px 14px color-mix(in srgb, var(--floating-card-shadow) 52%, transparent);
+}
+
+.task-time-range-picker-floating .task-time-range-field > span {
+  color: var(--floating-card-form-label);
+}
+
+.task-time-range-picker-floating .task-time-range-ant-picker {
+  border-color: var(--floating-card-control-border) !important;
+  background: var(--floating-card-control-background) !important;
+  box-shadow: 0 2px 0 var(--floating-card-control-shadow) !important;
+}
+
+.task-time-range-picker-floating .task-time-range-ant-picker input {
+  color: var(--floating-card-control-text) !important;
+}
+
 .floating-task-form [class*="animal-trigger-2-Ahh"] {
   min-height: calc(40px * var(--app-ui-scale));
   padding: 0 calc(13px * var(--app-ui-scale));
@@ -8235,6 +8614,7 @@ body .primary-button[class*="animal-btn"] {
   .task-view-toggle,
   .task-completion-toggle,
   .habit-archive-toggle,
+  .habit-list-return-tooltip,
   .topbar-actions .primary-button,
   .memo-topbar-actions {
     flex: 0 0 auto;

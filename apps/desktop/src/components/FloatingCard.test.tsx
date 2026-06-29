@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { defaultVisibleSidebarModules, type ApiTask, type ApiThemePreference } from "@todo/shared";
 import { desktopSyncBrowserEventName } from "../lib/desktopSync";
-import { getTodayEndDatetimeLocal } from "../lib/datetime";
+import { getTodayEndDatetimeLocal, getTomorrowEndDatetimeLocal } from "../lib/datetime";
 import { useTaskBoardStore } from "../stores/taskBoardStore";
 import { FloatingCard } from "./FloatingCard";
 
@@ -127,6 +127,7 @@ const task: ApiTask = {
   id: "task-1",
   title: "整理票据",
   notes: "补齐报销附件",
+  startAt: null,
   dueAt: null,
   priority: "IMPORTANT_NOT_URGENT",
   status: "TODO",
@@ -244,7 +245,7 @@ describe("FloatingCard", () => {
     expect(screen.getByRole("checkbox", { name: "完成" })).toHaveAttribute("aria-checked", "false");
     expect(screen.getByRole("tooltip")).toHaveTextContent("补齐报销附件");
     expect(screen.getByRole("tooltip")).toHaveTextContent("重要不紧急");
-    expect(screen.getByRole("tooltip")).toHaveTextContent("无截止时间");
+    expect(screen.getByRole("tooltip")).toHaveTextContent("无时间");
     expect(screen.getByRole("tooltip")).toHaveTextContent("1 个番茄");
     expect(screen.getByRole("tooltip")).toHaveTextContent("#财务");
   });
@@ -477,11 +478,33 @@ describe("FloatingCard", () => {
   });
 
   it("defaults the new task deadline to today at 23:59", async () => {
+    apiMock.createTask.mockResolvedValue({ task });
     render(<FloatingCard />);
 
     fireEvent.click(await screen.findByRole("button", { name: "新增" }));
+    fireEvent.change(screen.getByLabelText("标题"), { target: { value: "今日票据" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
 
-    expect(screen.getByLabelText("截止时间")).toHaveValue(getTodayEndDatetimeLocal());
+    await waitFor(() => expect(apiMock.createTask).toHaveBeenCalledWith(expect.objectContaining({
+      dueAt: new Date(getTodayEndDatetimeLocal()).toISOString(),
+      startAt: null
+    })));
+  });
+
+  it("sets tomorrow from the floating time shortcut", async () => {
+    apiMock.createTask.mockResolvedValue({ task });
+    render(<FloatingCard />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "新增" }));
+    expect(screen.getByText("日期时间")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "明日" }));
+    fireEvent.change(screen.getByLabelText("标题"), { target: { value: "明日票据" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    await waitFor(() => expect(apiMock.createTask).toHaveBeenCalledWith(expect.objectContaining({
+      dueAt: new Date(getTomorrowEndDatetimeLocal()).toISOString(),
+      startAt: null
+    })));
   });
 
   it("submits one selected tag id from the floating form", async () => {

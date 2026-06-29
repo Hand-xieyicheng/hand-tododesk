@@ -47,6 +47,7 @@ function createTask(overrides: Partial<ApiTask> = {}): ApiTask {
     id: "task-1",
     title: "准备真实待办",
     notes: null,
+    startAt: null,
     dueAt: null,
     priority: "IMPORTANT_NOT_URGENT",
     status: "TODO",
@@ -98,7 +99,8 @@ describe("PrintShareDialog", () => {
     expect(screen.getByRole("option", { name: "标准样式" })).toBeInTheDocument();
     expect(screen.queryByRole("option", { name: "清单模板" })).not.toBeInTheDocument();
     expect(screen.queryByRole("option", { name: "备忘录模板" })).not.toBeInTheDocument();
-    expect(screen.getByLabelText("纸宽")).toHaveValue("58");
+    expect(screen.queryByLabelText("纸宽")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("自定义纸宽")).not.toBeInTheDocument();
     expect(screen.getByLabelText("字号")).toHaveValue("normal");
     expect(screen.getByLabelText("边距")).toHaveValue("normal");
     expect(screen.getByLabelText("有效期")).toHaveValue("24");
@@ -111,8 +113,6 @@ describe("PrintShareDialog", () => {
         source,
         config: {
           templateId: "checklist",
-          paperWidthMode: "preset",
-          paperWidthMm: 58,
           fontSizeMode: "normal",
           marginMode: "normal",
           expiresInHours: 24
@@ -168,7 +168,7 @@ describe("PrintShareDialog", () => {
     });
   });
 
-  it("renders the selected paper width inside the preview paper at true scale", () => {
+  it("uses the full preview width without paper width controls", () => {
     const source = {
       tagFilter: "all",
       showCompletedTasks: false,
@@ -178,19 +178,11 @@ describe("PrintShareDialog", () => {
     render(<PrintShareDialog open preview={{ tasks: [createTask()] }} source={source} sourceType="tasks" onClose={vi.fn()} />);
 
     const paper = screen.getByText("待办预览").closest(".print-share-preview-paper");
-    expect(paper).toHaveStyle({ width: "58mm" });
-    expect(screen.getByLabelText("当前预览纸宽")).toHaveTextContent("58mm");
-
-    fireEvent.change(screen.getByLabelText("纸宽"), { target: { value: "80" } });
-
-    expect(paper).toHaveStyle({ width: "80mm" });
-    expect(screen.getByLabelText("当前预览纸宽")).toHaveTextContent("80mm");
-
-    fireEvent.change(screen.getByLabelText("纸宽"), { target: { value: "custom" } });
-    fireEvent.change(screen.getByLabelText("自定义纸宽"), { target: { value: "120" } });
-
-    expect(paper).toHaveStyle({ width: "120mm" });
-    expect(screen.getByLabelText("当前预览纸宽")).toHaveTextContent("120mm");
+    expect(paper).not.toBeNull();
+    expect((paper as HTMLElement).style.width).toBe("");
+    expect(screen.queryByLabelText("纸宽")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("自定义纸宽")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("当前预览纸宽")).not.toBeInTheDocument();
   });
 
   it("places the copy action as an icon button inside the generated link field", async () => {
@@ -313,7 +305,7 @@ describe("PrintShareDialog", () => {
     expect(screen.queryByRole("button", { name: "复制链接" })).not.toBeInTheDocument();
   });
 
-  it("creates a print share with custom paper width", async () => {
+  it("creates a print share without legacy paper width fields", async () => {
     vi.mocked(api.createPrintShare).mockResolvedValue({
       printShare: {
         id: "share-custom",
@@ -330,15 +322,13 @@ describe("PrintShareDialog", () => {
 
     render(<PrintShareDialog open preview={{ tasks: [createTask()] }} source={source} sourceType="tasks" onClose={vi.fn()} />);
 
-    fireEvent.change(screen.getByLabelText("纸宽"), { target: { value: "custom" } });
-    fireEvent.change(screen.getByLabelText("自定义纸宽"), { target: { value: "62" } });
     fireEvent.click(screen.getByRole("button", { name: "生成链接" }));
 
     await waitFor(() => {
       expect(api.createPrintShare).toHaveBeenCalledWith(expect.objectContaining({
-        config: expect.objectContaining({
-          paperWidthMode: "custom",
-          paperWidthMm: 62
+        config: expect.not.objectContaining({
+          paperWidthMode: expect.anything(),
+          paperWidthMm: expect.anything()
         })
       }));
     });
@@ -376,26 +366,24 @@ describe("PrintShareDialog", () => {
     const previewPaper = preview.querySelector(".print-share-preview-paper") as HTMLElement | null;
     expect(preview).toContainElement(screen.getByRole("heading", { name: "预览模版" }));
     expect(previewPaper).not.toBeNull();
-    expect(previewPaper?.style.width).toBe("58mm");
+    expect(previewPaper?.style.width).toBe("");
     expect(preview).toHaveTextContent("真实待办一");
     expect(preview).toHaveTextContent("真实备注一");
     expect(preview).not.toHaveTextContent("真实待办二");
     expect(preview).not.toHaveTextContent("准备今天的待办清单");
     expect(screen.queryByLabelText("当前预览配置")).not.toBeInTheDocument();
     expect(preview).not.toHaveTextContent("标准样式");
-    expect(screen.getByLabelText("当前预览纸宽")).toHaveTextContent("58mm");
+    expect(screen.queryByLabelText("当前预览纸宽")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("生成的打印分享链接")).not.toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("样式模版"), { target: { value: "decorated" } });
-    fireEvent.change(screen.getByLabelText("纸宽"), { target: { value: "custom" } });
-    fireEvent.change(screen.getByLabelText("自定义纸宽"), { target: { value: "62" } });
     fireEvent.change(screen.getByLabelText("字号"), { target: { value: "large" } });
     fireEvent.change(screen.getByLabelText("边距"), { target: { value: "wide" } });
 
-    expect(previewPaper?.style.width).toBe("62mm");
+    expect(previewPaper?.style.width).toBe("");
     expect(screen.queryByLabelText("当前预览配置")).not.toBeInTheDocument();
     expect(preview).not.toHaveTextContent("装饰样式");
-    expect(screen.getByLabelText("当前预览纸宽")).toHaveTextContent("62mm");
+    expect(screen.queryByLabelText("当前预览纸宽")).not.toBeInTheDocument();
     expect(preview).not.toHaveTextContent("大字");
     expect(preview).not.toHaveTextContent("宽边距");
     expect(screen.queryByLabelText("生成的打印分享链接")).not.toBeInTheDocument();
@@ -441,7 +429,7 @@ describe("PrintShareDialog", () => {
 
     await waitFor(() => expect(api.createPrintShare).toHaveBeenCalledTimes(1));
 
-    fireEvent.change(screen.getByLabelText("纸宽"), { target: { value: "80" } });
+    fireEvent.change(screen.getByLabelText("边距"), { target: { value: "wide" } });
 
     await act(async () => {
       deferred.resolve({

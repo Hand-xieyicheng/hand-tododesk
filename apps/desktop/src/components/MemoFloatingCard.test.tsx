@@ -1,6 +1,8 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { defaultVisibleSidebarModules, type ApiMemo, type ApiThemePreference } from "@todo/shared";
+import { desktopSyncBrowserEventName } from "../lib/desktopSync";
+import { memoStore } from "../stores/memoStore";
 import { MemoFloatingCard } from "./MemoFloatingCard";
 
 const apiMock = vi.hoisted(() => ({
@@ -75,6 +77,7 @@ describe("MemoFloatingCard", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    memoStore.reset();
     localStorage.clear();
     alwaysOnTop = false;
     apiMock.memo.mockResolvedValue({ memo: memoDetail });
@@ -150,5 +153,100 @@ describe("MemoFloatingCard", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "关闭" }));
     await waitFor(() => expect(windowMock.close).toHaveBeenCalled());
+  });
+
+  it("emits a memo upsert sync event after autosaving lightweight edits", async () => {
+    const rawListener = vi.fn();
+    window.addEventListener(desktopSyncBrowserEventName, rawListener);
+    render(<MemoFloatingCard memoId="memo-1" />);
+
+    const editor = await screen.findByRole("textbox", { name: "备忘录正文" });
+    await waitFor(() => expect(editor.innerHTML).toBe("<p>正文</p>"));
+
+    editor.innerHTML = "<p>浮窗保存后同步</p>";
+    fireEvent.input(editor);
+
+    await waitFor(() => expect(rawListener).toHaveBeenCalledWith(expect.objectContaining({
+      detail: expect.objectContaining({
+        memo: expect.objectContaining({
+          id: "memo-1",
+          contentHtml: "<p>浮窗保存后同步</p>"
+        }),
+        type: "memo:upserted"
+      })
+    })), { timeout: 3000 });
+
+    window.removeEventListener(desktopSyncBrowserEventName, rawListener);
+  });
+
+  it("applies an external memo upsert when there is no unsaved local draft", async () => {
+    render(<MemoFloatingCard memoId="memo-1" />);
+
+    const editor = await screen.findByRole("textbox", { name: "备忘录正文" });
+    await waitFor(() => expect(editor.innerHTML).toBe("<p>正文</p>"));
+
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent(desktopSyncBrowserEventName, {
+        detail: {
+          memo: {
+            ...memoDetail,
+            title: "外部浮窗更新",
+            contentHtml: "<p>外部浮窗正文</p>",
+            updatedAt: "2026-06-17T08:02:00.000Z"
+          },
+          sourceId: "main-window",
+          type: "memo:upserted"
+        }
+      }));
+    });
+
+    await waitFor(() => expect(screen.getByLabelText("备忘录标题")).toHaveValue("外部浮窗更新"));
+    expect(editor.innerHTML).toBe("<p>外部浮窗正文</p>");
+  });
+
+  it("does not replace the editor DOM when an external memo upsert arrives during a local draft", async () => {
+    render(<MemoFloatingCard memoId="memo-1" />);
+
+    const editor = await screen.findByRole("textbox", { name: "备忘录正文" });
+    await waitFor(() => expect(editor.innerHTML).toBe("<p>正文</p>"));
+
+    editor.innerHTML = "<p>本地未保存</p>";
+    fireEvent.input(editor);
+
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent(desktopSyncBrowserEventName, {
+        detail: {
+          memo: {
+            ...memoDetail,
+            title: "外部更新不覆盖",
+            contentHtml: "<p>外部正文不覆盖</p>",
+            updatedAt: "2026-06-17T08:02:00.000Z"
+          },
+          sourceId: "main-window",
+          type: "memo:upserted"
+        }
+      }));
+    });
+
+    expect(editor.innerHTML).toBe("<p>本地未保存</p>");
+  });
+
+  it("shows an unavailable state when the current memo is deleted externally", async () => {
+    render(<MemoFloatingCard memoId="memo-1" />);
+
+    await waitFor(() => expect(screen.getByLabelText("备忘录标题")).toHaveValue("测试备忘录"));
+
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent(desktopSyncBrowserEventName, {
+        detail: {
+          memoId: "memo-1",
+          sourceId: "main-window",
+          type: "memo:deleted"
+        }
+      }));
+    });
+
+    await waitFor(() => expect(screen.queryByLabelText("备忘录标题")).not.toBeInTheDocument());
+    expect(screen.getByText("备忘录已删除或不可用")).toBeInTheDocument();
   });
 });

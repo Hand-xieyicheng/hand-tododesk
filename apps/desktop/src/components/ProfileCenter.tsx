@@ -660,7 +660,7 @@ export function ProfileCenter({
           <div className="avatar-editor">
             <div
               className={dragging ? "avatar-crop-stage is-dragging" : "avatar-crop-stage"}
-              style={{ width: AVATAR_CROP_SIZE, height: AVATAR_CROP_SIZE }}
+              style={{ width: `min(100%, ${AVATAR_CROP_SIZE}px)`, aspectRatio: "1 / 1" }}
               onPointerDown={startAvatarDrag}
               onPointerMove={dragAvatar}
               onPointerUp={stopAvatarDrag}

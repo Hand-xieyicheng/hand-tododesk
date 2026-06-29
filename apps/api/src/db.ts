@@ -385,6 +385,7 @@ async function ensurePrintShareSchema() {
 
 async function ensureIncrementalSchema() {
   await ensureTaskPrioritySchema();
+  await ensureColumn("Task", "startAt", "ALTER TABLE `Task` ADD COLUMN `startAt` DATETIME(3) NULL");
   await ensureColumn("Task", "sortOrder", "ALTER TABLE `Task` ADD COLUMN `sortOrder` INTEGER NULL");
   await ensureIndex("Task", "Task_userId_sortOrder_createdAt_id_idx", "CREATE INDEX `Task_userId_sortOrder_createdAt_id_idx` ON `Task` (`userId`, `sortOrder`, `createdAt`, `id`)");
   await ensureMemoSchema();

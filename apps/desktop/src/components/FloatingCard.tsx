@@ -9,19 +9,21 @@ import { Check, Eye, EyeOff, LayoutGrid, List, Pencil, Plus, RefreshCw, Save, Ta
 import { api } from "../api/client";
 import { emitDesktopSyncEvent, listenDesktopSyncEvents } from "../lib/desktopSync";
 import { applyDisplaySize } from "../lib/displaySize";
-import { getTodayEndDatetimeLocal, toDatetimeLocal } from "../lib/datetime";
+import { datetimeLocalToIso, formatTaskTimeRange, getTodayEndDatetimeLocal, isValidTaskTimeRange, toDatetimeLocal } from "../lib/datetime";
 import { defaultFloatingCardThemeId, getFloatingCardThemeStyle, normalizeFloatingCardThemeId } from "../lib/floatingCardThemes";
 import { applyFontFamily } from "../lib/fonts";
 import { applyVisibleTaskOrder, moveTaskInList, taskOrderIds } from "../lib/taskOrdering";
 import { applyTheme } from "../lib/themes";
 import { useTaskBoardStore } from "../stores/taskBoardStore";
 import { FloatingWindowHeader } from "./FloatingWindowHeader";
+import { TaskTimeRangePicker } from "./TaskTimeRangePicker";
 
 type FormMode = "create" | "edit";
 
 interface TaskDraft {
   title: string;
   notes: string;
+  startAt: string;
   dueAt: string;
   priority: TaskPriority;
   tagId: string;
@@ -75,6 +77,7 @@ function emptyDraft(): TaskDraft {
   return {
     title: "",
     notes: "",
+    startAt: "",
     dueAt: getTodayEndDatetimeLocal(),
     priority: "IMPORTANT_NOT_URGENT",
     tagId: noTagSelectValue
@@ -85,14 +88,11 @@ function draftFromTask(task: ApiTask): TaskDraft {
   return {
     title: task.title,
     notes: task.notes ?? "",
+    startAt: toDatetimeLocal(task.startAt),
     dueAt: toDatetimeLocal(task.dueAt),
     priority: task.priority,
     tagId: task.tags[0]?.id ?? noTagSelectValue
   };
-}
-
-function dueAtToIso(value: string) {
-  return value ? new Date(value).toISOString() : null;
 }
 
 type FloatingTaskGroupView = Exclude<FloatingCardViewMode, "list">;
@@ -468,6 +468,10 @@ export function FloatingCard() {
       setMessage("请输入待办标题");
       return;
     }
+    if (!isValidTaskTimeRange(draft.startAt, draft.dueAt)) {
+      setMessage("开始时间不能晚于截止时间");
+      return;
+    }
 
     setSavingTaskId("form");
     setMessage("");
@@ -476,7 +480,8 @@ export function FloatingCard() {
         const input: UpdateTaskRequest = {
           title,
           notes: draft.notes.trim() || null,
-          dueAt: dueAtToIso(draft.dueAt),
+          startAt: datetimeLocalToIso(draft.startAt),
+          dueAt: datetimeLocalToIso(draft.dueAt),
           priority: draft.priority,
           tagId: draft.tagId === noTagSelectValue ? null : draft.tagId
         };
@@ -487,7 +492,8 @@ export function FloatingCard() {
         const input: CreateTaskRequest = {
           title,
           notes: draft.notes.trim() || null,
-          dueAt: dueAtToIso(draft.dueAt),
+          startAt: datetimeLocalToIso(draft.startAt),
+          dueAt: datetimeLocalToIso(draft.dueAt),
           priority: draft.priority,
           status: "TODO",
           tagId: draft.tagId === noTagSelectValue ? null : draft.tagId,
@@ -670,7 +676,7 @@ export function FloatingCard() {
     const titleOnly = taskCardDisplayMode === "title";
     const statusAction = isCompleted ? "重置为未完成" : "完成";
     const nextStatus: TaskStatus = isCompleted ? "TODO" : "COMPLETED";
-    const dueAtLabel = task.dueAt ? new Date(task.dueAt).toLocaleString() : "无截止时间";
+    const dueAtLabel = formatTaskTimeRange({ startAt: task.startAt, dueAt: task.dueAt });
     const recurrenceLabel = task.recurrenceRule?.frequency ?? null;
     const tagMeta = options.showTagMeta ? task.tags.map((tag) => <span key={tag.id}>#{tag.name}</span>) : null;
     const fullContent = (
@@ -855,10 +861,11 @@ export function FloatingCard() {
               <textarea value={draft.notes} onChange={(event) => updateDraft({ notes: event.target.value })} rows={3} />
             </label>
             <div className="floating-form-grid">
-              <label>
-                <span>截止时间</span>
-                <Input value={draft.dueAt} onChange={(event) => updateDraft({ dueAt: event.target.value })} type="datetime-local" shadow />
-              </label>
+              <TaskTimeRangePicker
+                value={{ startAt: draft.startAt, dueAt: draft.dueAt }}
+                variant="floating"
+                onChange={(next) => updateDraft(next)}
+              />
               <label>
                 <span>优先级</span>
                 <Select value={draft.priority} onChange={(next) => updateDraft({ priority: next as TaskPriority })} options={priorityOptions} />

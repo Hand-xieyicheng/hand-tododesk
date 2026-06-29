@@ -1,14 +1,18 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, ClipboardEvent } from "react";
 import { defaultThemeId, defaultVisibleSidebarModules, type ApiMemo, type ApiThemePreference, type FloatingCardThemeId } from "@todo/shared";
 import { Button, Card } from "animal-island-ui";
 import { RefreshCw } from "lucide-react";
+import { observer } from "mobx-react-lite";
 import { api } from "../api/client";
 import { applyDisplaySize } from "../lib/displaySize";
+import { emitDesktopSyncEvent } from "../lib/desktopSync";
 import { defaultFloatingCardThemeId, getFloatingCardThemeStyle, normalizeFloatingCardThemeId } from "../lib/floatingCardThemes";
 import { applyFontFamily } from "../lib/fonts";
 import { isRichContentEmpty, sanitizeRichHtml } from "../lib/memoRichText";
 import { applyTheme } from "../lib/themes";
+import { memoStore } from "../stores/memoStore";
+import { useMemoDesktopSync } from "../stores/useMemoDesktopSync";
 import { FloatingWindowHeader } from "./FloatingWindowHeader";
 
 const autosaveDelayMs = 1200;
@@ -48,8 +52,7 @@ interface MemoFloatingCardProps {
   memoId: string | null;
 }
 
-export function MemoFloatingCard({ memoId }: MemoFloatingCardProps) {
-  const [memo, setMemo] = useState<ApiMemo | null>(null);
+function MemoFloatingCardContent({ memoId }: MemoFloatingCardProps) {
   const [title, setTitle] = useState("");
   const [contentHtml, setContentHtml] = useState("");
   const [floatingCardThemeId, setFloatingCardThemeId] = useState<FloatingCardThemeId>(() => normalizeFloatingCardThemeId(localStorage.getItem("tododesk.floatingCardThemeId")));
@@ -59,6 +62,7 @@ export function MemoFloatingCard({ memoId }: MemoFloatingCardProps) {
   const editorRef = useRef<HTMLDivElement | null>(null);
   const savedDraftRef = useRef({ title: "", contentHtml: "" });
   const titleRef = useRef("");
+  const memo = memoId ? memoStore.memoById.get(memoId) ?? null : null;
   const floatingCardStyle = useMemo(() => getFloatingCardThemeStyle(floatingCardThemeId) as CSSProperties, [floatingCardThemeId]);
   const hasDraftChanged = Boolean(memo) && (
     title !== savedDraftRef.current.title ||
@@ -72,7 +76,6 @@ export function MemoFloatingCard({ memoId }: MemoFloatingCardProps) {
   }
 
   function hydrateMemo(nextMemo: ApiMemo) {
-    setMemo(nextMemo);
     setTitle(nextMemo.title);
     setContentHtml(nextMemo.contentHtml);
     setEditorHtml(nextMemo.contentHtml);
@@ -81,6 +84,15 @@ export function MemoFloatingCard({ memoId }: MemoFloatingCardProps) {
       title: nextMemo.title,
       contentHtml: nextMemo.contentHtml
     };
+    setSaveState("idle");
+  }
+
+  function clearMemoDraft() {
+    setTitle("");
+    setContentHtml("");
+    setEditorHtml("");
+    titleRef.current = "";
+    savedDraftRef.current = { title: "", contentHtml: "" };
     setSaveState("idle");
   }
 
@@ -107,11 +119,18 @@ export function MemoFloatingCard({ memoId }: MemoFloatingCardProps) {
     }
     setMessage("");
     try {
-      const [memoPayload, preference] = await Promise.all([
-        api.memo(memoId),
+      const [nextMemo, preference] = await Promise.all([
+        memoStore.loadMemo(memoId),
         api.getThemePreference().catch(() => defaultThemePreference)
       ]);
-      hydrateMemo(memoPayload.memo);
+      if (nextMemo) {
+        hydrateMemo(nextMemo);
+      } else if (!memo) {
+        clearMemoDraft();
+        setMessage(memoStore.message || "备忘录加载失败");
+      } else {
+        setMessage(memoStore.message || "备忘录加载失败");
+      }
       applyThemePreference(preference);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "备忘录加载失败");
@@ -137,7 +156,10 @@ export function MemoFloatingCard({ memoId }: MemoFloatingCardProps) {
     setSaveState("saving");
     setMessage("");
     try {
-      const payload = await api.updateMemo(memoId, {
+      const nextMemo = await memoStore.updateMemo(memoId, {
+        title: nextTitle,
+        contentHtml: nextContentHtml
+      }, {
         title: nextTitle,
         contentHtml: nextContentHtml
       });
@@ -145,11 +167,8 @@ export function MemoFloatingCard({ memoId }: MemoFloatingCardProps) {
         title: nextTitle,
         contentHtml: nextContentHtml
       };
-      setMemo({
-        ...payload.memo,
-        title: nextTitle,
-        contentHtml: nextContentHtml
-      });
+      hydrateMemo(nextMemo);
+      void emitDesktopSyncEvent({ type: "memo:upserted", memo: nextMemo });
       setSaveState("idle");
       return true;
     } catch (error) {
@@ -187,6 +206,31 @@ export function MemoFloatingCard({ memoId }: MemoFloatingCardProps) {
     await loadData();
   }
 
+  const applySyncedMemo = useCallback((nextMemo: ApiMemo) => {
+    if (nextMemo.id !== memoId) {
+      return;
+    }
+    const latestEditorHtml = editorRef.current?.innerHTML ?? contentHtml;
+    const hasLocalDraft = titleRef.current !== savedDraftRef.current.title ||
+      latestEditorHtml !== savedDraftRef.current.contentHtml;
+    if (!hasLocalDraft) {
+      hydrateMemo(nextMemo);
+    }
+  }, [contentHtml, memoId]);
+
+  const applyDeletedMemo = useCallback((deletedMemoId: string) => {
+    if (deletedMemoId !== memoId) {
+      return;
+    }
+    clearMemoDraft();
+    setMessage("备忘录已删除或不可用");
+  }, [memoId]);
+
+  useMemoDesktopSync({
+    onMemoDeleted: applyDeletedMemo,
+    onMemoUpserted: applySyncedMemo
+  });
+
   useEffect(() => {
     applyTheme(localStorage.getItem("tododesk.theme") ?? defaultThemePreference.themeId);
     applyDisplaySize(localStorage.getItem("tododesk.displaySize") ?? defaultThemePreference.displaySize);
@@ -195,10 +239,16 @@ export function MemoFloatingCard({ memoId }: MemoFloatingCardProps) {
   }, [memoId]);
 
   useLayoutEffect(() => {
-    if (memo) {
-      setEditorHtml(contentHtml);
+    if (!memo) {
+      return;
     }
-  }, [memo?.id, memo?.updatedAt, memo?.contentHtml]);
+    const latestEditorHtml = editorRef.current?.innerHTML ?? contentHtml;
+    const hasLocalDraft = titleRef.current !== savedDraftRef.current.title ||
+      latestEditorHtml !== savedDraftRef.current.contentHtml;
+    if (!hasLocalDraft) {
+      hydrateMemo(memo);
+    }
+  }, [memo?.id, memo?.title, memo?.contentHtml, memo?.updatedAt]);
 
   useEffect(() => {
     let cancelled = false;
@@ -292,3 +342,5 @@ export function MemoFloatingCard({ memoId }: MemoFloatingCardProps) {
     </div>
   );
 }
+
+export const MemoFloatingCard = observer(MemoFloatingCardContent);

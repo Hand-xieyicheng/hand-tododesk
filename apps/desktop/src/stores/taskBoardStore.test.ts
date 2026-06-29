@@ -11,6 +11,7 @@ const task: ApiTask = {
   id: "task-1",
   title: "准备周报",
   notes: "整理本周项目进展",
+  startAt: null,
   dueAt: null,
   priority: "IMPORTANT_NOT_URGENT",
   status: "TODO",

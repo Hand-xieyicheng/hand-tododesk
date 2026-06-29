@@ -6,6 +6,7 @@ const baseTask: ApiTask = {
   id: "task-1",
   title: "任务",
   notes: null,
+  startAt: null,
   dueAt: null,
   priority: "IMPORTANT_NOT_URGENT",
   status: "TODO",

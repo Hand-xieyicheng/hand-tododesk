@@ -1,0 +1,2 @@
+ALTER TABLE `Task`
+  ADD COLUMN `startAt` DATETIME(3) NULL;

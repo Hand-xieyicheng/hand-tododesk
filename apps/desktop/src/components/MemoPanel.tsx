@@ -2,6 +2,7 @@ import { type ChangeEvent, type ClipboardEvent, type DragEvent, type ReactNode, 
 import { createPortal } from "react-dom";
 import type { ApiMemo, ApiMemoListItem } from "@todo/shared";
 import { Button, Card, Input } from "animal-island-ui";
+import { observer } from "mobx-react-lite";
 import {
   Archive,
   ArchiveRestore,
@@ -29,7 +30,10 @@ import {
   Underline
 } from "lucide-react";
 import { api } from "../api/client";
+import { emitDesktopSyncEvent } from "../lib/desktopSync";
 import { escapeHtml, isRichContentEmpty, sanitizeRichHtml } from "../lib/memoRichText";
+import { memoStore } from "../stores/memoStore";
+import { useMemoDesktopSync } from "../stores/useMemoDesktopSync";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { PrintShareDialog } from "./PrintShareDialog";
 
@@ -39,18 +43,6 @@ type SaveState = "idle" | "saving" | "saved" | "error";
 
 interface MemoPanelProps {
   printButtonEnabled?: boolean;
-}
-
-function memoToListItem(memo: ApiMemo): ApiMemoListItem {
-  return {
-    id: memo.id,
-    title: memo.title,
-    excerpt: memo.excerpt,
-    isPinned: memo.isPinned,
-    archivedAt: memo.archivedAt,
-    createdAt: memo.createdAt,
-    updatedAt: memo.updatedAt
-  };
 }
 
 function formatMemoTime(value: string) {
@@ -82,22 +74,15 @@ function IconButtonTooltip({ children, label }: { children: ReactNode; label: st
   );
 }
 
-export function MemoPanel({ printButtonEnabled = false }: MemoPanelProps) {
+function MemoPanelContent({ printButtonEnabled = false }: MemoPanelProps) {
   const [topbarActions, setTopbarActions] = useState<HTMLElement | null>(null);
-  const [memos, setMemos] = useState<ApiMemoListItem[]>([]);
-  const [selectedMemo, setSelectedMemo] = useState<ApiMemo | null>(null);
-  const [search, setSearch] = useState("");
-  const [showArchived, setShowArchived] = useState(false);
   const [title, setTitle] = useState("");
   const [contentHtml, setContentHtml] = useState("");
   const [isPinned, setIsPinned] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [detailLoading, setDetailLoading] = useState(false);
   const [uploadBusy, setUploadBusy] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [printDialogOpen, setPrintDialogOpen] = useState(false);
-  const [message, setMessage] = useState("");
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const editorRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -105,7 +90,14 @@ export function MemoPanel({ printButtonEnabled = false }: MemoPanelProps) {
   const savedDraftRef = useRef({ title: "", contentHtml: "", isPinned: false });
   const titleRef = useRef("");
   const isPinnedRef = useRef(false);
-  const selectedMemoId = selectedMemo?.id ?? null;
+  const memos = memoStore.memos;
+  const selectedMemo = memoStore.selectedMemo;
+  const search = memoStore.search;
+  const showArchived = memoStore.showArchived;
+  const loading = memoStore.loading;
+  const detailLoading = memoStore.detailLoading;
+  const message = memoStore.message;
+  const selectedMemoId = memoStore.selectedMemoId;
   const pinActionLabel = isPinned ? "取消置顶" : "置顶";
   const archiveActionLabel = selectedMemo?.archivedAt ? "取消归档" : "归档";
   const deleteMemoTitle = title.trim() || selectedMemo?.title || "未命名备忘录";
@@ -126,7 +118,6 @@ export function MemoPanel({ printButtonEnabled = false }: MemoPanelProps) {
   }
 
   function hydrateMemo(memo: ApiMemo) {
-    setSelectedMemo(memo);
     setTitle(memo.title);
     setContentHtml(memo.contentHtml);
     setEditorHtml(memo.contentHtml);
@@ -142,7 +133,6 @@ export function MemoPanel({ printButtonEnabled = false }: MemoPanelProps) {
   }
 
   function clearSelectedMemo() {
-    setSelectedMemo(null);
     setTitle("");
     setContentHtml("");
     setEditorHtml("");
@@ -151,16 +141,6 @@ export function MemoPanel({ printButtonEnabled = false }: MemoPanelProps) {
     isPinnedRef.current = false;
     savedDraftRef.current = { title: "", contentHtml: "", isPinned: false };
     setSaveState("idle");
-  }
-
-  function upsertMemoListItem(memo: ApiMemo) {
-    const nextItem = memoToListItem(memo);
-    setMemos((current) => {
-      const next = current.some((item) => item.id === nextItem.id)
-        ? current.map((item) => item.id === nextItem.id ? nextItem : item)
-        : [nextItem, ...current];
-      return next.sort((a, b) => Number(b.isPinned) - Number(a.isPinned) || new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-    });
   }
 
   function syncEditorContent() {
@@ -242,41 +222,8 @@ export function MemoPanel({ printButtonEnabled = false }: MemoPanelProps) {
     saveSelection();
   }
 
-  async function loadMemo(id: string) {
-    setDetailLoading(true);
-    setMessage("");
-    try {
-      const payload = await api.memo(id);
-      hydrateMemo(payload.memo);
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "备忘录加载失败");
-    } finally {
-      setDetailLoading(false);
-    }
-  }
-
   async function refreshList(preferredId = selectedMemoId) {
-    setLoading(true);
-    setMessage("");
-    try {
-      const payload = await api.memos(search, showArchived);
-      setMemos(payload.memos);
-      const nextId = preferredId && payload.memos.some((memo) => memo.id === preferredId)
-        ? preferredId
-        : payload.memos[0]?.id ?? null;
-
-      if (nextId) {
-        if (nextId !== selectedMemoId) {
-          await loadMemo(nextId);
-        }
-      } else {
-        clearSelectedMemo();
-      }
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "备忘录列表加载失败");
-    } finally {
-      setLoading(false);
-    }
+    await memoStore.refreshList(preferredId);
   }
 
   async function saveCurrentMemo() {
@@ -295,7 +242,11 @@ export function MemoPanel({ printButtonEnabled = false }: MemoPanelProps) {
     }
 
     try {
-      const payload = await api.updateMemo(selectedMemo.id, {
+      const memo = await memoStore.updateMemo(selectedMemo.id, {
+        title: nextTitle,
+        contentHtml: nextContentHtml,
+        isPinned: nextIsPinned
+      }, {
         title: nextTitle,
         contentHtml: nextContentHtml,
         isPinned: nextIsPinned
@@ -305,21 +256,18 @@ export function MemoPanel({ printButtonEnabled = false }: MemoPanelProps) {
         contentHtml: nextContentHtml,
         isPinned: nextIsPinned
       };
-      setSelectedMemo((current) => current?.id === payload.memo.id ? {
-        ...payload.memo,
-        title: nextTitle,
-        contentHtml: nextContentHtml,
-        isPinned: nextIsPinned
-      } : current);
-      upsertMemoListItem(payload.memo);
+      hydrateMemo(memo);
+      void emitDesktopSyncEvent({ type: "memo:upserted", memo });
       setSaveState("idle");
       return true;
     } catch (error) {
       setSaveState("error");
-      setMessage(error instanceof Error ? error.message : "备忘录保存失败");
+      memoStore.setMessage(error instanceof Error ? error.message : "备忘录保存失败");
       return false;
     }
   }
+
+  useMemoDesktopSync();
 
   useEffect(() => {
     const timeout = window.setTimeout(() => void refreshList(), 260);
@@ -332,9 +280,17 @@ export function MemoPanel({ printButtonEnabled = false }: MemoPanelProps) {
 
   useLayoutEffect(() => {
     if (selectedMemo) {
-      setEditorHtml(contentHtml);
+      const latestEditorHtml = editorRef.current?.innerHTML ?? contentHtml;
+      const hasLocalDraft = titleRef.current !== savedDraftRef.current.title ||
+        latestEditorHtml !== savedDraftRef.current.contentHtml ||
+        isPinnedRef.current !== savedDraftRef.current.isPinned;
+      if (!hasLocalDraft) {
+        hydrateMemo(selectedMemo);
+      }
+    } else {
+      clearSelectedMemo();
     }
-  }, [selectedMemoId]);
+  }, [selectedMemo?.id, selectedMemo?.title, selectedMemo?.contentHtml, selectedMemo?.isPinned, selectedMemo?.archivedAt, selectedMemo?.updatedAt]);
 
   useEffect(() => {
     if (!selectedMemo || !hasDraftChanged) {
@@ -352,18 +308,17 @@ export function MemoPanel({ printButtonEnabled = false }: MemoPanelProps) {
       return;
     }
 
-    setMessage("");
+    memoStore.setMessage("");
     try {
-      const payload = await api.createMemo({ title: "未命名备忘录", contentHtml: "" });
-      setShowArchived(false);
-      upsertMemoListItem(payload.memo);
-      hydrateMemo(payload.memo);
+      const memo = await memoStore.createMemo({ title: "未命名备忘录", contentHtml: "" });
+      hydrateMemo(memo);
+      void emitDesktopSyncEvent({ type: "memo:upserted", memo });
       window.requestAnimationFrame(() => {
         editorRef.current?.focus();
         placeCursorAtEnd();
       });
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "备忘录创建失败");
+      memoStore.setMessage(error instanceof Error ? error.message : "备忘录创建失败");
     }
   }
 
@@ -374,7 +329,7 @@ export function MemoPanel({ printButtonEnabled = false }: MemoPanelProps) {
     if (!(await saveCurrentMemo())) {
       return;
     }
-    await loadMemo(id);
+    await memoStore.loadMemo(id);
   }
 
   async function toggleArchive() {
@@ -384,15 +339,15 @@ export function MemoPanel({ printButtonEnabled = false }: MemoPanelProps) {
 
     try {
       const archived = !selectedMemo.archivedAt;
-      const payload = await api.updateMemo(selectedMemo.id, { archived });
+      const memo = await memoStore.updateMemo(selectedMemo.id, { archived });
+      void emitDesktopSyncEvent({ type: "memo:upserted", memo });
       if (archived !== showArchived) {
         await refreshList(null);
         return;
       }
-      hydrateMemo(payload.memo);
-      upsertMemoListItem(payload.memo);
+      hydrateMemo(memo);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "归档状态更新失败");
+      memoStore.setMessage(error instanceof Error ? error.message : "归档状态更新失败");
     }
   }
 
@@ -440,13 +395,14 @@ export function MemoPanel({ printButtonEnabled = false }: MemoPanelProps) {
 
     const memoId = selectedMemo.id;
     setDeleteBusy(true);
-    setMessage("");
+    memoStore.setMessage("");
     try {
-      await api.deleteMemo(memoId);
+      await memoStore.deleteMemo(memoId);
+      void emitDesktopSyncEvent({ type: "memo:deleted", memoId });
       setDeleteConfirmOpen(false);
       await refreshList(null);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "备忘录删除失败");
+      memoStore.setMessage(error instanceof Error ? error.message : "备忘录删除失败");
     } finally {
       setDeleteBusy(false);
     }
@@ -457,19 +413,19 @@ export function MemoPanel({ printButtonEnabled = false }: MemoPanelProps) {
       return;
     }
     if (!file.type.startsWith("image/")) {
-      setMessage("请选择图片文件");
+      memoStore.setMessage("请选择图片文件");
       return;
     }
 
     setUploadBusy(true);
-    setMessage("");
+    memoStore.setMessage("");
     try {
       const payload = await api.uploadMemoAsset(selectedMemo.id, file, file.name || "memo-image.png");
       const alt = escapeHtml(imageAltFromFile(file));
       insertRichHtml(`<figure><img src="${escapeHtml(payload.asset.url)}" alt="${alt}"><figcaption>${alt}</figcaption></figure><p><br></p>`);
-      setSelectedMemo((current) => current ? { ...current, assets: [...current.assets, payload.asset] } : current);
+      memoStore.applySyncedMemo({ ...selectedMemo, assets: [...selectedMemo.assets, payload.asset] });
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "图片上传失败");
+      memoStore.setMessage(error instanceof Error ? error.message : "图片上传失败");
     } finally {
       setUploadBusy(false);
     }
@@ -543,7 +499,7 @@ export function MemoPanel({ printButtonEnabled = false }: MemoPanelProps) {
         icon={showArchived ? <ArchiveRestore size={15} /> : <Archive size={15} />}
         size="small"
         type={showArchived ? "primary" : "default"}
-        onClick={() => setShowArchived((current) => !current)}
+        onClick={() => memoStore.setShowArchived(!showArchived)}
       >
         {showArchived ? "归档" : "当前"}
       </Button>
@@ -580,7 +536,7 @@ export function MemoPanel({ printButtonEnabled = false }: MemoPanelProps) {
       <aside className="memo-sidebar-panel">
         <label className="memo-search-field" aria-label="搜索标题或正文">
           <Search className="memo-search-icon" size={16} aria-hidden="true" />
-          <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="搜索标题或正文" allowClear shadow />
+          <Input value={search} onChange={(event) => memoStore.setSearch(event.target.value)} placeholder="搜索标题或正文" allowClear shadow />
         </label>
 
         {message ? <div className="inline-alert">{message}</div> : null}
@@ -746,3 +702,5 @@ export function MemoPanel({ printButtonEnabled = false }: MemoPanelProps) {
     </section>
   );
 }
+
+export const MemoPanel = observer(MemoPanelContent);

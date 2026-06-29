@@ -1,5 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from "react";
-import type { ChangeEvent } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button, Input, Modal, Select } from "animal-island-ui";
 import { Copy } from "lucide-react";
 import type {
@@ -18,7 +17,6 @@ type PrintShareDialogProps =
   | { open: boolean; sourceType: "memo"; source: PrintMemoSource; preview: { title: string; contentHtml: string }; onClose(): void };
 
 type PrintTemplateId = PrintShareConfig["templateId"];
-type PrintPaperWidthMode = PrintShareConfig["paperWidthMode"];
 type PrintFontSizeMode = PrintShareConfig["fontSizeMode"];
 type PrintMarginMode = PrintShareConfig["marginMode"];
 
@@ -27,12 +25,6 @@ const templateOptions: Array<{ key: PrintTemplateId; label: string }> = [
   { key: "memo", label: "便签样式" },
   { key: "compact", label: "紧凑样式" },
   { key: "decorated", label: "装饰样式" }
-];
-
-const paperOptions = [
-  { key: "58", label: "58mm" },
-  { key: "80", label: "80mm" },
-  { key: "custom", label: "自定义" }
 ];
 
 const fontSizeOptions: Array<{ key: PrintFontSizeMode; label: string }> = [
@@ -99,20 +91,13 @@ function parseMarginMode(value: string): PrintMarginMode | null {
   }
 }
 
-function parsePaperWidthMode(value: string): PrintPaperWidthMode | null {
-  return value === "custom" ? "custom" : "preset";
-}
-
 function errorMessageFor(error: unknown) {
   return error instanceof Error ? error.message : "生成链接失败，请稍后重试";
 }
 
 export function PrintShareDialog(props: PrintShareDialogProps) {
-  const fieldIdPrefix = useId();
   const requestIdRef = useRef(0);
   const [templateId, setTemplateId] = useState<PrintTemplateId>(() => defaultTemplateFor(props.sourceType));
-  const [paperWidthMode, setPaperWidthMode] = useState<PrintPaperWidthMode>("preset");
-  const [paperWidthMm, setPaperWidthMm] = useState(58);
   const [fontSizeMode, setFontSizeMode] = useState<PrintFontSizeMode>("normal");
   const [marginMode, setMarginMode] = useState<PrintMarginMode>("normal");
   const [expiresInHours, setExpiresInHours] = useState(24);
@@ -128,8 +113,6 @@ export function PrintShareDialog(props: PrintShareDialogProps) {
     requestIdRef.current += 1;
     setTemplateId(defaultTemplateFor(props.sourceType));
     setGenerating(false);
-    setPaperWidthMode("preset");
-    setPaperWidthMm(58);
     setFontSizeMode("normal");
     setMarginMode("normal");
     setExpiresInHours(24);
@@ -144,13 +127,10 @@ export function PrintShareDialog(props: PrintShareDialogProps) {
 
   const config = useMemo<PrintShareConfig>(() => ({
     templateId,
-    paperWidthMode,
-    paperWidthMm,
     fontSizeMode,
     marginMode,
     expiresInHours
-  }), [expiresInHours, fontSizeMode, marginMode, paperWidthMm, paperWidthMode, templateId]);
-  const previewWidth = `${paperWidthMm}mm`;
+  }), [expiresInHours, fontSizeMode, marginMode, templateId]);
   const previewClassName = [
     "print-share-preview-paper",
     previewTemplateClassNames[templateId],
@@ -243,31 +223,6 @@ export function PrintShareDialog(props: PrintShareDialogProps) {
     }
   }
 
-  function handlePaperChange(value: string) {
-    const nextMode = parsePaperWidthMode(value);
-    if (!nextMode) {
-      return;
-    }
-    setPaperWidthMode(nextMode);
-    if (nextMode === "custom") {
-      invalidateGeneratedResult();
-      return;
-    }
-    const nextWidth = Number(value);
-    if (Number.isInteger(nextWidth)) {
-      setPaperWidthMm(nextWidth);
-      invalidateGeneratedResult();
-    }
-  }
-
-  function handleCustomPaperWidthChange(event: ChangeEvent<HTMLInputElement>) {
-    const nextWidth = Number(event.target.value);
-    if (Number.isInteger(nextWidth)) {
-      setPaperWidthMm(nextWidth);
-      invalidateGeneratedResult();
-    }
-  }
-
   function handleFontSizeChange(value: string) {
     const nextMode = parseFontSizeMode(value);
     if (nextMode) {
@@ -314,29 +269,6 @@ export function PrintShareDialog(props: PrintShareDialogProps) {
             />
           </label>
           <label>
-            纸宽
-            <Select
-              aria-label="纸宽"
-              options={paperOptions}
-              value={paperWidthMode === "custom" ? "custom" : String(paperWidthMm)}
-              onChange={handlePaperChange}
-            />
-          </label>
-          {paperWidthMode === "custom" ? (
-            <label htmlFor={`${fieldIdPrefix}-custom-paper`}>
-              自定义纸宽
-              <Input
-                id={`${fieldIdPrefix}-custom-paper`}
-                min={40}
-                max={120}
-                step={1}
-                type="number"
-                value={String(paperWidthMm)}
-                onChange={handleCustomPaperWidthChange}
-              />
-            </label>
-          ) : null}
-          <label>
             字号
             <Select
               aria-label="字号"
@@ -372,10 +304,7 @@ export function PrintShareDialog(props: PrintShareDialogProps) {
           {error ? <p className="print-share-error" role="alert">{error}</p> : null}
           <div className="print-share-preview">
             <h3 className="print-share-preview-title">预览模版</h3>
-            <div className={previewClassName} style={{ width: previewWidth }}>
-              <div className="print-share-paper-width-ruler">
-                <span aria-label="当前预览纸宽">{paperWidthMm}mm</span>
-              </div>
+            <div className={previewClassName}>
               <h3>{previewTitle}</h3>
               <div className="print-share-preview-scroll">
                 {props.sourceType === "tasks" ? (

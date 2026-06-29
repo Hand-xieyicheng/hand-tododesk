@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { defaultVisibleSidebarModules, type ApiUser, type AppBootstrapResponse, type SidebarModule } from "@todo/shared";
 import type { AppUpdaterController } from "../lib/useAppUpdater";
@@ -59,11 +59,11 @@ const user: ApiUser = {
 };
 
 const appBootstrap: AppBootstrapResponse = {
-  apiVersion: "0.2.21",
+  apiVersion: "0.2.22",
   releaseChannel: "stable",
   desktop: {
     minimumVersion: "0.1.0",
-    latestVersion: "0.2.21",
+    latestVersion: "0.2.22",
     updateEndpoint: "https://example.com/latest.json"
   },
   featureFlags: {
@@ -88,7 +88,7 @@ const sidebarModuleOptions: Array<{ id: SidebarModule; label: string }> = [
 function createUpdater(status: AppUpdaterController["status"]): AppUpdaterController {
   return {
     status,
-    currentVersion: "0.2.21",
+    currentVersion: "0.2.22",
     targetVersion: null,
     releaseDate: null,
     releaseNotes: null,
@@ -197,6 +197,67 @@ describe("ProfileCenter", () => {
     expect(pomodoroOption).toHaveAttribute("data-sidebar-module", "pomodoro");
     expect(screen.getByLabelText("拖动排序 待办事项")).toBeInTheDocument();
     expect(screen.getByLabelText("拖动排序 备忘录")).toBeInTheDocument();
+  });
+
+  it("uses an adaptive avatar crop stage after selecting an avatar", async () => {
+    const createObjectURL = vi.fn(() => "blob:avatar");
+    const revokeObjectURL = vi.fn();
+    const originalCreateObjectURL = URL.createObjectURL;
+    const originalRevokeObjectURL = URL.revokeObjectURL;
+    const originalImage = globalThis.Image;
+
+    Object.defineProperty(URL, "createObjectURL", {
+      configurable: true,
+      value: createObjectURL
+    });
+    Object.defineProperty(URL, "revokeObjectURL", {
+      configurable: true,
+      value: revokeObjectURL
+    });
+    vi.stubGlobal("Image", class {
+      naturalWidth = 640;
+      naturalHeight = 480;
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+
+      set src(_value: string) {
+        queueMicrotask(() => this.onload?.());
+      }
+    });
+
+    let unmountProfile: (() => void) | null = null;
+    try {
+      const { container, unmount } = renderProfile(createUpdater("idle"));
+      unmountProfile = unmount;
+      const fileInput = container.querySelector<HTMLInputElement>('input[type="file"]');
+
+      expect(fileInput).toBeInTheDocument();
+      fireEvent.change(fileInput!, {
+        target: {
+          files: [new File(["avatar"], "avatar.png", { type: "image/png" })]
+        }
+      });
+
+      await waitFor(() => expect(container.querySelector(".avatar-crop-stage")).toBeInTheDocument());
+
+      const cropStage = container.querySelector<HTMLElement>(".avatar-crop-stage");
+      expect(cropStage).toHaveStyle({
+        width: "min(100%, 240px)",
+        aspectRatio: "1 / 1"
+      });
+      expect(cropStage?.style.height).toBe("");
+    } finally {
+      unmountProfile?.();
+      Object.defineProperty(URL, "createObjectURL", {
+        configurable: true,
+        value: originalCreateObjectURL
+      });
+      Object.defineProperty(URL, "revokeObjectURL", {
+        configurable: true,
+        value: originalRevokeObjectURL
+      });
+      vi.stubGlobal("Image", originalImage);
+    }
   });
 
   it("shows font settings in theme configuration", () => {

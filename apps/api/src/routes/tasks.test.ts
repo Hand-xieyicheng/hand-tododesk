@@ -27,6 +27,7 @@ const taskRow = {
   userId: "user-1",
   title: "整理计划",
   notes: null,
+  startAt: null,
   dueAt: null,
   priority: "IMPORTANT_NOT_URGENT",
   status: "TODO",
@@ -120,6 +121,59 @@ describe("task tag assignment", () => {
     });
 
     expect(response.statusCode).toBe(400);
+    expect(db.transaction).not.toHaveBeenCalled();
+  });
+});
+
+describe("task time ranges", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    db.execute.mockResolvedValue({ affectedRows: 1 });
+    db.queryOne.mockResolvedValue(null);
+    db.queryRows.mockResolvedValue([]);
+    db.transaction.mockImplementation(async (callback: (connection: { execute: typeof db.execute }) => Promise<unknown>) => callback({ execute: db.execute }));
+  });
+
+  it("creates tasks with optional start and due times", async () => {
+    db.queryOne
+      .mockResolvedValueOnce({
+        ...taskRow,
+        startAt: new Date("2026-06-10T01:30:00.000Z"),
+        dueAt: new Date("2026-06-10T10:30:00.000Z")
+      })
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ completedCount: 0, completedMinutes: 0 });
+    db.queryRows.mockResolvedValueOnce([]);
+
+    const response = await injectTask("POST", "/tasks", {
+      title: "整理计划",
+      startAt: "2026-06-10T01:30:00.000Z",
+      dueAt: "2026-06-10T10:30:00.000Z"
+    });
+
+    const insertCall = db.execute.mock.calls.find(([sql]) => String(sql).includes("INSERT INTO `Task`"));
+    expect(response.statusCode).toBe(201);
+    expect(insertCall?.[0]).toContain("`startAt`");
+    expect(insertCall?.[1]).toEqual(expect.arrayContaining(["2026-06-10 01:30:00", "2026-06-10 10:30:00"]));
+    expect(response.json().task).toMatchObject({
+      startAt: "2026-06-10T01:30:00.000Z",
+      dueAt: "2026-06-10T10:30:00.000Z"
+    });
+  });
+
+  it("rejects updates that would make the start time later than the due time", async () => {
+    db.queryOne.mockResolvedValueOnce({
+      ...taskRow,
+      startAt: new Date("2026-06-11T01:30:00.000Z"),
+      dueAt: new Date("2026-06-12T10:30:00.000Z")
+    });
+
+    const response = await injectTask("PATCH", "/tasks/task-1", {
+      dueAt: "2026-06-10T10:30:00.000Z"
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ error: "Start time must not be later than due time" });
     expect(db.transaction).not.toHaveBeenCalled();
   });
 });

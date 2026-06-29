@@ -3,7 +3,7 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ApiTask } from "@todo/shared";
 import { desktopSyncBrowserEventName } from "../lib/desktopSync";
-import { getTodayEndDatetimeLocal } from "../lib/datetime";
+import { getTodayEndDatetimeLocal, getTomorrowEndDatetimeLocal } from "../lib/datetime";
 import { TaskPanel } from "./TaskPanel";
 
 const apiMock = vi.hoisted(() => ({
@@ -147,6 +147,7 @@ const task: ApiTask = {
   id: "task-1",
   title: "准备周报",
   notes: "整理本周项目进展和风险",
+  startAt: null,
   dueAt: "2026-06-15T10:00:00.000Z",
   priority: "IMPORTANT_URGENT",
   status: "TODO",
@@ -327,7 +328,8 @@ describe("TaskPanel", () => {
     expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
   });
 
-  it("defaults the create deadline to today at 23:59", () => {
+  it("defaults the create deadline to today at 23:59", async () => {
+    apiMock.createTask.mockResolvedValue({ task });
     render(
       <TaskPanel
         createOpen
@@ -344,7 +346,96 @@ describe("TaskPanel", () => {
       />
     );
 
-    expect(screen.getByLabelText("截止时间")).toHaveValue(getTodayEndDatetimeLocal());
+    fireEvent.change(screen.getByLabelText("标题"), { target: { value: "今日计划" } });
+    fireEvent.click(screen.getByRole("button", { name: "添加" }));
+
+    await waitFor(() => expect(apiMock.createTask).toHaveBeenCalledWith(expect.objectContaining({
+      dueAt: new Date(getTodayEndDatetimeLocal()).toISOString(),
+      startAt: null
+    })));
+  });
+
+  it("sets tomorrow as the due time without auto-filling a start time", async () => {
+    apiMock.createTask.mockResolvedValue({ task });
+    render(
+      <TaskPanel
+        createOpen
+        showCompletedTasks
+        tags={tagOptions}
+        taskCardDisplayMode="full"
+        tagMaintenanceOpen={false}
+        taskTagFilter="__all__"
+        tasks={[]}
+        viewMode="list"
+        onChanged={vi.fn(async () => undefined)}
+        onCreateOpenChange={vi.fn()}
+        onTagMaintenanceOpenChange={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText("日期时间")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "明日" }));
+    fireEvent.change(screen.getByLabelText("标题"), { target: { value: "明日计划" } });
+    fireEvent.click(screen.getByRole("button", { name: "添加" }));
+
+    await waitFor(() => expect(apiMock.createTask).toHaveBeenCalledWith(expect.objectContaining({
+      dueAt: new Date(getTomorrowEndDatetimeLocal()).toISOString(),
+      startAt: null
+    })));
+  });
+
+  it("opens the custom picker and blocks reversed time ranges", async () => {
+    render(
+      <TaskPanel
+        createOpen
+        showCompletedTasks
+        tags={tagOptions}
+        taskCardDisplayMode="full"
+        tagMaintenanceOpen={false}
+        taskTagFilter="__all__"
+        tasks={[]}
+        viewMode="list"
+        onChanged={vi.fn(async () => undefined)}
+        onCreateOpenChange={vi.fn()}
+        onTagMaintenanceOpenChange={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "其它时间" }));
+    expect(document.querySelector(".task-time-range-custom-panel")).toHaveClass("task-time-range-custom-panel-popup");
+    expect(document.querySelectorAll(".task-time-range-ant-picker.ant-picker")).toHaveLength(2);
+    fireEvent.change(screen.getByLabelText("标题"), { target: { value: "错误时间" } });
+    fireEvent.change(screen.getByLabelText("开始时间"), { target: { value: "2026-06-18T08:30" } });
+    fireEvent.change(screen.getByLabelText("截止时间"), { target: { value: "2026-06-17T23:59" } });
+    fireEvent.click(screen.getByRole("button", { name: "添加" }));
+
+    expect(await screen.findByText("开始时间不能晚于截止时间")).toBeInTheDocument();
+    expect(apiMock.createTask).not.toHaveBeenCalled();
+  });
+
+  it("closes the custom picker after clicking outside the popup", () => {
+    render(
+      <TaskPanel
+        createOpen
+        showCompletedTasks
+        tags={tagOptions}
+        taskCardDisplayMode="full"
+        tagMaintenanceOpen={false}
+        taskTagFilter="__all__"
+        tasks={[]}
+        viewMode="list"
+        onChanged={vi.fn(async () => undefined)}
+        onCreateOpenChange={vi.fn()}
+        onTagMaintenanceOpenChange={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "其它时间" }));
+    expect(document.querySelector(".task-time-range-custom-panel-popup")).toBeInTheDocument();
+
+    fireEvent.pointerDown(document.body);
+
+    expect(document.querySelector(".task-time-range-custom-panel-popup")).not.toBeInTheDocument();
   });
 
   it("submits a selected tag id from the create dropdown", async () => {

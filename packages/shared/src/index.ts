@@ -100,7 +100,6 @@ export const legacyThemeIdMap = {
 export const taskViewModeValues = ["list", "quadrant", "kanban"] as const;
 export const taskCardDisplayModeValues = ["full", "title"] as const;
 export const printTemplateIdValues = ["checklist", "memo", "compact", "decorated"] as const;
-export const printPaperWidthModeValues = ["preset", "custom"] as const;
 export const printFontSizeModeValues = ["small", "normal", "large", "custom"] as const;
 export const printMarginModeValues = ["narrow", "normal", "wide"] as const;
 export const printSourceTypeValues = ["tasks", "memo"] as const;
@@ -347,9 +346,10 @@ export const habitDetailQuerySchema = z.object({
   }, "Month must be a valid YYYY-MM value").optional()
 });
 
-export const createTaskRequestSchema = z.object({
+const baseTaskRequestSchema = z.object({
   title: z.string().trim().min(1).max(160),
   notes: z.string().trim().max(4000).optional().nullable(),
+  startAt: z.string().datetime().optional().nullable(),
   dueAt: z.string().datetime().optional().nullable(),
   priority: z.enum(taskPriorityValues).default("IMPORTANT_NOT_URGENT"),
   status: z.enum(taskStatusValues).default("TODO"),
@@ -357,9 +357,24 @@ export const createTaskRequestSchema = z.object({
   recurrenceRule: recurrenceRuleSchema.optional().nullable()
 });
 
-export const updateTaskRequestSchema = createTaskRequestSchema.partial().extend({
+function validateTaskRequestTimeRange(value: { startAt?: string | null; dueAt?: string | null }, ctx: z.RefinementCtx) {
+  if (!value.startAt || !value.dueAt) {
+    return;
+  }
+  if (new Date(value.startAt).getTime() > new Date(value.dueAt).getTime()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Start time must not be later than due time",
+      path: ["startAt"]
+    });
+  }
+}
+
+export const createTaskRequestSchema = baseTaskRequestSchema.superRefine(validateTaskRequestTimeRange);
+
+export const updateTaskRequestSchema = baseTaskRequestSchema.partial().extend({
   recurrenceRule: recurrenceRuleSchema.optional().nullable()
-});
+}).superRefine(validateTaskRequestTimeRange);
 
 export const updateTaskOrderRequestSchema = z.object({
   orderedIds: z.array(z.string().min(1)).min(1).max(500)
@@ -370,8 +385,6 @@ export const updateTaskOrderRequestSchema = z.object({
 
 export const printShareConfigSchema = z.object({
   templateId: z.enum(printTemplateIdValues),
-  paperWidthMode: z.enum(printPaperWidthModeValues),
-  paperWidthMm: z.number().int().min(40).max(120),
   maxHeightMm: z.number().int().min(40).max(1000).optional().nullable(),
   fontSizeMode: z.enum(printFontSizeModeValues),
   customFontSizePx: z.number().int().min(8).max(28).optional().nullable(),
@@ -744,6 +757,7 @@ export interface ApiTask {
   id: string;
   title: string;
   notes: string | null;
+  startAt: string | null;
   dueAt: string | null;
   priority: TaskPriority;
   status: TaskStatus;

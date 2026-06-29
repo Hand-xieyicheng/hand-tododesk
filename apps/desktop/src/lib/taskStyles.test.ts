@@ -117,6 +117,8 @@ describe("task styles", () => {
     expect(previewRule).toContain("grid-template-rows: auto minmax(0, 1fr)");
     expect(previewRule).toContain("min-height: 0");
     expect(previewRule).toContain("overflow: hidden");
+    expect(paperRule).toContain("width: 100%");
+    expect(paperRule).toContain("max-width: 100%");
     expect(paperRule).toContain("height: 100%");
     expect(paperRule).toContain("overflow: hidden");
     expect(scrollRule).toContain("flex: 1 1 auto");
@@ -125,15 +127,8 @@ describe("task styles", () => {
     expect(styles).not.toContain(".print-share-preview-meta");
   });
 
-  it("shows a paper width ruler inside the print share preview paper", () => {
-    const rulerRule = getRule(".print-share-paper-width-ruler");
-    const rulerLineRule = getRuleContaining(".print-share-paper-width-ruler::before,");
-
-    expect(rulerRule).toContain("flex: 0 0 auto");
-    expect(rulerRule).toContain("display: flex");
-    expect(rulerRule).toContain("font-size:");
-    expect(rulerLineRule).toContain("content:");
-    expect(rulerLineRule).toContain("border-top:");
+  it("does not keep removed paper width ruler styles", () => {
+    expect(styles).not.toContain(".print-share-paper-width-ruler");
   });
 
   it("does not use primary color directly as text because white ink primary is white", () => {

@@ -27,7 +27,6 @@ import {
   habitRecommendedIconValues,
   printFontSizeModeValues,
   printMarginModeValues,
-  printPaperWidthModeValues,
   printTemplateIdValues,
 	  releaseChannelValues,
 	  legacyThemeIdMap,
@@ -166,13 +165,12 @@ describe("profile schemas", () => {
 });
 
 describe("print share schemas", () => {
-  it("accepts supported print templates and printer dimensions", () => {
+  it("accepts supported print templates and layout options without paper width", () => {
     expect(printTemplateIdValues).toEqual(["checklist", "memo", "compact", "decorated"]);
-    expect(printPaperWidthModeValues).toEqual(["preset", "custom"]);
     expect(printFontSizeModeValues).toEqual(["small", "normal", "large", "custom"]);
     expect(printMarginModeValues).toEqual(["narrow", "normal", "wide"]);
 
-    expect(createPrintShareRequestSchema.parse({
+    const taskShare = createPrintShareRequestSchema.parse({
       sourceType: "tasks",
       source: {
         tagFilter: "__all__",
@@ -181,13 +179,13 @@ describe("print share schemas", () => {
       },
       config: {
         templateId: "checklist",
-        paperWidthMode: "preset",
-        paperWidthMm: 58,
         fontSizeMode: "normal",
         marginMode: "normal",
         expiresInHours: 24
       }
-    })).toMatchObject({
+    });
+
+    expect(taskShare).toMatchObject({
       sourceType: "tasks",
       source: {
         tagFilter: "__all__",
@@ -196,29 +194,29 @@ describe("print share schemas", () => {
       },
       config: {
         templateId: "checklist",
-        paperWidthMm: 58,
         expiresInHours: 24
       }
     });
+    expect(taskShare.config).not.toHaveProperty("paperWidthMode");
+    expect(taskShare.config).not.toHaveProperty("paperWidthMm");
 
-    expect(createPrintShareRequestSchema.parse({
+    const memoShare = createPrintShareRequestSchema.parse({
       sourceType: "memo",
       source: { memoId: "memo-1" },
       config: {
         templateId: "decorated",
-        paperWidthMode: "custom",
-        paperWidthMm: 62,
         maxHeightMm: 160,
         fontSizeMode: "custom",
         customFontSizePx: 15,
         marginMode: "wide",
         expiresInHours: 168
       }
-    }).config).toMatchObject({
-      paperWidthMode: "custom",
-      paperWidthMm: 62,
+    });
+    expect(memoShare.config).toMatchObject({
       customFontSizePx: 15
     });
+    expect(memoShare.config).not.toHaveProperty("paperWidthMode");
+    expect(memoShare.config).not.toHaveProperty("paperWidthMm");
   });
 
   it("rejects invalid print share requests", () => {
@@ -231,8 +229,6 @@ describe("print share schemas", () => {
       },
       config: {
         templateId: "checklist",
-        paperWidthMode: "preset",
-        paperWidthMm: 58,
         fontSizeMode: "normal",
         marginMode: "normal",
         expiresInHours: 24
@@ -244,8 +240,6 @@ describe("print share schemas", () => {
       source: { memoId: "memo-1" },
       config: {
         templateId: "memo",
-        paperWidthMode: "custom",
-        paperWidthMm: 20,
         fontSizeMode: "custom",
         marginMode: "normal",
         expiresInHours: 999
@@ -267,11 +261,11 @@ describe("app bootstrap schema", () => {
     });
 
     expect(appBootstrapResponseSchema.parse({
-      apiVersion: "0.2.21",
+      apiVersion: "0.2.22",
       releaseChannel: "stable",
       desktop: {
         minimumVersion: "0.1.0",
-        latestVersion: "0.2.21",
+        latestVersion: "0.2.22",
         updateEndpoint: "https://github.com/Hand-xieyicheng/hand-tododesk/releases/latest/download/latest.json"
       },
       featureFlags: {
@@ -287,11 +281,11 @@ describe("app bootstrap schema", () => {
 
   it("rejects unsupported release channels", () => {
     expect(appBootstrapResponseSchema.safeParse({
-      apiVersion: "0.2.21",
+      apiVersion: "0.2.22",
       releaseChannel: "beta",
       desktop: {
         minimumVersion: "0.1.0",
-        latestVersion: "0.2.21",
+        latestVersion: "0.2.22",
         updateEndpoint: "https://github.com/Hand-xieyicheng/hand-tododesk/releases/latest/download/latest.json"
       },
       featureFlags: defaultAppFeatureFlags
@@ -468,16 +462,25 @@ describe("task display sorting", () => {
   it("accepts a single task tag id and tag maintenance names", () => {
     expect(createTaskRequestSchema.parse({
       title: " 写计划 ",
+      startAt: "2026-06-10T01:30:00.000Z",
+      dueAt: "2026-06-10T10:30:00.000Z",
       tagId: "tag-1"
     })).toMatchObject({
       title: "写计划",
+      startAt: "2026-06-10T01:30:00.000Z",
+      dueAt: "2026-06-10T10:30:00.000Z",
       tagId: "tag-1"
     });
     expect(createTaskRequestSchema.parse({
       title: "无标签任务",
       tagId: null
     }).tagId).toBeNull();
-    expect(updateTaskRequestSchema.parse({ tagId: null })).toEqual({ tagId: null });
+    expect(updateTaskRequestSchema.parse({ startAt: null, tagId: null })).toEqual({ startAt: null, tagId: null });
+    expect(createTaskRequestSchema.safeParse({
+      title: "错误时间",
+      startAt: "2026-06-11T01:30:00.000Z",
+      dueAt: "2026-06-10T10:30:00.000Z"
+    }).success).toBe(false);
     expect(createTaskRequestSchema.parse({ title: "旧格式", tagNames: ["工作"] })).not.toHaveProperty("tagNames");
     expect(createTagRequestSchema.parse({ name: " 工作 " })).toEqual({ name: "工作" });
     expect(updateTagRequestSchema.safeParse({ name: "" }).success).toBe(false);

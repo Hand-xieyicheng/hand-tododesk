@@ -7,10 +7,11 @@ import { Button, Card, Divider, Input, Modal, Select } from "animal-island-ui";
 import { Check, Pencil, Plus, RotateCcw, Save, Trash2, X } from "lucide-react";
 import { api } from "../api/client";
 import { emitDesktopSyncEvent } from "../lib/desktopSync";
-import { getTodayEndDatetimeLocal } from "../lib/datetime";
+import { datetimeLocalToIso, formatTaskTimeRange, getTodayEndDatetimeLocal, isValidTaskTimeRange } from "../lib/datetime";
 import { applyVisibleTaskOrder, moveTaskInList, taskOrderIds } from "../lib/taskOrdering";
 import { useTaskBoardStore } from "../stores/taskBoardStore";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { TaskTimeRangePicker } from "./TaskTimeRangePicker";
 
 interface TaskPanelProps {
   createOpen: boolean;
@@ -117,7 +118,7 @@ function priorityClass(priority: TaskPriority) {
 }
 
 function getDueAtLabel(task: ApiTask) {
-  return task.dueAt ? new Date(task.dueAt).toLocaleString() : "无截止时间";
+  return formatTaskTimeRange({ startAt: task.startAt, dueAt: task.dueAt });
 }
 
 function getRecurrenceLabel(task: ApiTask) {
@@ -698,6 +699,7 @@ export function TaskPanel({ createOpen, showCompletedTasks, tags, taskCardDispla
   );
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
+  const [startAt, setStartAt] = useState("");
   const [dueAt, setDueAt] = useState(() => getTodayEndDatetimeLocal());
   const [priority, setPriority] = useState<TaskPriority>("IMPORTANT_NOT_URGENT");
   const [tagId, setTagId] = useState(noTagSelectValue);
@@ -770,6 +772,7 @@ export function TaskPanel({ createOpen, showCompletedTasks, tags, taskCardDispla
 
   useEffect(() => {
     if (createOpen) {
+      setStartAt("");
       setDueAt(getTodayEndDatetimeLocal());
     }
   }, [createOpen]);
@@ -790,6 +793,7 @@ export function TaskPanel({ createOpen, showCompletedTasks, tags, taskCardDispla
   function resetForm() {
     setTitle("");
     setNotes("");
+    setStartAt("");
     setDueAt(getTodayEndDatetimeLocal());
     setPriority("IMPORTANT_NOT_URGENT");
     setTagId(noTagSelectValue);
@@ -799,10 +803,15 @@ export function TaskPanel({ createOpen, showCompletedTasks, tags, taskCardDispla
   async function submit(event: FormEvent) {
     event.preventDefault();
     setFormMessage("");
+    if (!isValidTaskTimeRange(startAt, dueAt)) {
+      setFormMessage("开始时间不能晚于截止时间");
+      return;
+    }
     const input: CreateTaskRequest = {
       title,
       notes: notes || null,
-      dueAt: dueAt ? new Date(dueAt).toISOString() : null,
+      startAt: datetimeLocalToIso(startAt),
+      dueAt: datetimeLocalToIso(dueAt),
       priority,
       status: "TODO",
       tagId: tagId === noTagSelectValue ? null : tagId,
@@ -1106,10 +1115,13 @@ export function TaskPanel({ createOpen, showCompletedTasks, tags, taskCardDispla
             <textarea value={notes} onChange={(event) => setNotes(event.target.value)} rows={4} />
           </label>
           <div className="form-grid">
-            <label>
-              <span>截止时间</span>
-              <Input value={dueAt} onChange={(event) => setDueAt(event.target.value)} type="datetime-local" shadow />
-            </label>
+            <TaskTimeRangePicker
+              value={{ startAt, dueAt }}
+              onChange={(next) => {
+                setStartAt(next.startAt);
+                setDueAt(next.dueAt);
+              }}
+            />
             <label>
               <span>优先级</span>
               <Select value={priority} onChange={(next) => setPriority(next as TaskPriority)} options={priorityOptions} />

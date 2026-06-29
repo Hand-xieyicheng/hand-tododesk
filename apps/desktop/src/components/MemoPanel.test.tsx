@@ -1,5 +1,7 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { desktopSyncBrowserEventName } from "../lib/desktopSync";
+import { memoStore } from "../stores/memoStore";
 import { MemoPanel } from "./MemoPanel";
 
 const apiMock = vi.hoisted(() => ({
@@ -104,6 +106,7 @@ function createDeferred<T>() {
 describe("MemoPanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    memoStore.reset();
     apiMock.memos.mockResolvedValue({ memos: [memoListItem] });
     apiMock.memo.mockResolvedValue({ memo: memoDetail });
     tauriCoreMock.invoke.mockResolvedValue(undefined);
@@ -311,5 +314,85 @@ describe("MemoPanel", () => {
     expect(editor.innerHTML).toBe(tableHtml);
     expect(screen.queryByText("保存中")).not.toBeInTheDocument();
     expect(screen.queryByText("已保存")).not.toBeInTheDocument();
+  });
+
+  it("emits a memo upsert sync event after saving edits", async () => {
+    const rawListener = vi.fn();
+    window.addEventListener(desktopSyncBrowserEventName, rawListener);
+    apiMock.updateMemo.mockImplementation(async (_id: string, input: any) => ({
+      memo: {
+        ...memoDetail,
+        ...input,
+        excerpt: "同步摘要",
+        updatedAt: "2026-06-17T08:01:00.000Z"
+      }
+    }));
+
+    render(<MemoPanel />);
+
+    const editor = await screen.findByRole("textbox", { name: "备忘录正文" });
+    await waitFor(() => expect(apiMock.memo).toHaveBeenCalledWith("memo-1"));
+
+    editor.innerHTML = "<p>保存后同步</p>";
+    fireEvent.input(editor);
+
+    await waitFor(() => expect(rawListener).toHaveBeenCalledWith(expect.objectContaining({
+      detail: expect.objectContaining({
+        memo: expect.objectContaining({
+          id: "memo-1",
+          contentHtml: "<p>保存后同步</p>"
+        }),
+        type: "memo:upserted"
+      })
+    })), { timeout: 3000 });
+
+    window.removeEventListener(desktopSyncBrowserEventName, rawListener);
+  });
+
+  it("applies an external memo upsert to the active editor", async () => {
+    render(<MemoPanel />);
+
+    const editor = await screen.findByRole("textbox", { name: "备忘录正文" });
+    await waitFor(() => expect(editor.innerHTML).toBe("<p>正文</p>"));
+
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent(desktopSyncBrowserEventName, {
+        detail: {
+          memo: {
+            ...memoDetail,
+            title: "外部更新",
+            contentHtml: "<p>外部正文</p>",
+            excerpt: "外部摘要",
+            updatedAt: "2026-06-17T08:02:00.000Z"
+          },
+          sourceId: "memo-card",
+          type: "memo:upserted"
+        }
+      }));
+    });
+
+    expect(screen.getByLabelText("备忘录标题")).toHaveValue("外部更新");
+    expect(editor.innerHTML).toBe("<p>外部正文</p>");
+    expect(screen.getByText("外部更新")).toBeInTheDocument();
+  });
+
+  it("applies an external memo delete to the list and active editor", async () => {
+    render(<MemoPanel />);
+
+    await waitFor(() => expect(screen.getByText("测试备忘录")).toBeInTheDocument());
+
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent(desktopSyncBrowserEventName, {
+        detail: {
+          memoId: "memo-1",
+          sourceId: "memo-card",
+          type: "memo:deleted"
+        }
+      }));
+    });
+
+    expect(screen.queryByText("测试备忘录")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("备忘录标题")).not.toBeInTheDocument();
+    expect(screen.getAllByText("暂无备忘录").length).toBeGreaterThan(0);
   });
 });

@@ -132,7 +132,6 @@ function marginMm(configValue: PrintShareConfig) {
 }
 
 function htmlShell(title: string, configValue: PrintShareConfig, body: string) {
-  const pageWidth = configValue.paperWidthMm;
   const maxHeight = configValue.maxHeightMm ? `max-height: ${configValue.maxHeightMm}mm;` : "";
   const templateClassName = `print-template-${configValue.templateId}`;
   return `<!doctype html>
@@ -143,13 +142,12 @@ function htmlShell(title: string, configValue: PrintShareConfig, body: string) {
   <title>${escapeHtml(title)}</title>
   <style>
     :root {
-      --paper-width: ${pageWidth}mm;
       --paper-margin: ${marginMm(configValue)}mm;
       --font-size: ${fontSizePx(configValue)}px;
     }
     * { box-sizing: border-box; }
     body { margin: 0; background: #f3f4f6; color: #111827; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: var(--font-size); line-height: 1.45; }
-    main { width: var(--paper-width); ${maxHeight} min-height: 40mm; margin: 0 auto; padding: var(--paper-margin); background: #fff; }
+    main { width: 100%; max-width: 100%; ${maxHeight} min-height: 40mm; margin: 0; padding: var(--paper-margin); background: #fff; }
     h1 { margin: 0 0 8px; font-size: 1.2em; line-height: 1.25; }
     ul { margin: 0; padding: 0; list-style: none; }
     li { display: grid; grid-template-columns: 14px 1fr; gap: 6px; padding: 5px 0; border-bottom: 1px dashed #d1d5db; break-inside: avoid; }
@@ -174,10 +172,10 @@ function htmlShell(title: string, configValue: PrintShareConfig, body: string) {
     .print-template-decorated h1 { margin-bottom: 10px; padding-bottom: 5px; text-align: center; border-bottom: 1px solid #111827; }
     .print-template-decorated h1::before,
     .print-template-decorated h1::after { content: "·"; padding: 0 4px; }
-    @page { size: ${pageWidth}mm auto; margin: 0; }
+    @page { size: auto; margin: 0; }
     @media print {
       body { background: #fff; }
-      main { width: ${pageWidth}mm; margin: 0; box-shadow: none; }
+      main { width: 100%; max-width: 100%; margin: 0; box-shadow: none; }
     }
   </style>
 </head>
