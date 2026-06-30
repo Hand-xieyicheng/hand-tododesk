@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, PointerEvent } from "react";
 import { defaultAppFeatureFlags, defaultThemeId, defaultVisibleSidebarModules, normalizeThemeId, sortTasksForDisplay, type ApiTask, type ApiThemePreference, type ApiUser, type AppBootstrapResponse, type AppCloseBehavior, type AppFeatureFlags, type DisplaySize, type FloatingCardThemeId, type FontFamily, type FooterType as AppFooterType, type SidebarModule, type TaskCardDisplayMode, type TaskViewMode, type ThemeId, type TitleColor } from "@todo/shared";
 import { Button, Footer, Loading, Select, Title, Tooltip } from "animal-island-ui";
@@ -71,6 +71,13 @@ const defaultThemePreference: ApiThemePreference = {
 const allTagsFilterValue = "__all__";
 const untaggedTagsFilterValue = "__untagged__";
 const authRoute = "/auth";
+const profileSyncSuccessNoticeSeconds = 5;
+
+interface AppMessage {
+  id: number;
+  text: string;
+  countdownSeconds?: number;
+}
 
 const dragIgnoredTargetSelector = [
   "a",
@@ -187,12 +194,21 @@ export function App() {
   const [visibleSidebarModules, setVisibleSidebarModules] = useState<SidebarModule[]>(defaultVisibleSidebarModules);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => getSavedSidebarCollapsed());
   const [fontFamily, setFontFamily] = useState<FontFamily>(() => normalizeFontFamily(localStorage.getItem("tododesk.fontFamily")));
-  const [message, setMessage] = useState("");
+  const [message, setAppMessage] = useState<AppMessage | null>(null);
+  const messageIdRef = useRef(0);
   const [loading, setLoading] = useState(false);
   const [entryLoading, setEntryLoading] = useState(false);
   const [showEntryLoading, setShowEntryLoading] = useState(false);
   const [profileSyncing, setProfileSyncing] = useState(false);
   const updater = useAppUpdater();
+
+  const setMessage = useCallback((text: string) => {
+    setAppMessage(text ? { id: messageIdRef.current += 1, text } : null);
+  }, []);
+
+  const setCountdownMessage = useCallback((text: string, seconds: number) => {
+    setAppMessage({ id: messageIdRef.current += 1, text, countdownSeconds: seconds });
+  }, []);
 
   const activeView = viewFromPathname(location.pathname);
   const featureFlags: AppFeatureFlags = appBootstrap?.featureFlags ?? defaultAppFeatureFlags;
@@ -456,6 +472,29 @@ export function App() {
     return () => window.clearTimeout(timeout);
   }, [entryLoading]);
 
+  useEffect(() => {
+    if (!message?.countdownSeconds) {
+      return;
+    }
+
+    const messageId = message.id;
+    let nextCountdownSeconds = message.countdownSeconds;
+    const interval = window.setInterval(() => {
+      nextCountdownSeconds -= 1;
+      setAppMessage((current) => {
+        if (!current || current.id !== messageId) {
+          return current;
+        }
+        if (nextCountdownSeconds <= 0) {
+          return null;
+        }
+        return { ...current, countdownSeconds: nextCountdownSeconds };
+      });
+    }, 1000);
+
+    return () => window.clearInterval(interval);
+  }, [message?.id]);
+
   async function handleAuthed(nextUser: ApiUser) {
     saveUser(nextUser);
     setUser(nextUser);
@@ -507,7 +546,7 @@ export function App() {
       ]);
       handleUserChanged(profile.user);
       publishThemePreference(preference);
-      setMessage("多端配置已同步");
+      setCountdownMessage("多端配置已同步", profileSyncSuccessNoticeSeconds);
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
         await clearSession();
@@ -927,7 +966,14 @@ export function App() {
         </header>
 
         {forcedUpdateMessage ? <div className="inline-alert">{forcedUpdateMessage}</div> : null}
-        {message ? <div className="inline-alert">{message}</div> : null}
+        {message ? (
+          <div className="inline-alert app-message-alert" role="status">
+            <span className="app-message-text">{message.text}</span>
+            {message.countdownSeconds ? (
+              <span className="app-message-countdown">{message.countdownSeconds}秒后关闭</span>
+            ) : null}
+          </div>
+        ) : null}
 
         <Routes>
           <Route path="/" element={<Navigate to={viewRoutes.tasks} replace />} />

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { ApiTask, ApiThemePreference } from "@todo/shared";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -350,7 +350,7 @@ describe("App sidebar", () => {
     expect(await screen.findByTestId("print-source")).toHaveTextContent("__all__:false:kanban");
   });
 
-  it("syncs multi-device profile settings from the profile header action", async () => {
+  it("syncs multi-device profile settings from the profile header action and auto-hides the success notice", async () => {
     const syncedUser = {
       ...mockUser,
       name: "远端昵称"
@@ -364,28 +364,44 @@ describe("App sidebar", () => {
       sidebarCollapsed: true
     };
 
-    render(
-      <MemoryRouter initialEntries={["/profile"]}>
-        <App />
-      </MemoryRouter>
-    );
+    try {
+      render(
+        <MemoryRouter initialEntries={["/profile"]}>
+          <App />
+        </MemoryRouter>
+      );
 
-    await waitFor(() => expect(api.getThemePreference).toHaveBeenCalledTimes(1));
-    vi.mocked(api.currentUser).mockResolvedValueOnce({ user: syncedUser });
-    vi.mocked(api.getThemePreference).mockResolvedValueOnce(syncedPreference);
+      await waitFor(() => expect(api.getThemePreference).toHaveBeenCalledTimes(1));
+      vi.mocked(api.currentUser).mockResolvedValueOnce({ user: syncedUser });
+      vi.mocked(api.getThemePreference).mockResolvedValueOnce(syncedPreference);
 
-    fireEvent.click(screen.getByRole("button", { name: "同步配置" }));
+      vi.useFakeTimers();
+      fireEvent.click(screen.getByRole("button", { name: "同步配置" }));
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
 
-    await waitFor(() => expect(api.getThemePreference).toHaveBeenCalledTimes(2));
-    expect(api.currentUser).toHaveBeenCalledTimes(2);
-    expect(localStorage.getItem("tododesk.theme")).toBe("navy");
-    expect(localStorage.getItem("tododesk.displaySize")).toBe("large");
-    expect(localStorage.getItem("tododesk.fontFamily")).toBe("nanxi-xin-yuanti");
-    expect(localStorage.getItem("tododesk.sidebarCollapsed")).toBe("true");
-    expect(screen.getByRole("button", { name: "展开侧边栏" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "待办事项" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "备忘录" })).toBeInTheDocument();
-    expect(screen.getByText("多端配置已同步")).toBeInTheDocument();
+      expect(api.getThemePreference).toHaveBeenCalledTimes(2);
+      expect(api.currentUser).toHaveBeenCalledTimes(2);
+      expect(localStorage.getItem("tododesk.theme")).toBe("navy");
+      expect(localStorage.getItem("tododesk.displaySize")).toBe("large");
+      expect(localStorage.getItem("tododesk.fontFamily")).toBe("nanxi-xin-yuanti");
+      expect(localStorage.getItem("tododesk.sidebarCollapsed")).toBe("true");
+      expect(screen.getByRole("button", { name: "展开侧边栏" })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "待办事项" })).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "备忘录" })).toBeInTheDocument();
+      expect(screen.getByText("多端配置已同步")).toBeInTheDocument();
+      expect(screen.getByText("5秒后关闭")).toBeInTheDocument();
+
+      await act(async () => {
+        vi.advanceTimersByTime(5000);
+      });
+
+      expect(screen.queryByText("多端配置已同步")).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("shows a habit list return action only while the habit detail page is active", async () => {
