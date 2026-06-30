@@ -406,6 +406,7 @@ async function ensureIncrementalSchema() {
   await ensureColumn("UserThemePreference", "visibleSidebarModules", "ALTER TABLE `UserThemePreference` ADD COLUMN `visibleSidebarModules` VARCHAR(191) NOT NULL DEFAULT 'tasks,memos,anniversaries,habits,calendar,pomodoro'");
   await ensureColumn("UserThemePreference", "sidebarCollapsed", "ALTER TABLE `UserThemePreference` ADD COLUMN `sidebarCollapsed` BOOLEAN NOT NULL DEFAULT FALSE");
   await ensureColumn("UserThemePreference", "printButtonEnabled", "ALTER TABLE `UserThemePreference` ADD COLUMN `printButtonEnabled` BOOLEAN NOT NULL DEFAULT FALSE");
+  await ensureColumn("UserThemePreference", "floatingCardHabitCheckInEnabled", "ALTER TABLE `UserThemePreference` ADD COLUMN `floatingCardHabitCheckInEnabled` BOOLEAN NOT NULL DEFAULT TRUE");
   await ensureColumn("UserThemePreference", "fontFamily", "ALTER TABLE `UserThemePreference` ADD COLUMN `fontFamily` VARCHAR(191) NOT NULL DEFAULT 'system'");
   await ensurePrintShareSchema();
   await ensureThemePreferenceThemeSchema();

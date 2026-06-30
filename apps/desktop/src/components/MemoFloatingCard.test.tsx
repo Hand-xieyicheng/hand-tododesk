@@ -60,6 +60,7 @@ const themePreference: ApiThemePreference = {
   footerVisible: true,
   footerType: "sea",
   printButtonEnabled: false,
+  floatingCardHabitCheckInEnabled: true,
   showCompletedTasks: true,
   taskViewMode: "list",
   taskCardDisplayMode: "title",

@@ -3,31 +3,58 @@ import type { MouseEvent, PointerEvent } from "react";
 import { Button } from "animal-island-ui";
 import { Monitor, Pin, X } from "lucide-react";
 import todoDeskLogo from "../assets/tododesk-logo.png";
+import { installFloatingWindowGeometryPersistence, resolveFloatingWindowGeometryStorageKey } from "../lib/floatingWindowGeometry";
 
-export function FloatingWindowHeader() {
+interface FloatingWindowHeaderProps {
+  geometryStorageKey?: string;
+}
+
+export function FloatingWindowHeader({ geometryStorageKey }: FloatingWindowHeaderProps) {
   const [isAlwaysOnTop, setIsAlwaysOnTop] = useState(false);
 
   useEffect(() => {
+    let cleanup: (() => void) | null = null;
     let cancelled = false;
 
-    async function syncAlwaysOnTop() {
+    async function syncWindowState() {
       try {
         const { getCurrentWindow } = await import("@tauri-apps/api/window");
-        const current = await getCurrentWindow().isAlwaysOnTop();
-        if (!cancelled) {
-          setIsAlwaysOnTop(current);
+        const currentWindow = getCurrentWindow();
+
+        try {
+          const current = await currentWindow.isAlwaysOnTop();
+          if (!cancelled) {
+            setIsAlwaysOnTop(current);
+          }
+        } catch {
+          // Browser preview fallback.
+        }
+
+        try {
+          const nextCleanup = await installFloatingWindowGeometryPersistence({
+            storageKey: geometryStorageKey ?? resolveFloatingWindowGeometryStorageKey(),
+            windowApi: currentWindow
+          });
+          if (cancelled) {
+            nextCleanup();
+            return;
+          }
+          cleanup = nextCleanup;
+        } catch {
+          // Browser preview fallback.
         }
       } catch {
         // Browser preview fallback.
       }
     }
 
-    void syncAlwaysOnTop();
+    void syncWindowState();
 
     return () => {
       cancelled = true;
+      cleanup?.();
     };
-  }, []);
+  }, [geometryStorageKey]);
 
   async function dragWindow(event: PointerEvent<HTMLElement>) {
     if (event.button !== 0) {

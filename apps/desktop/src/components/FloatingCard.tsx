@@ -3,15 +3,17 @@ import type { CSSProperties, FormEvent, ReactNode } from "react";
 import { closestCenter, DndContext, KeyboardSensor, PointerSensor, type DragEndEvent, type DragStartEvent, useDroppable, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { defaultThemeId, defaultVisibleSidebarModules, sortTasksForDisplay, type ApiTag, type ApiTask, type ApiThemePreference, type CreateTaskRequest, type FloatingCardThemeId, type FloatingCardViewMode, type TaskCardDisplayMode, type TaskPriority, type TaskStatus, type UpdateTaskRequest } from "@todo/shared";
+import { defaultThemeId, defaultVisibleSidebarModules, sortTasksForDisplay, toLocalDateKey, type ApiHabit, type ApiTag, type ApiTask, type ApiThemePreference, type CreateTaskRequest, type FloatingCardThemeId, type FloatingCardViewMode, type TaskCardDisplayMode, type TaskPriority, type TaskStatus, type UpdateTaskRequest } from "@todo/shared";
 import { Button, Card, Input, Select, Tooltip } from "animal-island-ui";
 import { Check, Eye, EyeOff, LayoutGrid, List, Pencil, Plus, RefreshCw, Save, Tags, X } from "lucide-react";
 import { api } from "../api/client";
 import { emitDesktopSyncEvent, listenDesktopSyncEvents } from "../lib/desktopSync";
 import { applyDisplaySize } from "../lib/displaySize";
 import { datetimeLocalToIso, formatTaskTimeRange, getTodayEndDatetimeLocal, isValidTaskTimeRange, toDatetimeLocal } from "../lib/datetime";
+import { floatingTaskWindowGeometryStorageKey } from "../lib/floatingWindowGeometry";
 import { defaultFloatingCardThemeId, getFloatingCardThemeStyle, normalizeFloatingCardThemeId } from "../lib/floatingCardThemes";
 import { applyFontFamily } from "../lib/fonts";
+import { getHabitIcon } from "../lib/habitIcons";
 import { applyVisibleTaskOrder, moveTaskInList, taskOrderIds } from "../lib/taskOrdering";
 import { applyTheme } from "../lib/themes";
 import { useTaskBoardStore } from "../stores/taskBoardStore";
@@ -61,6 +63,7 @@ const defaultThemePreference: ApiThemePreference = {
   footerVisible: true,
   footerType: "sea",
   printButtonEnabled: false,
+  floatingCardHabitCheckInEnabled: true,
   showCompletedTasks: true,
   taskViewMode: "list",
   taskCardDisplayMode: "full",
@@ -328,6 +331,7 @@ export function FloatingCard() {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
   const [showCompletedTasks, setShowCompletedTasks] = useState(defaultThemePreference.showCompletedTasks);
+  const [floatingCardHabitCheckInEnabled, setFloatingCardHabitCheckInEnabled] = useState(defaultThemePreference.floatingCardHabitCheckInEnabled);
   const [taskCardDisplayMode, setTaskCardDisplayMode] = useState<TaskCardDisplayMode>(defaultThemePreference.taskCardDisplayMode);
   const [floatingCardThemeId, setFloatingCardThemeId] = useState<FloatingCardThemeId>(() => normalizeFloatingCardThemeId(localStorage.getItem("tododesk.floatingCardThemeId")));
   const [floatingCardViewMode, setFloatingCardViewMode] = useState<FloatingCardViewMode>(() => (
@@ -338,10 +342,12 @@ export function FloatingCard() {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [savingTaskId, setSavingTaskId] = useState<string | null>(null);
+  const [savingHabitId, setSavingHabitId] = useState<string | null>(null);
   const [savingPreference, setSavingPreference] = useState(false);
   const [formMode, setFormMode] = useState<FormMode | null>(null);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null);
+  const [habits, setHabits] = useState<ApiHabit[]>([]);
   const [draft, setDraft] = useState<TaskDraft>(() => emptyDraft());
 
   const visibleTasks = useMemo(() => {
@@ -353,6 +359,7 @@ export function FloatingCard() {
   ], [tags]);
   const quadrantGroups = useMemo(() => buildQuadrantGroups(visibleTasks), [visibleTasks]);
   const tagGroups = useMemo(() => buildTagGroups(visibleTasks, tags), [tags, visibleTasks]);
+  const todayHabitShortcuts = useMemo(() => habits.filter((habit) => habit.todayPlanned), [habits]);
   const openTaskCount = useMemo(() => tasks.filter((task) => task.status !== "COMPLETED").length, [tasks]);
   const formTitle = formMode === "edit" ? "编辑待办" : "新增待办";
   const showCompletedAction = showCompletedTasks ? "隐藏已完成待办" : "显示已完成待办";
@@ -363,6 +370,7 @@ export function FloatingCard() {
   function applyThemePreference(preference: ApiThemePreference) {
     const nextFloatingCardThemeId = normalizeFloatingCardThemeId(preference.floatingCardThemeId);
     setShowCompletedTasks(preference.showCompletedTasks);
+    setFloatingCardHabitCheckInEnabled(preference.floatingCardHabitCheckInEnabled);
     setTaskCardDisplayMode(preference.taskCardDisplayMode);
     setFloatingCardThemeId(nextFloatingCardThemeId);
     setFloatingCardViewMode(preference.floatingCardViewMode);
@@ -382,15 +390,17 @@ export function FloatingCard() {
     }
     setMessage("");
     try {
-      const [taskPayload, tagPayload, preference] = await Promise.all([
+      const [taskPayload, tagPayload, habitPayload, preference] = await Promise.all([
         api.tasks(),
         api.tags(),
+        api.habits(false),
         api.getThemePreference().catch(() => defaultThemePreference)
       ]);
       setTaskSnapshot({
         tags: tagPayload.tags,
         tasks: taskPayload.tasks
       });
+      setHabits(habitPayload.habits);
       applyThemePreference(preference);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "加载失败");
@@ -398,6 +408,15 @@ export function FloatingCard() {
       if (!options.silent) {
         setLoading(false);
       }
+    }
+  }
+
+  async function loadHabitShortcuts() {
+    try {
+      const payload = await api.habits(false);
+      setHabits(payload.habits);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "习惯加载失败");
     }
   }
 
@@ -424,6 +443,10 @@ export function FloatingCard() {
       }
       if (event.type === "task-board:reload-requested") {
         void loadData({ silent: true });
+        return;
+      }
+      if (event.type === "habit-board:reload-requested") {
+        void loadHabitShortcuts();
       }
     });
   }, []);
@@ -522,6 +545,25 @@ export function FloatingCard() {
       setMessage(error instanceof Error ? error.message : status === "COMPLETED" ? "完成失败" : "重置失败");
     } finally {
       setSavingTaskId((current) => (current === task.id ? null : current));
+    }
+  }
+
+  async function toggleHabitToday(habit: ApiHabit) {
+    const today = toLocalDateKey();
+    setSavingHabitId(habit.id);
+    setMessage("");
+    try {
+      if (habit.todayChecked) {
+        await api.cancelHabitCheckIn(habit.id, today);
+      } else {
+        await api.checkInHabit(habit.id, today);
+      }
+      await loadHabitShortcuts();
+      void emitDesktopSyncEvent({ type: "habit-board:reload-requested" });
+    } catch {
+      setMessage("习惯打卡失败");
+    } finally {
+      setSavingHabitId((current) => (current === habit.id ? null : current));
     }
   }
 
@@ -803,9 +845,29 @@ export function FloatingCard() {
     );
   }
 
+  function renderHabitShortcut(habit: ApiHabit) {
+    const Icon = getHabitIcon(habit.icon);
+    const actionLabel = habit.todayChecked ? `取消打卡 ${habit.title}` : `打卡 ${habit.title}`;
+    return (
+      <Tooltip className="floating-habit-shortcut-tooltip" key={habit.id} placement="top" title={actionLabel} trigger="hover" variant="default">
+        <button
+          aria-label={actionLabel}
+          aria-pressed={habit.todayChecked}
+          className={`floating-habit-shortcut color-${habit.color}${habit.todayChecked ? " is-checked" : ""}`}
+          disabled={savingHabitId === habit.id}
+          title={actionLabel}
+          type="button"
+          onClick={() => void toggleHabitToday(habit)}
+        >
+          <Icon size={16} strokeWidth={2.4} />
+        </button>
+      </Tooltip>
+    );
+  }
+
   return (
     <div className="floating-card" style={floatingCardStyle}>
-      <FloatingWindowHeader />
+      <FloatingWindowHeader geometryStorageKey={floatingTaskWindowGeometryStorageKey} />
       <div className="floating-toolbar">
         <Button className="floating-toolbar-primary" icon={<Plus size={15} />} size="small" type="default" onClick={beginCreate}>
           新增
@@ -885,6 +947,11 @@ export function FloatingCard() {
 
         {floatingCardViewMode === "list" ? renderDefaultTaskList() : renderGroupedTaskView(floatingCardViewMode === "quadrant" ? quadrantGroups : tagGroups)}
       </main>
+      {floatingCardHabitCheckInEnabled && todayHabitShortcuts.length > 0 ? (
+        <div className="floating-habit-shortcuts" aria-label="今日习惯快捷打卡">
+          {todayHabitShortcuts.map(renderHabitShortcut)}
+        </div>
+      ) : null}
     </div>
   );
 }

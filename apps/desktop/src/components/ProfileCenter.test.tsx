@@ -59,11 +59,11 @@ const user: ApiUser = {
 };
 
 const appBootstrap: AppBootstrapResponse = {
-  apiVersion: "0.2.22",
+  apiVersion: "0.2.23",
   releaseChannel: "stable",
   desktop: {
     minimumVersion: "0.1.0",
-    latestVersion: "0.2.22",
+    latestVersion: "0.2.23",
     updateEndpoint: "https://example.com/latest.json"
   },
   featureFlags: {
@@ -88,7 +88,7 @@ const sidebarModuleOptions: Array<{ id: SidebarModule; label: string }> = [
 function createUpdater(status: AppUpdaterController["status"]): AppUpdaterController {
   return {
     status,
-    currentVersion: "0.2.22",
+    currentVersion: "0.2.23",
     targetVersion: null,
     releaseDate: null,
     releaseNotes: null,
@@ -109,6 +109,7 @@ function renderProfile(updater: AppUpdaterController, props: Partial<Parameters<
       appBootstrap={appBootstrap}
       appCloseBehavior="hide"
       displaySize="default"
+      floatingCardHabitCheckInEnabled
       floatingCardThemeId="warm-paper"
       footerVisible
       footerType="sea"
@@ -121,6 +122,7 @@ function renderProfile(updater: AppUpdaterController, props: Partial<Parameters<
       visibleSidebarModules={defaultVisibleSidebarModules}
       onFooterVisibleChanged={vi.fn()}
       onFooterTypeChanged={vi.fn()}
+      onFloatingCardHabitCheckInEnabledChanged={vi.fn()}
       onFloatingCardThemeChanged={vi.fn()}
       onFontFamilyChanged={vi.fn()}
       onAppCloseBehaviorChanged={vi.fn()}
@@ -180,6 +182,21 @@ describe("ProfileCenter", () => {
     expect(screen.getByText("便签打印")).toBeInTheDocument();
     fireEvent.click(screen.getByText(/显示打印按钮/));
     expect(onPrintButtonEnabledChanged).toHaveBeenCalledWith(true);
+  });
+
+  it("shows floating card habit shortcut settings", () => {
+    const onFloatingCardHabitCheckInEnabledChanged = vi.fn();
+    renderProfile(createUpdater("idle"), {
+      floatingCardHabitCheckInEnabled: true,
+      onFloatingCardHabitCheckInEnabledChanged
+    } as Partial<Parameters<typeof ProfileCenter>[0]>);
+
+    expect(screen.getByText("固定卡片快捷习惯打卡")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /否/ }));
+    expect(onFloatingCardHabitCheckInEnabledChanged).toHaveBeenCalledWith(false);
+
+    fireEvent.click(screen.getByRole("button", { name: /是/ }));
+    expect(onFloatingCardHabitCheckInEnabledChanged).toHaveBeenCalledWith(true);
   });
 
   it("renders sortable module items with module color identifiers", () => {

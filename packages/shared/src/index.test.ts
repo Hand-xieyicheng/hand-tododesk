@@ -129,6 +129,8 @@ describe("profile schemas", () => {
     expect(updateThemePreferenceRequestSchema.parse({ footerType: "tree" })).toEqual({ footerType: "tree" });
     expect(updateThemePreferenceRequestSchema.parse({ printButtonEnabled: true })).toEqual({ printButtonEnabled: true });
     expect(updateThemePreferenceRequestSchema.parse({ printButtonEnabled: false })).toEqual({ printButtonEnabled: false });
+    expect(updateThemePreferenceRequestSchema.parse({ floatingCardHabitCheckInEnabled: true })).toEqual({ floatingCardHabitCheckInEnabled: true });
+    expect(updateThemePreferenceRequestSchema.parse({ floatingCardHabitCheckInEnabled: false })).toEqual({ floatingCardHabitCheckInEnabled: false });
     expect(updateThemePreferenceRequestSchema.parse({ showCompletedTasks: false })).toEqual({ showCompletedTasks: false });
     expect(updateThemePreferenceRequestSchema.parse({ taskViewMode: "quadrant" })).toEqual({ taskViewMode: "quadrant" });
     expect(updateThemePreferenceRequestSchema.parse({ taskViewMode: "kanban" })).toEqual({ taskViewMode: "kanban" });
@@ -261,11 +263,11 @@ describe("app bootstrap schema", () => {
     });
 
     expect(appBootstrapResponseSchema.parse({
-      apiVersion: "0.2.22",
+      apiVersion: "0.2.23",
       releaseChannel: "stable",
       desktop: {
         minimumVersion: "0.1.0",
-        latestVersion: "0.2.22",
+        latestVersion: "0.2.23",
         updateEndpoint: "https://github.com/Hand-xieyicheng/hand-tododesk/releases/latest/download/latest.json"
       },
       featureFlags: {
@@ -281,11 +283,11 @@ describe("app bootstrap schema", () => {
 
   it("rejects unsupported release channels", () => {
     expect(appBootstrapResponseSchema.safeParse({
-      apiVersion: "0.2.22",
+      apiVersion: "0.2.23",
       releaseChannel: "beta",
       desktop: {
         minimumVersion: "0.1.0",
-        latestVersion: "0.2.22",
+        latestVersion: "0.2.23",
         updateEndpoint: "https://github.com/Hand-xieyicheng/hand-tododesk/releases/latest/download/latest.json"
       },
       featureFlags: defaultAppFeatureFlags

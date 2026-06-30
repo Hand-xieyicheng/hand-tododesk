@@ -32,6 +32,10 @@ export type DesktopSyncEvent =
   | {
     sourceId: string;
     type: "task-board:reload-requested";
+  }
+  | {
+    sourceId: string;
+    type: "habit-board:reload-requested";
   };
 
 type WithoutSource<T> = T extends { sourceId: string } ? Omit<T, "sourceId"> : never;
@@ -86,6 +90,9 @@ function isDesktopSyncEvent(value: unknown): value is DesktopSyncEvent {
     return typeof value.memoId === "string";
   }
   if (value.type === "task-board:reload-requested") {
+    return true;
+  }
+  if (value.type === "habit-board:reload-requested") {
     return true;
   }
   return false;

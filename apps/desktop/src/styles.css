@@ -369,6 +369,7 @@ textarea:focus-visible,
 
 .sidebar-brand-logo {
   width: calc(106px * var(--app-ui-scale));
+  aspect-ratio: 1;
   filter: drop-shadow(0 5px 0 var(--color-shadow)) drop-shadow(0 12px 18px var(--color-soft-shadow));
   line-height: 0;
   transition: width 180ms ease, opacity 160ms ease, transform 180ms ease;
@@ -556,6 +557,12 @@ textarea:focus-visible,
 .sidebar-brand-button:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--color-primary) 72%, transparent);
   outline-offset: calc(5px * var(--app-ui-scale));
+}
+
+.app-shell:not(.is-sidebar-collapsed) .sidebar-brand-button {
+  width: calc(132px * var(--app-ui-scale));
+  height: calc(132px * var(--app-ui-scale));
+  padding: calc(13px * var(--app-ui-scale));
 }
 
 .app-shell.is-sidebar-collapsed .app-brand {
@@ -3450,7 +3457,7 @@ body .task-time-range-ant-dropdown .ant-picker-panel-container {
   min-width: clamp(calc(250px * var(--app-ui-scale)), 24vw, calc(340px * var(--app-ui-scale)));
   max-width: clamp(calc(250px * var(--app-ui-scale)), 24vw, calc(340px * var(--app-ui-scale)));
   min-height: 0;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
   align-content: stretch;
   gap: calc(8px * var(--app-ui-scale));
   padding: 0 calc(2px * var(--app-ui-scale));
@@ -7244,6 +7251,70 @@ body .primary-button[class*="animal-btn"] {
   min-height: 0;
   overflow-y: auto;
   padding: calc(10px * var(--app-ui-scale));
+}
+
+.floating-habit-shortcuts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(7px * var(--app-ui-scale));
+  align-items: center;
+  padding: calc(8px * var(--app-ui-scale)) calc(10px * var(--app-ui-scale)) calc(10px * var(--app-ui-scale));
+  border-top: 1px dashed color-mix(in srgb, var(--floating-card-border) 58%, transparent);
+  background: color-mix(in srgb, var(--floating-card-surface) 88%, var(--floating-card-background));
+  box-shadow: 0 -5px 10px color-mix(in srgb, var(--floating-card-shadow) 28%, transparent);
+}
+
+.floating-habit-shortcut-tooltip {
+  position: relative;
+}
+
+.floating-habit-shortcut-tooltip [role="tooltip"][aria-hidden="true"] {
+  display: none;
+}
+
+.floating-habit-shortcut {
+  --habit-accent: var(--floating-card-accent);
+  display: grid;
+  width: calc(32px * var(--app-ui-scale));
+  height: calc(32px * var(--app-ui-scale));
+  place-items: center;
+  padding: 0;
+  border: 2px solid color-mix(in srgb, var(--habit-accent) 32%, var(--floating-card-border));
+  border-radius: calc(10px * var(--app-ui-scale));
+  background: color-mix(in srgb, var(--habit-accent) 12%, var(--floating-card-surface));
+  color: var(--habit-accent) !important;
+  box-shadow: 0 2px 0 color-mix(in srgb, var(--floating-card-shadow) 58%, transparent);
+  cursor: pointer;
+  transition: border-color 140ms ease, background 140ms ease, color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
+}
+
+.floating-habit-shortcut:hover:not(:disabled),
+.floating-habit-shortcut:focus-visible {
+  border-color: color-mix(in srgb, var(--habit-accent) 66%, var(--floating-card-border));
+  background: color-mix(in srgb, var(--habit-accent) 20%, var(--floating-card-surface));
+  box-shadow: 0 3px 0 color-mix(in srgb, var(--floating-card-shadow) 70%, transparent);
+  outline: none;
+}
+
+.floating-habit-shortcut:active:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--floating-card-shadow) 60%, transparent);
+}
+
+.floating-habit-shortcut.is-checked {
+  border-color: color-mix(in srgb, var(--habit-accent) 74%, var(--floating-card-border));
+  background: color-mix(in srgb, var(--habit-accent) 82%, var(--floating-card-surface));
+  color: var(--floating-card-check) !important;
+}
+
+.floating-habit-shortcut:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
+.floating-habit-shortcut svg {
+  color: currentColor !important;
+  stroke: currentColor !important;
 }
 
 .memo-floating-card .memo-floating-main {

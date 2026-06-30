@@ -114,4 +114,30 @@ describe("desktopSync", () => {
 
     unsubscribe();
   });
+
+  it("handles external habit board reload events", () => {
+    const listener = vi.fn();
+    const unsubscribe = listenDesktopSyncEvents(listener);
+
+    window.dispatchEvent(new CustomEvent(desktopSyncBrowserEventName, {
+      detail: {
+        sourceId: desktopSyncSourceId,
+        type: "habit-board:reload-requested"
+      }
+    }));
+    window.dispatchEvent(new CustomEvent(desktopSyncBrowserEventName, {
+      detail: {
+        sourceId: "floating-card",
+        type: "habit-board:reload-requested"
+      }
+    }));
+
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(listener).toHaveBeenCalledWith({
+      sourceId: "floating-card",
+      type: "habit-board:reload-requested"
+    });
+
+    unsubscribe();
+  });
 });

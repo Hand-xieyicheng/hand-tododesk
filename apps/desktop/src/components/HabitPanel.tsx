@@ -32,6 +32,7 @@ import {
   Trash2
 } from "lucide-react";
 import { api } from "../api/client";
+import { emitDesktopSyncEvent, listenDesktopSyncEvents } from "../lib/desktopSync";
 import { allHabitIconNames, getHabitIcon, habitIconOptions, iconSearchText, normalizeHabitIconName, presetHabitIconOptions } from "../lib/habitIcons";
 import { ConfirmDialog } from "./ConfirmDialog";
 
@@ -402,6 +403,10 @@ export function HabitPanel({ createOpen, returnToListSignal = 0, showArchived, o
     });
   }, []);
 
+  function emitHabitBoardReload() {
+    void emitDesktopSyncEvent({ type: "habit-board:reload-requested" });
+  }
+
   async function loadHabits(preferredId = selectedId) {
     setMessage("");
     setLoading(true);
@@ -410,8 +415,10 @@ export function HabitPanel({ createOpen, returnToListSignal = 0, showArchived, o
       setHabits(payload.habits);
       const nextSelectedId = preferredId && payload.habits.some((habit) => habit.id === preferredId) ? preferredId : "";
       setSelectedId(nextSelectedId);
+      return nextSelectedId;
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "习惯加载失败");
+      return "";
     } finally {
       setLoading(false);
     }
@@ -440,6 +447,22 @@ export function HabitPanel({ createOpen, returnToListSignal = 0, showArchived, o
   useEffect(() => {
     void loadDetail();
   }, [selectedId, detailMonth]);
+
+  useEffect(() => {
+    return listenDesktopSyncEvents((event) => {
+      if (event.type !== "habit-board:reload-requested") {
+        return;
+      }
+      void (async () => {
+        const refreshedId = await loadHabits(selectedId);
+        if (refreshedId) {
+          await loadDetail(refreshedId, detailMonth);
+        } else {
+          setDetail(null);
+        }
+      })();
+    });
+  }, [detailMonth, selectedId, showArchived]);
 
   useEffect(() => {
     onDetailModeChange?.(Boolean(selectedHabit));
@@ -507,6 +530,7 @@ export function HabitPanel({ createOpen, returnToListSignal = 0, showArchived, o
       await loadHabits(response.habit.id);
       setDetailMonth(currentMonthKey());
       await loadDetail(response.habit.id, currentMonthKey());
+      emitHabitBoardReload();
     } catch (error) {
       setFormMessage(error instanceof Error ? error.message : "保存失败");
     } finally {
@@ -528,6 +552,7 @@ export function HabitPanel({ createOpen, returnToListSignal = 0, showArchived, o
       if (refreshesCurrentDetail) {
         await loadDetail(habit.id, detailMonth);
       }
+      emitHabitBoardReload();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "打卡失败");
     }
@@ -545,6 +570,7 @@ export function HabitPanel({ createOpen, returnToListSignal = 0, showArchived, o
       }
       await loadHabits(selectedId);
       await loadDetail(selectedId, detailMonth);
+      emitHabitBoardReload();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "打卡失败");
     }
@@ -554,6 +580,7 @@ export function HabitPanel({ createOpen, returnToListSignal = 0, showArchived, o
     try {
       const response = await api.updateHabit(habit.id, { archived });
       await loadHabits(response.habit.id);
+      emitHabitBoardReload();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "归档失败");
     }
@@ -585,6 +612,7 @@ export function HabitPanel({ createOpen, returnToListSignal = 0, showArchived, o
       await api.deleteHabit(habitId);
       setDeleteHabitTarget(null);
       await loadHabits("");
+      emitHabitBoardReload();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "删除失败");
     } finally {
@@ -608,6 +636,7 @@ export function HabitPanel({ createOpen, returnToListSignal = 0, showArchived, o
       setNoteDraft("");
       await loadHabits(selectedId);
       await loadDetail(selectedId, detailMonth);
+      emitHabitBoardReload();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "日志保存失败");
     }
@@ -617,6 +646,7 @@ export function HabitPanel({ createOpen, returnToListSignal = 0, showArchived, o
     setMessage("");
     try {
       await api.updateHabitOrder({ orderedIds: nextHabits.map((habit) => habit.id) });
+      emitHabitBoardReload();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "排序保存失败");
       await loadHabits(selectedId);

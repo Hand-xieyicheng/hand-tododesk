@@ -1,14 +1,17 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { defaultVisibleSidebarModules, type ApiTask, type ApiThemePreference } from "@todo/shared";
+import { defaultVisibleSidebarModules, toLocalDateKey, type ApiHabit, type ApiTask, type ApiThemePreference } from "@todo/shared";
 import { desktopSyncBrowserEventName } from "../lib/desktopSync";
 import { getTodayEndDatetimeLocal, getTomorrowEndDatetimeLocal } from "../lib/datetime";
 import { useTaskBoardStore } from "../stores/taskBoardStore";
 import { FloatingCard } from "./FloatingCard";
 
 const apiMock = vi.hoisted(() => ({
+  cancelHabitCheckIn: vi.fn(),
+  checkInHabit: vi.fn(),
   createTask: vi.fn(),
   getThemePreference: vi.fn(),
+  habits: vi.fn(),
   setThemePreference: vi.fn(),
   tags: vi.fn(),
   tasks: vi.fn(),
@@ -32,8 +35,14 @@ const tauriCoreMock = vi.hoisted(() => ({
 
 const windowMock = vi.hoisted(() => ({
   close: vi.fn(),
+  innerSize: vi.fn(),
   isAlwaysOnTop: vi.fn(),
+  onMoved: vi.fn(),
+  onResized: vi.fn(),
+  outerPosition: vi.fn(),
   setAlwaysOnTop: vi.fn(),
+  setPosition: vi.fn(),
+  setSize: vi.fn(),
   startDragging: vi.fn()
 }));
 
@@ -152,6 +161,7 @@ const titlePreference: ApiThemePreference = {
   footerVisible: true,
   footerType: "sea",
   printButtonEnabled: false,
+  floatingCardHabitCheckInEnabled: true,
   showCompletedTasks: true,
   taskViewMode: "list",
   taskCardDisplayMode: "title",
@@ -162,6 +172,46 @@ const titlePreference: ApiThemePreference = {
   visibleSidebarModules: defaultVisibleSidebarModules,
   sidebarCollapsed: false,
   fontFamily: "system"
+};
+
+const todayHabit: ApiHabit = {
+  id: "habit-1",
+  title: "学习日语",
+  notes: null,
+  icon: "BookOpen",
+  color: "mint",
+  frequency: "DAILY",
+  interval: 1,
+  weekDays: [],
+  monthDays: [],
+  startDate: "2020-01-01",
+  endDate: null,
+  sortOrder: 1000,
+  archivedAt: null,
+  createdAt: "2026-06-01T00:00:00.000Z",
+  updatedAt: "2026-06-01T00:00:00.000Z",
+  todayPlanned: true,
+  todayChecked: false,
+  stats: {
+    currentStreak: 3,
+    currentStreakUnit: "天",
+    monthCheckIns: 2,
+    monthCompletionRate: 50,
+    monthPlanned: 4,
+    totalCheckIns: 13
+  }
+};
+
+const checkedTodayHabit: ApiHabit = {
+  ...todayHabit,
+  todayChecked: true
+};
+
+const unplannedHabit: ApiHabit = {
+  ...todayHabit,
+  id: "habit-unplanned",
+  title: "周末阅读",
+  todayPlanned: false
 };
 
 function taskWith(patch: Partial<ApiTask>): ApiTask {
@@ -225,12 +275,43 @@ describe("FloatingCard", () => {
     alwaysOnTop = false;
     apiMock.tasks.mockResolvedValue({ tasks: [task] });
     apiMock.tags.mockResolvedValue({ tags: tagOptions });
+    apiMock.habits.mockResolvedValue({ habits: [todayHabit] });
     apiMock.getThemePreference.mockResolvedValue(titlePreference);
+    apiMock.checkInHabit.mockResolvedValue({ checkIn: null });
+    apiMock.cancelHabitCheckIn.mockResolvedValue(undefined);
     apiMock.updateTaskOrder.mockResolvedValue({ ok: true });
+    windowMock.innerSize.mockResolvedValue({ height: 520, width: 360 });
     windowMock.isAlwaysOnTop.mockImplementation(async () => alwaysOnTop);
+    windowMock.onMoved.mockResolvedValue(vi.fn());
+    windowMock.onResized.mockResolvedValue(vi.fn());
+    windowMock.outerPosition.mockResolvedValue({ x: 80, y: 90 });
     windowMock.setAlwaysOnTop.mockImplementation(async (value: boolean) => {
       alwaysOnTop = value;
     });
+    windowMock.setPosition.mockResolvedValue(undefined);
+    windowMock.setSize.mockResolvedValue(undefined);
+  });
+
+  it("restores cached desktop card size and position on startup", async () => {
+    localStorage.setItem("tododesk.floatingWindowGeometry.task", JSON.stringify({
+      height: 620,
+      width: 440,
+      x: 72,
+      y: 96
+    }));
+
+    render(<FloatingCard />);
+
+    await waitFor(() => expect(windowMock.isAlwaysOnTop).toHaveBeenCalled());
+    await waitFor(() => expect(windowMock.onMoved).toHaveBeenCalled());
+    await waitFor(() => expect(windowMock.setSize).toHaveBeenCalledWith(expect.objectContaining({
+      height: 620,
+      width: 440
+    })));
+    expect(windowMock.setPosition).toHaveBeenCalledWith(expect.objectContaining({
+      x: 72,
+      y: 96
+    }));
   });
 
   it("uses card display preference from synced settings", async () => {
@@ -243,11 +324,12 @@ describe("FloatingCard", () => {
     expect(container.querySelector(".floating-task-meta")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "编辑" })).toBeInTheDocument();
     expect(screen.getByRole("checkbox", { name: "完成" })).toHaveAttribute("aria-checked", "false");
-    expect(screen.getByRole("tooltip")).toHaveTextContent("补齐报销附件");
-    expect(screen.getByRole("tooltip")).toHaveTextContent("重要不紧急");
-    expect(screen.getByRole("tooltip")).toHaveTextContent("无时间");
-    expect(screen.getByRole("tooltip")).toHaveTextContent("1 个番茄");
-    expect(screen.getByRole("tooltip")).toHaveTextContent("#财务");
+    const taskTooltip = container.querySelector(".floating-task-tooltip [role='tooltip']");
+    expect(taskTooltip).toHaveTextContent("补齐报销附件");
+    expect(taskTooltip).toHaveTextContent("重要不紧急");
+    expect(taskTooltip).toHaveTextContent("无时间");
+    expect(taskTooltip).toHaveTextContent("1 个番茄");
+    expect(taskTooltip).toHaveTextContent("#财务");
   });
 
   it("applies synced floating card theme variables", async () => {
@@ -258,6 +340,66 @@ describe("FloatingCard", () => {
     const card = container.querySelector(".floating-card");
     expect(card).toHaveStyle("--floating-card-background: #111827");
     expect(card).toHaveStyle("--floating-card-text: #ffffff");
+  });
+
+  it("shows today planned habit shortcuts when the preference is enabled", async () => {
+    render(<FloatingCard />);
+
+    const shortcut = await screen.findByRole("button", { name: "打卡 学习日语" });
+
+    expect(apiMock.habits).toHaveBeenCalledWith(false);
+    expect(shortcut).toHaveAttribute("aria-pressed", "false");
+    expect(shortcut.querySelector(".lucide-book-open")).not.toBeNull();
+  });
+
+  it("hides habit shortcuts when the preference is disabled", async () => {
+    apiMock.getThemePreference.mockResolvedValue({
+      ...titlePreference,
+      floatingCardHabitCheckInEnabled: false
+    });
+    render(<FloatingCard />);
+
+    await waitFor(() => expect(apiMock.habits).toHaveBeenCalledWith(false));
+
+    expect(screen.queryByRole("button", { name: "打卡 学习日语" })).not.toBeInTheDocument();
+  });
+
+  it("hides habits that are not planned today", async () => {
+    apiMock.habits.mockResolvedValue({ habits: [unplannedHabit] });
+    render(<FloatingCard />);
+
+    await waitFor(() => expect(apiMock.habits).toHaveBeenCalledWith(false));
+
+    expect(screen.queryByRole("button", { name: "打卡 周末阅读" })).not.toBeInTheDocument();
+  });
+
+  it("checks in a planned habit from the floating card and emits a habit refresh event", async () => {
+    const rawListener = vi.fn();
+    window.addEventListener(desktopSyncBrowserEventName, rawListener);
+    render(<FloatingCard />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "打卡 学习日语" }));
+
+    await waitFor(() => expect(apiMock.checkInHabit).toHaveBeenCalledWith("habit-1", toLocalDateKey()));
+    await waitFor(() => expect(rawListener).toHaveBeenCalledWith(expect.objectContaining({
+      detail: expect.objectContaining({
+        type: "habit-board:reload-requested"
+      })
+    })));
+
+    window.removeEventListener(desktopSyncBrowserEventName, rawListener);
+  });
+
+  it("cancels a checked habit from the floating card", async () => {
+    apiMock.habits.mockResolvedValue({ habits: [checkedTodayHabit] });
+    render(<FloatingCard />);
+
+    const shortcut = await screen.findByRole("button", { name: "取消打卡 学习日语" });
+
+    expect(shortcut).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(shortcut);
+
+    await waitFor(() => expect(apiMock.cancelHabitCheckIn).toHaveBeenCalledWith("habit-1", toLocalDateKey()));
   });
 
   it("cycles the floating card view mode without changing the main task view mode", async () => {

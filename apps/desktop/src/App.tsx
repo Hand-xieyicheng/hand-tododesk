@@ -55,6 +55,7 @@ const defaultThemePreference: ApiThemePreference = {
   footerVisible: true,
   footerType: "sea",
   printButtonEnabled: false,
+  floatingCardHabitCheckInEnabled: true,
   showCompletedTasks: true,
   taskViewMode: "list",
   taskCardDisplayMode: "full",
@@ -176,6 +177,7 @@ export function App() {
   const [footerVisible, setFooterVisible] = useState(true);
   const [footerType, setFooterType] = useState<AppFooterType>("sea");
   const [printButtonEnabled, setPrintButtonEnabled] = useState(false);
+  const [floatingCardHabitCheckInEnabled, setFloatingCardHabitCheckInEnabled] = useState(true);
   const [taskPrintDialogOpen, setTaskPrintDialogOpen] = useState(false);
   const [showCompletedTasks, setShowCompletedTasks] = useState(true);
   const [taskCardDisplayMode, setTaskCardDisplayMode] = useState<TaskCardDisplayMode>("full");
@@ -271,6 +273,7 @@ export function App() {
     setFooterVisible(preference.footerVisible);
     setFooterType(preference.footerType);
     setPrintButtonEnabled(preference.printButtonEnabled);
+    setFloatingCardHabitCheckInEnabled(preference.floatingCardHabitCheckInEnabled);
     setShowCompletedTasks(preference.showCompletedTasks);
     setTaskViewMode(preference.taskViewMode);
     setTaskCardDisplayMode(preference.taskCardDisplayMode);
@@ -565,6 +568,17 @@ export function App() {
       .catch((error) => {
         setPrintButtonEnabled(previous);
         setMessage(error instanceof Error ? error.message : "便签打印配置保存失败");
+      });
+  }
+
+  function handleFloatingCardHabitCheckInEnabledChanged(next: boolean) {
+    const previous = floatingCardHabitCheckInEnabled;
+    setFloatingCardHabitCheckInEnabled(next);
+    void api.setThemePreference({ floatingCardHabitCheckInEnabled: next })
+      .then(publishThemePreference)
+      .catch((error) => {
+        setFloatingCardHabitCheckInEnabled(previous);
+        setMessage(error instanceof Error ? error.message : "固定卡片习惯打卡配置保存失败");
       });
   }
 
@@ -968,6 +982,7 @@ export function App() {
                 user={user}
                 footerType={footerType}
                 footerVisible={footerVisible}
+                floatingCardHabitCheckInEnabled={floatingCardHabitCheckInEnabled}
                 floatingCardThemeId={floatingCardThemeId}
                 appCloseBehavior={appCloseBehavior}
                 displaySize={displaySize}
@@ -981,6 +996,7 @@ export function App() {
                 onFontFamilyChanged={handleFontFamilyChanged}
                 onFooterTypeChanged={handleFooterTypeChanged}
                 onFooterVisibleChanged={handleFooterVisibleChanged}
+                onFloatingCardHabitCheckInEnabledChanged={handleFloatingCardHabitCheckInEnabledChanged}
                 onFloatingCardThemeChanged={handleFloatingCardThemeChanged}
                 onAppCloseBehaviorChanged={handleAppCloseBehaviorChanged}
                 onPasswordChanged={handlePasswordChanged}

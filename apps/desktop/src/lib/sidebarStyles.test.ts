@@ -50,6 +50,19 @@ describe("sidebar styles", () => {
     expect(collapsedLogoRule).not.toContain("display: none");
   });
 
+  it("keeps the expanded sidebar logo inside a square padded slot", () => {
+    const expandedBrandButtonRule = getRule(".app-shell:not(.is-sidebar-collapsed) .sidebar-brand-button");
+    const sidebarLogoRule = getRule(".sidebar-brand-logo");
+    const collapsedBrandButtonRule = getRule(".app-shell.is-sidebar-collapsed .sidebar-brand-button");
+
+    expect(expandedBrandButtonRule).toContain("width: calc(132px * var(--app-ui-scale))");
+    expect(expandedBrandButtonRule).toContain("height: calc(132px * var(--app-ui-scale))");
+    expect(expandedBrandButtonRule).toContain("padding: calc(13px * var(--app-ui-scale))");
+    expect(sidebarLogoRule).toContain("aspect-ratio: 1");
+    expect(collapsedBrandButtonRule).toContain("width: calc(52px * var(--app-ui-scale))");
+    expect(collapsedBrandButtonRule).toContain("height: calc(52px * var(--app-ui-scale))");
+  });
+
   it("runs logo animations every 4 seconds while keeping only the button hover lift", () => {
     const eyeRule = getRule(".sidebar-logo-eye");
     const browRule = getRule(".sidebar-logo-brow");

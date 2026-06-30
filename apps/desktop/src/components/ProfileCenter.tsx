@@ -23,6 +23,7 @@ interface ProfileCenterProps {
   appBootstrap: AppBootstrapResponse | null;
   appCloseBehavior: AppCloseBehavior;
   displaySize: DisplaySize;
+  floatingCardHabitCheckInEnabled: boolean;
   floatingCardThemeId: FloatingCardThemeId;
   footerVisible: boolean;
   footerType: AppFooterType;
@@ -36,6 +37,7 @@ interface ProfileCenterProps {
   onAppCloseBehaviorChanged(appCloseBehavior: AppCloseBehavior): void;
   onFooterVisibleChanged(visible: boolean): void;
   onFooterTypeChanged(footerType: AppFooterType): void;
+  onFloatingCardHabitCheckInEnabledChanged(enabled: boolean): void;
   onFloatingCardThemeChanged(floatingCardThemeId: FloatingCardThemeId): void;
   onFontFamilyChanged(fontFamily: FontFamily): void;
   onDisplaySizeChanged(displaySize: DisplaySize): void;
@@ -261,6 +263,7 @@ export function ProfileCenter({
   appBootstrap,
   appCloseBehavior,
   displaySize,
+  floatingCardHabitCheckInEnabled,
   floatingCardThemeId,
   footerVisible,
   footerType,
@@ -274,6 +277,7 @@ export function ProfileCenter({
   onAppCloseBehaviorChanged,
   onFooterVisibleChanged,
   onFooterTypeChanged,
+  onFloatingCardHabitCheckInEnabledChanged,
   onFloatingCardThemeChanged,
   onFontFamilyChanged,
   onDisplaySizeChanged,
@@ -909,6 +913,17 @@ export function ProfileCenter({
               ]}
               value={printButtonEnabled ? "on" : "off"}
               onChange={(value) => onPrintButtonEnabledChanged(value === "on")}
+            />
+          </div>
+          <div className="display-size-config">
+            <span className="display-size-config-label">固定卡片快捷习惯打卡</span>
+            <Radio
+              options={[
+                { label: "是", value: "on" },
+                { label: "否", value: "off" }
+              ]}
+              value={floatingCardHabitCheckInEnabled ? "on" : "off"}
+              onChange={(value) => onFloatingCardHabitCheckInEnabledChanged(value === "on")}
             />
           </div>
           <div className="module-display-config">

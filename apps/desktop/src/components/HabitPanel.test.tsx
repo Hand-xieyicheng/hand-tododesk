@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { toLocalDateKey, type ApiHabit, type ApiHabitDetail } from "@todo/shared";
+import { desktopSyncBrowserEventName } from "../lib/desktopSync";
 import { HabitPanel } from "./HabitPanel";
 
 const apiMock = vi.hoisted(() => ({
@@ -252,20 +253,31 @@ describe("HabitPanel", () => {
   });
 
   it("renders detail stats, calendar, logs, and checks in today", async () => {
+    const rawListener = vi.fn();
+    window.addEventListener(desktopSyncBrowserEventName, rawListener);
     const { container } = render(<HabitPanel createOpen={false} showArchived={false} onCreateOpenChange={vi.fn()} />);
 
-    await waitFor(() => expect(apiMock.habits).toHaveBeenCalledWith(false));
-    await waitFor(() => expect(getHabitListTitle(container, "学习日语")).toBeInTheDocument());
-    selectHabitFromList(container, "学习日语");
+    try {
+      await waitFor(() => expect(apiMock.habits).toHaveBeenCalledWith(false));
+      await waitFor(() => expect(getHabitListTitle(container, "学习日语")).toBeInTheDocument());
+      selectHabitFromList(container, "学习日语");
 
-    await waitFor(() => expect(screen.getByText("月完成率")).toBeInTheDocument());
-    expect(screen.getByText("记录日志")).toBeInTheDocument();
-    expect(screen.getByText("完成一课")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: `${today}已打卡` }).querySelector(".lucide-book-open")).not.toBeNull();
+      await waitFor(() => expect(screen.getByText("月完成率")).toBeInTheDocument());
+      expect(screen.getByText("记录日志")).toBeInTheDocument();
+      expect(screen.getByText("完成一课")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: `${today}已打卡` }).querySelector(".lucide-book-open")).not.toBeNull();
 
-    fireEvent.click(screen.getByRole("button", { name: "今日学习日语打卡" }));
+      fireEvent.click(screen.getByRole("button", { name: "今日学习日语打卡" }));
 
-    await waitFor(() => expect(apiMock.checkInHabit).toHaveBeenCalledWith("habit-1", today));
+      await waitFor(() => expect(apiMock.checkInHabit).toHaveBeenCalledWith("habit-1", today));
+      await waitFor(() => expect(rawListener).toHaveBeenCalledWith(expect.objectContaining({
+        detail: expect.objectContaining({
+          type: "habit-board:reload-requested"
+        })
+      })));
+    } finally {
+      window.removeEventListener(desktopSyncBrowserEventName, rawListener);
+    }
   });
 
   it("renders semantic tooltips for detail action icons", async () => {
@@ -354,6 +366,23 @@ describe("HabitPanel", () => {
     await waitFor(() => expect(screen.getByRole("button", { name: "取消今日学习日语打卡" })).toBeInTheDocument());
     expect(apiMock.habitDetail).not.toHaveBeenCalled();
     expect(container.querySelector(".habit-panel")).toHaveClass("is-collection");
+  });
+
+  it("reloads habit list when an external habit board refresh event is received", async () => {
+    const { container } = render(<HabitPanel createOpen={false} showArchived={false} onCreateOpenChange={vi.fn()} />);
+
+    await waitFor(() => expect(getHabitListTitle(container, "学习日语")).toBeInTheDocument());
+    apiMock.habits.mockResolvedValueOnce({ habits: [{ ...habit, title: "刷新后的习惯" }] });
+
+    window.dispatchEvent(new CustomEvent(desktopSyncBrowserEventName, {
+      detail: {
+        sourceId: "floating-card",
+        type: "habit-board:reload-requested"
+      }
+    }));
+
+    await waitFor(() => expect(apiMock.habits).toHaveBeenCalledTimes(2));
+    expect(getHabitListTitle(container, "刷新后的习惯")).toBeInTheDocument();
   });
 
   it("keeps habit detail content in place while detail refresh is pending", async () => {

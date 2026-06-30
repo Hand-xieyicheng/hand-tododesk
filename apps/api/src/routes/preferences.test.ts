@@ -35,6 +35,7 @@ const currentPreference = {
   visibleSidebarModules: "tasks,memos,anniversaries,habits,calendar,pomodoro",
   sidebarCollapsed: 0,
   printButtonEnabled: 0,
+  floatingCardHabitCheckInEnabled: 1,
   fontFamily: "system"
 };
 
@@ -72,7 +73,8 @@ describe("preference routes", () => {
       appCloseBehavior: "hide",
       visibleSidebarModules: ["tasks", "memos", "anniversaries", "habits", "calendar", "pomodoro"],
       sidebarCollapsed: false,
-      printButtonEnabled: false
+      printButtonEnabled: false,
+      floatingCardHabitCheckInEnabled: true
     });
   });
 
@@ -121,6 +123,7 @@ describe("preference routes", () => {
       "tasks,memos,anniversaries,habits,calendar,pomodoro",
       false,
       false,
+      true,
       "system"
     ]);
   });
@@ -150,6 +153,7 @@ describe("preference routes", () => {
       "tasks,memos,anniversaries,habits,calendar,pomodoro",
       false,
       false,
+      true,
       "system"
     ]);
   });
@@ -190,6 +194,7 @@ describe("preference routes", () => {
       "tasks,memos,anniversaries,habits,calendar,pomodoro",
       false,
       false,
+      true,
       "system"
     ]);
   });
@@ -231,6 +236,7 @@ describe("preference routes", () => {
       "tasks,memos,anniversaries,habits,calendar,pomodoro",
       false,
       false,
+      true,
       "system"
     ]);
   });
@@ -271,6 +277,7 @@ describe("preference routes", () => {
       "tasks,memos,anniversaries,habits,calendar,pomodoro",
       false,
       false,
+      true,
       "lemi-chunxu-wanxing"
     ]);
   });
@@ -298,6 +305,63 @@ describe("preference routes", () => {
       "hide",
       "default",
       "tasks,memos,anniversaries,habits,calendar,pomodoro",
+      false,
+      true,
+      true,
+      "system"
+    ]);
+  });
+
+  it("saves floating card habit shortcut preference", async () => {
+    db.queryOne.mockResolvedValue(currentPreference);
+
+    const disabledResponse = await injectPreference("PUT", { floatingCardHabitCheckInEnabled: false });
+
+    expect(disabledResponse.statusCode).toBe(200);
+    expect(disabledResponse.json()).toMatchObject({
+      floatingCardHabitCheckInEnabled: false
+    });
+    expect(db.execute).toHaveBeenLastCalledWith(expect.stringContaining("floatingCardHabitCheckInEnabled"), [
+      "user-1",
+      "peach",
+      "app-teal",
+      true,
+      "sea",
+      true,
+      "list",
+      "full",
+      "warm-paper",
+      "list",
+      "hide",
+      "default",
+      "tasks,memos,anniversaries,habits,calendar,pomodoro",
+      false,
+      false,
+      false,
+      "system"
+    ]);
+
+    const enabledResponse = await injectPreference("PUT", { floatingCardHabitCheckInEnabled: true });
+
+    expect(enabledResponse.statusCode).toBe(200);
+    expect(enabledResponse.json()).toMatchObject({
+      floatingCardHabitCheckInEnabled: true
+    });
+    expect(db.execute).toHaveBeenLastCalledWith(expect.stringContaining("floatingCardHabitCheckInEnabled"), [
+      "user-1",
+      "peach",
+      "app-teal",
+      true,
+      "sea",
+      true,
+      "list",
+      "full",
+      "warm-paper",
+      "list",
+      "hide",
+      "default",
+      "tasks,memos,anniversaries,habits,calendar,pomodoro",
+      false,
       false,
       true,
       "system"
@@ -340,6 +404,7 @@ describe("preference routes", () => {
       "tasks,memos,anniversaries,habits,calendar,pomodoro",
       false,
       false,
+      true,
       "system"
     ]);
   });
@@ -380,6 +445,7 @@ describe("preference routes", () => {
       "tasks,memos,anniversaries,habits,calendar,pomodoro",
       true,
       false,
+      true,
       "system"
     ]);
   });
@@ -409,6 +475,7 @@ describe("preference routes", () => {
       "memos,tasks",
       false,
       false,
+      true,
       "system"
     ]);
   });
@@ -438,6 +505,7 @@ describe("preference routes", () => {
       "",
       false,
       false,
+      true,
       "system"
     ]);
   });
