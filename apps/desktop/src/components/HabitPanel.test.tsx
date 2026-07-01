@@ -233,6 +233,22 @@ describe("HabitPanel", () => {
     expect(container.querySelector(".habit-panel")).toHaveClass("is-detail");
   });
 
+  it("shows a centered no-data image when there are no habits", async () => {
+    apiMock.habits.mockResolvedValue({ habits: [] });
+
+    const { container } = render(<HabitPanel createOpen={false} showArchived={false} onCreateOpenChange={vi.fn()} />);
+
+    await waitFor(() => expect(apiMock.habits).toHaveBeenCalledWith(false));
+
+    const placeholder = screen.getByAltText("暂无数据");
+    expect(container.querySelector(".habit-list .no-data-placeholder img")).toBe(placeholder);
+    expect(container.querySelector(".habit-empty-placeholder img")).toBe(placeholder);
+    expect(container.querySelector(".habit-panel")).toHaveClass("is-empty");
+    expect(container.querySelector(".habit-list")).toHaveClass("is-empty");
+    expect(placeholder).toHaveClass("no-data-placeholder-image");
+    expect(placeholder).toHaveStyle({ opacity: "0.5" });
+  });
+
   it("returns to the habit card collection when the parent sends a list return signal", async () => {
     const { container, rerender } = render(
       <HabitPanel createOpen={false} returnToListSignal={0} showArchived={false} onCreateOpenChange={vi.fn()} />

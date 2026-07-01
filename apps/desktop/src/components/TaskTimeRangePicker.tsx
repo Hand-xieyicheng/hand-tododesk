@@ -52,6 +52,10 @@ export function TaskTimeRangePicker({ className = "", value, variant = "default"
   const startInputId = `${id}-task-start-at`;
   const dueInputId = `${id}-task-due-at`;
   const customPanelId = `${id}-task-custom-time-panel`;
+  const suppressNextEmptyTypedCommitRef = useRef<Record<ActiveField, boolean>>({
+    startAt: false,
+    dueAt: false
+  });
   const [customOpen, setCustomOpen] = useState(false);
   const summary = useMemo(
     () => formatTaskTimeRange({
@@ -93,13 +97,24 @@ export function TaskTimeRangePicker({ className = "", value, variant = "default"
   }
 
   function updateFieldFromPicker(field: ActiveField, nextValue: Dayjs | null) {
+    suppressNextEmptyTypedCommitRef.current[field] = Boolean(nextValue);
     updateField(field, nextValue ? toDatetimeLocal(nextValue.toDate()) : "");
   }
 
   function commitTypedValue(field: ActiveField, nextValue: string) {
     const parsed = parseTypedDatetime(nextValue);
-    if (parsed || !nextValue.trim()) {
+    if (parsed) {
+      suppressNextEmptyTypedCommitRef.current[field] = false;
       updateField(field, parsed);
+      return;
+    }
+
+    if (!nextValue.trim()) {
+      if (suppressNextEmptyTypedCommitRef.current[field]) {
+        suppressNextEmptyTypedCommitRef.current[field] = false;
+        return;
+      }
+      updateField(field, "");
     }
   }
 

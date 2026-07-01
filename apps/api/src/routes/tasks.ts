@@ -1,8 +1,32 @@
 import type { FastifyInstance } from "fastify";
-import type { ApiTag, ApiTask, CalendarHabitCheckIn, HabitColor, RecurrenceRuleInput, TaskPriority, TaskStatus } from "@todo/shared";
+import type {
+  AnniversaryCalendarType,
+  AnniversaryCardStyle,
+  AnniversaryCategory,
+  AnniversaryDirection,
+  AnniversaryRepeat,
+  AnniversarySolarTerm,
+  AnniversaryTimingInput,
+  ApiTag,
+  ApiTask,
+  CalendarAnniversary,
+  CalendarHabitCheckIn,
+  HabitColor,
+  RecurrenceRuleInput,
+  TaskPriority,
+  TaskStatus
+} from "@todo/shared";
 import {
+  anniversaryCalendarTypeValues,
+  anniversaryCardStyleValues,
+  anniversaryCategoryValues,
+  anniversaryDirectionValues,
+  anniversaryRepeatValues,
+  anniversarySolarTermValues,
+  calculateAnniversaryOccurrenceDisplay,
   calendarQuerySchema,
   createTaskRequestSchema,
+  expandAnniversaryOccurrenceDates,
   habitColorValues,
   sortTasksForDisplay,
   taskPriorityValues,
@@ -54,7 +78,33 @@ type CalendarHabitCheckInRow = DbRow & {
   sortOrder: number | string;
 };
 
+type CalendarAnniversaryRow = DbRow & {
+  id: string;
+  userId: string;
+  title: string;
+  category: string;
+  date: string;
+  repeat: string;
+  direction: string;
+  cardStyle: string;
+  calendarType: string;
+  lunarMonth: number | null;
+  lunarDay: number | null;
+  solarTerm: string | null;
+  sortOrder: number | string;
+};
+
+type NormalizedCalendarAnniversary = {
+  category: AnniversaryCategory;
+  cardStyle: AnniversaryCardStyle;
+  timing: AnniversaryTimingInput;
+};
+
 const taskDisplayOrderSql = "CASE WHEN `status` = 'COMPLETED' THEN 1 ELSE 0 END ASC, CASE WHEN `sortOrder` IS NULL THEN 1 ELSE 0 END ASC, `sortOrder` ASC, `createdAt` ASC, `id` ASC";
+
+function enumFromDb<TValue extends string>(values: readonly TValue[], value: string | null | undefined, fallback: TValue) {
+  return values.includes(value as TValue) ? value as TValue : fallback;
+}
 
 function normalizeHabitColor(value: string | null | undefined): HabitColor {
   return habitColorValues.includes(value as HabitColor) ? value as HabitColor : "mint";
@@ -70,6 +120,60 @@ function serializeCalendarHabitCheckIn(row: CalendarHabitCheckInRow): CalendarHa
     color: normalizeHabitColor(row.color),
     sortOrder: Number(row.sortOrder ?? 0)
   };
+}
+
+function normalizeCalendarAnniversary(row: CalendarAnniversaryRow): NormalizedCalendarAnniversary {
+  const category = enumFromDb(anniversaryCategoryValues, row.category, "ANNIVERSARY") as AnniversaryCategory;
+  const repeat = enumFromDb(anniversaryRepeatValues, row.repeat, "NONE") as AnniversaryRepeat;
+  const direction = enumFromDb(anniversaryDirectionValues, row.direction, "AUTO") as AnniversaryDirection;
+  const cardStyle = enumFromDb(anniversaryCardStyleValues, row.cardStyle, "lavender") as AnniversaryCardStyle;
+  const calendarType = enumFromDb(anniversaryCalendarTypeValues, row.calendarType, "SOLAR") as AnniversaryCalendarType;
+  const solarTerm = row.solarTerm
+    ? enumFromDb(anniversarySolarTermValues, row.solarTerm, "QINGMING") as AnniversarySolarTerm
+    : null;
+  const timing = {
+    category,
+    date: row.date,
+    repeat,
+    direction,
+    calendarType,
+    lunarMonth: row.lunarMonth,
+    lunarDay: row.lunarDay,
+    solarTerm
+  };
+
+  return { category, cardStyle, timing };
+}
+
+function serializeCalendarAnniversary(row: CalendarAnniversaryRow, date: string, normalized: NormalizedCalendarAnniversary): CalendarAnniversary {
+  const display = calculateAnniversaryOccurrenceDisplay(normalized.timing, date);
+
+  return {
+    id: row.id,
+    title: row.title,
+    date,
+    category: normalized.category,
+    cardStyle: normalized.cardStyle,
+    displayDirection: display.displayDirection,
+    displayValue: display.displayValue,
+    displaySubtext: display.displaySubtext,
+    daysDelta: display.daysDelta,
+    sortOrder: Number(row.sortOrder ?? 0)
+  };
+}
+
+function sortCalendarAnniversaries(events: CalendarAnniversary[]) {
+  return [...events].sort((left, right) => {
+    const dateRank = left.date.localeCompare(right.date);
+    if (dateRank !== 0) {
+      return dateRank;
+    }
+    const sortOrderRank = left.sortOrder - right.sortOrder;
+    if (sortOrderRank !== 0) {
+      return sortOrderRank;
+    }
+    return left.title.localeCompare(right.title, "zh-CN");
+  });
 }
 
 function parseWeekdays(value: RecurrenceRow["byWeekday"]) {
@@ -350,7 +454,7 @@ export async function taskRoutes(app: FastifyInstance) {
     const to = new Date(query.to);
     const fromKey = toLocalDateKey(from);
     const toKey = toLocalDateKey(to);
-    const [rows, habitCheckInRows] = await Promise.all([
+    const [rows, habitCheckInRows, anniversaryRows] = await Promise.all([
       queryRows<TaskRow>(
         `SELECT t.* FROM \`Task\` t
          LEFT JOIN \`RecurrenceRule\` rr ON rr.taskId = t.id
@@ -376,6 +480,13 @@ export async function taskRoutes(app: FastifyInstance) {
           h.\`createdAt\` ASC,
           h.\`id\` ASC`,
         [request.user.id, fromKey, toKey]
+      ),
+      queryRows<CalendarAnniversaryRow>(
+        `SELECT *
+         FROM \`AnniversaryEvent\`
+         WHERE \`userId\` = ?
+         ORDER BY \`sortOrder\` ASC, \`date\` ASC, \`createdAt\` ASC, \`id\` ASC`,
+        [request.user.id]
       )
     ]);
 
@@ -412,7 +523,12 @@ export async function taskRoutes(app: FastifyInstance) {
       occurrences: buildOccurrences(expandableTasks, from, to, (task) => task.source),
       habitCheckIns: habitCheckInRows
         .filter((row) => row.date >= fromKey && row.date < toKey)
-        .map(serializeCalendarHabitCheckIn)
+        .map(serializeCalendarHabitCheckIn),
+      anniversaries: sortCalendarAnniversaries(anniversaryRows.flatMap((row) => {
+        const normalized = normalizeCalendarAnniversary(row);
+        return expandAnniversaryOccurrenceDates(normalized.timing, fromKey, toKey)
+          .map((date) => serializeCalendarAnniversary(row, date, normalized));
+      }))
     };
   });
 

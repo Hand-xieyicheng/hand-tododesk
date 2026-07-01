@@ -1076,7 +1076,7 @@ export function App() {
         {footerVisible ? (
           <div className="workspace-footer-decoration" aria-hidden="true">
             <Footer
-              className={footerType === "sea" ? "workspace-footer-art workspace-footer-art-seamless" : "workspace-footer-art"}
+              className="workspace-footer-art workspace-footer-art-seamless"
               type={footerType}
             />
           </div>

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { Lunar, Solar } from "lunar-typescript";
+import { HolidayUtil, Lunar, Solar } from "lunar-typescript";
 
 export const authEmailSchema = z.string().trim().email().max(255).toLowerCase();
 
@@ -838,10 +838,35 @@ export interface CalendarHabitCheckIn {
   sortOrder: number;
 }
 
+export interface CalendarAnniversary {
+  id: string;
+  title: string;
+  date: string;
+  category: AnniversaryCategory;
+  cardStyle: AnniversaryCardStyle;
+  displayDirection: AnniversaryDisplayDirection;
+  displayValue: string;
+  displaySubtext: string;
+  daysDelta: number;
+  sortOrder: number;
+}
+
 export interface CalendarResponse {
   view: CalendarView;
   occurrences: CalendarOccurrence[];
   habitCheckIns: CalendarHabitCheckIn[];
+  anniversaries: CalendarAnniversary[];
+}
+
+export interface CalendarDayMetadata {
+  date: string;
+  lunarLabel: string;
+  displayLabel: string;
+  legalHolidayName: string | null;
+  isWeekend: boolean;
+  isLegalRestDay: boolean;
+  isAdjustedWorkday: boolean;
+  isRestDay: boolean;
 }
 
 export interface PomodoroSession {
@@ -1073,6 +1098,37 @@ export function toLocalDateKey(date = new Date()) {
   });
 }
 
+export function getCalendarDayMetadata(dateKey: string): CalendarDayMetadata {
+  if (!isValidDateKey(dateKey)) {
+    throw new Error("Invalid date key");
+  }
+
+  const parts = parseDateKey(dateKey);
+  const solar = Solar.fromYmd(parts.year, parts.month, parts.day);
+  const lunar = solar.getLunar();
+  const lunarLabel = `${lunar.getMonthInChinese()}月${lunar.getDayInChinese()}`;
+  const lunarFestival = lunar.getFestivals()[0] ?? "";
+  const solarTerm = lunar.getJieQi();
+  const holiday = HolidayUtil.getHoliday(dateKey);
+  const isAdjustedWorkday = Boolean(holiday?.isWork());
+  const legalHolidayName = holiday && !holiday.isWork() ? holiday.getName() : null;
+  const isLegalRestDay = Boolean(legalHolidayName);
+  const isWeekend = dayOfWeek(parts) === 0 || dayOfWeek(parts) === 6;
+  const isRestDay = isLegalRestDay || (isWeekend && !isAdjustedWorkday);
+  const displayLabel = legalHolidayName || lunarFestival || solarTerm || lunarLabel;
+
+  return {
+    date: dateKey,
+    lunarLabel,
+    displayLabel,
+    legalHolidayName,
+    isWeekend,
+    isLegalRestDay,
+    isAdjustedWorkday,
+    isRestDay
+  };
+}
+
 export function compareDateKeys(left: string, right: string) {
   return toDayNumber(parseDateKey(left)) - toDayNumber(parseDateKey(right));
 }
@@ -1082,6 +1138,11 @@ export function calculateAnniversaryDisplay(event: AnniversaryTimingInput, today
   const displayDate = intendedDirection === "COUNTDOWN"
     ? nextOccurrenceOnOrAfter(event, todayKey)
     : previousOccurrenceOnOrBefore(event, todayKey);
+  return calculateAnniversaryOccurrenceDisplay(event, displayDate, todayKey);
+}
+
+export function calculateAnniversaryOccurrenceDisplay(event: AnniversaryTimingInput, displayDate: string, todayKey = toLocalDateKey()): AnniversaryDisplayResult {
+  const intendedDirection = resolveAnniversaryDirection(event.category, event.direction);
   const daysDelta = diffDays(todayKey, displayDate);
   const displayDirection = daysDelta === 0
     ? intendedDirection
@@ -1103,6 +1164,61 @@ export function calculateAnniversaryDisplay(event: AnniversaryTimingInput, today
     displaySubtext,
     daysDelta
   };
+}
+
+export function expandAnniversaryOccurrenceDates(event: AnniversaryTimingInput, fromKey: string, toKey: string): string[] {
+  if (compareDateKeys(toKey, fromKey) <= 0) {
+    return [];
+  }
+
+  const dates = new Set<string>();
+  const base = parseDateKey(event.date);
+  const addIfInRange = (dateKey: string) => {
+    if (
+      compareDateKeys(dateKey, event.date) >= 0 &&
+      compareDateKeys(dateKey, fromKey) >= 0 &&
+      compareDateKeys(dateKey, toKey) < 0
+    ) {
+      dates.add(dateKey);
+    }
+  };
+
+  if (event.repeat === "NONE") {
+    addIfInRange(event.date);
+    return [...dates].sort(compareDateKeys);
+  }
+
+  const startKey = compareDateKeys(fromKey, event.date) > 0 ? fromKey : event.date;
+  const start = parseDateKey(startKey);
+
+  if (event.repeat === "WEEKLY") {
+    const offset = (dayOfWeek(base) - dayOfWeek(start) + 7) % 7;
+    let cursor = addDays(start, offset);
+    while (compareDateKeys(formatDateKey(cursor), toKey) < 0) {
+      addIfInRange(formatDateKey(cursor));
+      cursor = addDays(cursor, 7);
+    }
+    return [...dates].sort(compareDateKeys);
+  }
+
+  if (event.repeat === "MONTHLY") {
+    let cursor = monthlyOccurrence(start.year, start.month, base.day);
+    if (compareDateKeys(formatDateKey(cursor), startKey) < 0) {
+      cursor = addMonthsClamped(cursor, 1, base.day);
+    }
+    while (compareDateKeys(formatDateKey(cursor), toKey) < 0) {
+      addIfInRange(formatDateKey(cursor));
+      cursor = addMonthsClamped(cursor, 1, base.day);
+    }
+    return [...dates].sort(compareDateKeys);
+  }
+
+  const fromYear = parseDateKey(fromKey).year;
+  const toYear = parseDateKey(toKey).year;
+  for (let year = fromYear - 1; year <= toYear + 1; year += 1) {
+    addIfInRange(yearlyOccurrence(event, year));
+  }
+  return [...dates].sort(compareDateKeys);
 }
 
 export function resolveBuiltInAnniversaryTemplate(templateId: string, todayKey = toLocalDateKey()): CreateAnniversaryRequest | null {

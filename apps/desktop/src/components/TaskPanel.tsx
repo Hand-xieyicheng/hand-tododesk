@@ -7,7 +7,7 @@ import { Button, Card, Divider, Input, Modal, Select } from "animal-island-ui";
 import { Check, Pencil, Plus, RotateCcw, Save, Trash2, X } from "lucide-react";
 import { api } from "../api/client";
 import { emitDesktopSyncEvent } from "../lib/desktopSync";
-import { datetimeLocalToIso, formatTaskTimeRange, getTodayEndDatetimeLocal, isValidTaskTimeRange } from "../lib/datetime";
+import { datetimeLocalToIso, formatTaskTimeRange, getTodayEndDatetimeLocal, isValidTaskTimeRange, toDatetimeLocal } from "../lib/datetime";
 import { applyVisibleTaskOrder, moveTaskInList, taskOrderIds } from "../lib/taskOrdering";
 import { useTaskBoardStore } from "../stores/taskBoardStore";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -261,11 +261,12 @@ interface TaskCardProps {
   compact?: boolean;
   displayMode: TaskCardDisplayMode;
   onDelete(task: ApiTask): Promise<void>;
+  onEdit(task: ApiTask): void;
   onOpenDetails(task: ApiTask): void;
   onSetStatus(task: ApiTask, status: TaskStatus): Promise<void>;
 }
 
-function TaskCard({ task, compact, displayMode, onDelete, onOpenDetails, onSetStatus }: TaskCardProps) {
+function TaskCard({ task, compact, displayMode, onDelete, onEdit, onOpenDetails, onSetStatus }: TaskCardProps) {
   const isCompleted = task.status === "COMPLETED";
   const titleOnly = displayMode === "title";
   const statusAction = isCompleted ? "恢复为未完成" : "完成";
@@ -329,6 +330,15 @@ function TaskCard({ task, compact, displayMode, onDelete, onOpenDetails, onSetSt
       </button>
       {copy}
       <div className="task-actions">
+        <button
+          aria-label={`编辑${task.title}`}
+          className="task-action-button task-icon-action"
+          title="编辑"
+          type="button"
+          onClick={() => onEdit(task)}
+        >
+          <Pencil size={16} />
+        </button>
         <button
           aria-label="删除"
           className="task-action-button task-icon-action is-danger"
@@ -409,11 +419,12 @@ interface KanbanTaskCardProps {
   task: ApiTask;
   updating: boolean;
   onDelete(task: ApiTask): Promise<void>;
+  onEdit(task: ApiTask): void;
   onOpenDetails(task: ApiTask): void;
   onSetStatus(task: ApiTask, status: TaskStatus): Promise<void>;
 }
 
-function KanbanTaskCard({ disabled, displayMode, dragging, task, updating, onDelete, onOpenDetails, onSetStatus }: KanbanTaskCardProps) {
+function KanbanTaskCard({ disabled, displayMode, dragging, task, updating, onDelete, onEdit, onOpenDetails, onSetStatus }: KanbanTaskCardProps) {
   const sourceTagId = task.tags[0]?.id ?? null;
 
   return (
@@ -430,6 +441,7 @@ function KanbanTaskCard({ disabled, displayMode, dragging, task, updating, onDel
         updating || disabled ? "is-updating" : ""
       ].filter(Boolean).join(" ")}
       onDelete={onDelete}
+      onEdit={onEdit}
       onOpenDetails={onOpenDetails}
       onSetStatus={onSetStatus}
     />
@@ -534,6 +546,140 @@ interface TagMaintenanceModalProps {
   tags: ApiTag[];
   onChanged(): Promise<void>;
   onClose(): void;
+}
+
+interface TaskEditModalProps {
+  task: ApiTask | null;
+  tags: ApiTag[];
+  onClose(): void;
+  onSave(task: ApiTask, input: UpdateTaskRequest): Promise<void>;
+}
+
+function TaskEditModal({ task, tags, onClose, onSave }: TaskEditModalProps) {
+  const [title, setTitle] = useState("");
+  const [notes, setNotes] = useState("");
+  const [startAt, setStartAt] = useState("");
+  const [dueAt, setDueAt] = useState("");
+  const [priority, setPriority] = useState<TaskPriority>("IMPORTANT_NOT_URGENT");
+  const [tagId, setTagId] = useState(noTagSelectValue);
+  const [message, setMessage] = useState("");
+  const [saving, setSaving] = useState(false);
+  const tagOptions = useMemo(() => [
+    { key: noTagSelectValue, label: "不选择" },
+    ...tags.map((tag) => ({ key: tag.id, label: tag.name }))
+  ], [tags]);
+
+  useEffect(() => {
+    if (!task) {
+      setTitle("");
+      setNotes("");
+      setStartAt("");
+      setDueAt("");
+      setPriority("IMPORTANT_NOT_URGENT");
+      setTagId(noTagSelectValue);
+      setMessage("");
+      setSaving(false);
+      return;
+    }
+
+    setTitle(task.title);
+    setNotes(task.notes ?? "");
+    setStartAt(toDatetimeLocal(task.startAt));
+    setDueAt(toDatetimeLocal(task.dueAt));
+    setPriority(task.priority);
+    setTagId(task.tags[0]?.id ?? noTagSelectValue);
+    setMessage("");
+    setSaving(false);
+  }, [task]);
+
+  useEffect(() => {
+    if (tagId !== noTagSelectValue && !tags.some((tag) => tag.id === tagId)) {
+      setTagId(noTagSelectValue);
+    }
+  }, [tagId, tags]);
+
+  if (!task) {
+    return null;
+  }
+  const currentTask = task;
+
+  async function submitEdit(event: FormEvent) {
+    event.preventDefault();
+    const nextTitle = title.trim();
+    if (!nextTitle) {
+      setMessage("请输入待办标题");
+      return;
+    }
+    if (!isValidTaskTimeRange(startAt, dueAt)) {
+      setMessage("开始时间不能晚于截止时间");
+      return;
+    }
+
+    setSaving(true);
+    setMessage("");
+    try {
+      await onSave(currentTask, {
+        title: nextTitle,
+        notes: notes.trim() || null,
+        startAt: datetimeLocalToIso(startAt),
+        dueAt: datetimeLocalToIso(dueAt),
+        priority,
+        tagId: tagId === noTagSelectValue ? null : tagId
+      });
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "保存失败");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Modal
+      className="task-edit-modal"
+      open
+      title="编辑待办"
+      width={720}
+      footer={null}
+      typewriter={false}
+      onClose={() => {
+        if (!saving) {
+          onClose();
+        }
+      }}
+    >
+      <form className="task-form modal-task-form" onSubmit={submitEdit}>
+        <label>
+          <span>标题</span>
+          <Input value={title} onChange={(event) => setTitle(event.target.value)} required maxLength={160} allowClear shadow />
+        </label>
+        <label>
+          <span>备注</span>
+          <textarea value={notes} onChange={(event) => setNotes(event.target.value)} rows={4} />
+        </label>
+        <div className="form-grid">
+          <TaskTimeRangePicker
+            value={{ startAt, dueAt }}
+            onChange={(next) => {
+              setStartAt(next.startAt);
+              setDueAt(next.dueAt);
+            }}
+          />
+          <label>
+            <span>优先级</span>
+            <Select value={priority} onChange={(next) => setPriority(next as TaskPriority)} options={priorityOptions} />
+          </label>
+        </div>
+        <label>
+          <span>标签</span>
+          <Select value={tagId} onChange={setTagId} options={tagOptions} />
+        </label>
+        {message ? <div className="inline-alert">{message}</div> : null}
+        <Button block className="primary-button" htmlType="submit" icon={<Save size={16} />} loading={saving} type="primary">
+          保存
+        </Button>
+      </form>
+    </Modal>
+  );
 }
 
 function TagMaintenanceModal({ open, tags, onChanged, onClose }: TagMaintenanceModalProps) {
@@ -706,6 +852,7 @@ export function TaskPanel({ createOpen, showCompletedTasks, tags, taskCardDispla
   const [repeat, setRepeat] = useState<"NONE" | "DAILY" | "WEEKLY" | "MONTHLY">("NONE");
   const [formMessage, setFormMessage] = useState("");
   const [detailTask, setDetailTask] = useState<ApiTask | null>(null);
+  const [editingTask, setEditingTask] = useState<ApiTask | null>(null);
   const [draggingKanbanTaskId, setDraggingKanbanTaskId] = useState<string | null>(null);
   const [kanbanDragOverlayWidth, setKanbanDragOverlayWidth] = useState<number | null>(null);
   const [updatingKanbanTaskId, setUpdatingKanbanTaskId] = useState<string | null>(null);
@@ -844,6 +991,13 @@ export function TaskPanel({ createOpen, showCompletedTasks, tags, taskCardDispla
   async function deleteTask(task: ApiTask) {
     await api.deleteTask(task.id);
     void emitDesktopSyncEvent({ type: "task:deleted", taskId: task.id });
+    await refreshAfterChange();
+  }
+
+  async function saveTaskEdit(task: ApiTask, input: UpdateTaskRequest) {
+    const payload = await api.updateTask(task.id, input);
+    void emitDesktopSyncEvent({ type: "task:upserted", task: payload.task });
+    setEditingTask(null);
     await refreshAfterChange();
   }
 
@@ -1089,6 +1243,12 @@ export function TaskPanel({ createOpen, showCompletedTasks, tags, taskCardDispla
   return (
     <>
       <TaskDetailModal task={detailTask} onClose={() => setDetailTask(null)} />
+      <TaskEditModal
+        task={editingTask}
+        tags={tags}
+        onClose={() => setEditingTask(null)}
+        onSave={saveTaskEdit}
+      />
       <TagMaintenanceModal
         open={tagMaintenanceOpen}
         tags={tags}
@@ -1162,6 +1322,7 @@ export function TaskPanel({ createOpen, showCompletedTasks, tags, taskCardDispla
                     task={task}
                     view="list"
                     onDelete={deleteTask}
+                    onEdit={setEditingTask}
                     onOpenDetails={setDetailTask}
                     onSetStatus={setStatus}
                   />
@@ -1203,6 +1364,7 @@ export function TaskPanel({ createOpen, showCompletedTasks, tags, taskCardDispla
                         task={task}
                         updating={updatingKanbanTaskId === task.id}
                         onDelete={deleteTask}
+                        onEdit={setEditingTask}
                         onOpenDetails={setDetailTask}
                         onSetStatus={setStatus}
                       />
@@ -1214,7 +1376,7 @@ export function TaskPanel({ createOpen, showCompletedTasks, tags, taskCardDispla
             <DragOverlay dropAnimation={null}>
               {draggingKanbanTask ? (
                 <div className="kanban-drag-overlay" style={kanbanDragOverlayStyle}>
-                  <TaskCard compact displayMode={taskCardDisplayMode} task={draggingKanbanTask} onDelete={deleteTask} onOpenDetails={setDetailTask} onSetStatus={setStatus} />
+                  <TaskCard compact displayMode={taskCardDisplayMode} task={draggingKanbanTask} onDelete={deleteTask} onEdit={setEditingTask} onOpenDetails={setDetailTask} onSetStatus={setStatus} />
                 </div>
               ) : null}
             </DragOverlay>
@@ -1252,6 +1414,7 @@ export function TaskPanel({ createOpen, showCompletedTasks, tags, taskCardDispla
                               task={task}
                               view="quadrant"
                               onDelete={deleteTask}
+                              onEdit={setEditingTask}
                               onOpenDetails={setDetailTask}
                               onSetStatus={setStatus}
                             />

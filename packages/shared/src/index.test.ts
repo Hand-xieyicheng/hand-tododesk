@@ -18,10 +18,12 @@ import {
 	  defaultAppFeatureFlags,
 	  defaultThemeId,
 	  displaySizeValues,
+  expandAnniversaryOccurrenceDates,
 	  floatingCardThemeIdValues,
 	  floatingCardViewModeValues,
 	  fontFamilyValues,
   footerTypeValues,
+  getCalendarDayMetadata,
   habitColorValues,
   habitFrequencyValues,
   habitRecommendedIconValues,
@@ -263,11 +265,11 @@ describe("app bootstrap schema", () => {
     });
 
     expect(appBootstrapResponseSchema.parse({
-      apiVersion: "0.2.24",
+      apiVersion: "0.2.25",
       releaseChannel: "stable",
       desktop: {
         minimumVersion: "0.1.0",
-        latestVersion: "0.2.24",
+        latestVersion: "0.2.25",
         updateEndpoint: "https://github.com/Hand-xieyicheng/hand-tododesk/releases/latest/download/latest.json"
       },
       featureFlags: {
@@ -283,11 +285,11 @@ describe("app bootstrap schema", () => {
 
   it("rejects unsupported release channels", () => {
     expect(appBootstrapResponseSchema.safeParse({
-      apiVersion: "0.2.24",
+      apiVersion: "0.2.25",
       releaseChannel: "beta",
       desktop: {
         minimumVersion: "0.1.0",
-        latestVersion: "0.2.24",
+        latestVersion: "0.2.25",
         updateEndpoint: "https://github.com/Hand-xieyicheng/hand-tododesk/releases/latest/download/latest.json"
       },
       featureFlags: defaultAppFeatureFlags
@@ -373,6 +375,79 @@ describe("anniversary schemas and display", () => {
       displayValue: "6年6月9天",
       displaySubtext: "距离 2019/12/9 已经",
       daysDelta: -2383
+    });
+  });
+
+  it("expands anniversary occurrence dates inside calendar ranges", () => {
+    expect(expandAnniversaryOccurrenceDates({
+      category: "BIRTHDAY",
+      date: "2020-07-10",
+      repeat: "YEARLY",
+      direction: "AUTO",
+      calendarType: "SOLAR"
+    }, "2026-07-01", "2026-08-01")).toEqual(["2026-07-10"]);
+
+    expect(expandAnniversaryOccurrenceDates({
+      category: "COUNTDOWN",
+      date: "2026-01-31",
+      repeat: "MONTHLY",
+      direction: "COUNTDOWN",
+      calendarType: "SOLAR"
+    }, "2026-02-01", "2026-03-01")).toEqual(["2026-02-28"]);
+  });
+
+  it("derives lunar labels and official rest-day metadata for calendar cells", () => {
+    expect(getCalendarDayMetadata("2026-07-01")).toMatchObject({
+      lunarLabel: "五月十七",
+      displayLabel: "五月十七",
+      legalHolidayName: null,
+      isWeekend: false,
+      isLegalRestDay: false,
+      isAdjustedWorkday: false,
+      isRestDay: false
+    });
+
+    expect(getCalendarDayMetadata("2026-01-01")).toMatchObject({
+      displayLabel: "元旦节",
+      legalHolidayName: "元旦节",
+      isLegalRestDay: true,
+      isAdjustedWorkday: false,
+      isRestDay: true
+    });
+
+    expect(getCalendarDayMetadata("2026-09-25")).toMatchObject({
+      displayLabel: "中秋节",
+      legalHolidayName: "中秋节",
+      isLegalRestDay: true,
+      isAdjustedWorkday: false,
+      isRestDay: true
+    });
+
+    expect(getCalendarDayMetadata("2026-10-01")).toMatchObject({
+      displayLabel: "国庆节",
+      legalHolidayName: "国庆节",
+      isLegalRestDay: true,
+      isAdjustedWorkday: false,
+      isRestDay: true
+    });
+  });
+
+  it("treats adjusted weekend workdays as workdays and regular weekends as rest days", () => {
+    for (const dateKey of ["2026-01-04", "2026-02-14", "2026-02-28", "2026-10-10"]) {
+      expect(getCalendarDayMetadata(dateKey)).toMatchObject({
+        isWeekend: true,
+        isLegalRestDay: false,
+        isAdjustedWorkday: true,
+        isRestDay: false
+      });
+    }
+
+    expect(getCalendarDayMetadata("2026-07-04")).toMatchObject({
+      lunarLabel: "五月二十",
+      isWeekend: true,
+      isLegalRestDay: false,
+      isAdjustedWorkday: false,
+      isRestDay: true
     });
   });
 

@@ -5,7 +5,7 @@ import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalList
 import { CSS } from "@dnd-kit/utilities";
 import { defaultThemeId, defaultVisibleSidebarModules, sortTasksForDisplay, toLocalDateKey, type ApiHabit, type ApiTag, type ApiTask, type ApiThemePreference, type CreateTaskRequest, type FloatingCardThemeId, type FloatingCardViewMode, type TaskCardDisplayMode, type TaskPriority, type TaskStatus, type UpdateTaskRequest } from "@todo/shared";
 import { Button, Card, Input, Select, Tooltip } from "animal-island-ui";
-import { Check, Eye, EyeOff, LayoutGrid, List, Pencil, Plus, RefreshCw, Save, Tags, X } from "lucide-react";
+import { Check, Eye, EyeOff, LayoutGrid, List, Pencil, Plus, RefreshCw, Save, Tags, Trash2, X } from "lucide-react";
 import { api } from "../api/client";
 import { emitDesktopSyncEvent, listenDesktopSyncEvents } from "../lib/desktopSync";
 import { applyDisplaySize } from "../lib/displaySize";
@@ -322,6 +322,7 @@ export function FloatingCard() {
   const setTaskSnapshot = useTaskBoardStore((state) => state.setSnapshot);
   const setTasks = useTaskBoardStore((state) => state.setTasks);
   const upsertTask = useTaskBoardStore((state) => state.upsertTask);
+  const deleteTaskFromStore = useTaskBoardStore((state) => state.deleteTask);
   const taskSortSensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -543,6 +544,20 @@ export function FloatingCard() {
       void emitDesktopSyncEvent({ type: "task:upserted", task: payload.task });
     } catch (error) {
       setMessage(error instanceof Error ? error.message : status === "COMPLETED" ? "完成失败" : "重置失败");
+    } finally {
+      setSavingTaskId((current) => (current === task.id ? null : current));
+    }
+  }
+
+  async function deleteTask(task: ApiTask) {
+    setSavingTaskId(task.id);
+    setMessage("");
+    try {
+      await api.deleteTask(task.id);
+      deleteTaskFromStore(task.id);
+      void emitDesktopSyncEvent({ type: "task:deleted", taskId: task.id });
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "删除失败");
     } finally {
       setSavingTaskId((current) => (current === task.id ? null : current));
     }
@@ -786,6 +801,15 @@ export function FloatingCard() {
               title="编辑"
               type="default"
               onClick={() => beginEdit(task)}
+            />
+            <Button
+              aria-label="删除"
+              disabled={savingTaskId === task.id}
+              icon={<Trash2 size={15} />}
+              size="small"
+              title="删除"
+              type="default"
+              onClick={() => void deleteTask(task)}
             />
           </div>
         </Card>

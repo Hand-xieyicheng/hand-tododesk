@@ -1104,8 +1104,10 @@ textarea:focus-visible,
 }
 
 .workspace-footer-art {
+  flex: 0 0 100%;
   width: 100% !important;
   min-width: 100%;
+  max-width: none;
   height: var(--workspace-footer-height) !important;
   opacity: 1;
 }
@@ -1113,7 +1115,7 @@ textarea:focus-visible,
 .workspace-footer-art-seamless {
   background-position: left bottom !important;
   background-repeat: repeat-x !important;
-  background-size: auto 100% !important;
+  background-size: auto var(--workspace-footer-height) !important;
 }
 
 .app-loading-overlay {
@@ -1477,6 +1479,53 @@ textarea:focus-visible,
   border-color: color-mix(in srgb, var(--color-accent) 54%, var(--color-border));
   background: color-mix(in srgb, var(--color-accent) 12%, var(--color-surface));
   color: color-mix(in srgb, var(--color-accent) 58%, var(--color-text));
+}
+
+.no-data-placeholder {
+  --no-data-placeholder-image-size: calc(220px * var(--app-ui-scale));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 100%;
+  padding: calc(18px * var(--app-ui-scale));
+  border: 0;
+  background: transparent;
+}
+
+.no-data-placeholder-image {
+  display: block;
+  width: var(--no-data-placeholder-image-size);
+  max-width: 100%;
+  height: auto;
+  opacity: 0.5;
+  pointer-events: none;
+  user-select: none;
+}
+
+.memo-list-scroll.is-empty,
+.habit-list.is-empty,
+.anniversary-grid.is-empty {
+  align-content: stretch;
+  align-items: stretch;
+}
+
+.memo-list-scroll.is-empty .no-data-placeholder,
+.habit-list.is-empty .no-data-placeholder,
+.anniversary-grid.is-empty .no-data-placeholder {
+  align-self: stretch;
+  min-height: 100%;
+}
+
+.habit-list.is-empty .habit-empty-placeholder,
+.anniversary-grid.is-empty .anniversary-empty-placeholder {
+  grid-column: 1 / -1;
+  min-height: 100%;
+}
+
+.memo-empty-editor.no-data-placeholder {
+  flex: 1 1 auto;
+  min-height: 100%;
 }
 
 .app-message-alert {
@@ -3701,8 +3750,11 @@ body .task-time-range-ant-dropdown .ant-picker-panel-container {
 
 .anniversary-panel {
   display: grid;
+  flex: 1 1 auto;
+  grid-template-rows: auto minmax(0, 1fr);
   gap: calc(12px * var(--app-ui-scale));
-  align-content: start;
+  min-height: 0;
+  align-content: stretch;
 }
 
 .anniversary-tabs {
@@ -3713,11 +3765,17 @@ body .task-time-range-ant-dropdown .ant-picker-panel-container {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, calc(244px * var(--app-ui-scale))), 1fr));
   gap: calc(12px * var(--app-ui-scale));
+  min-height: 0;
   align-items: stretch;
+  overflow-y: auto;
 }
 
 .anniversary-grid .empty-state {
   grid-column: 1 / -1;
+}
+
+.anniversary-grid.is-empty {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .anniversary-sortable {
@@ -3752,6 +3810,78 @@ body .task-time-range-ant-dropdown .ant-picker-panel-container {
 
 .anniversary-card.is-dragging {
   box-shadow: 0 11px 0 var(--color-shadow), 0 26px 42px color-mix(in srgb, var(--color-shadow) 72%, transparent);
+}
+
+.anniversary-card.is-today {
+  --anniversary-today-border-angle: 0deg;
+  --anniversary-today-hot: #26c8ff;
+  --anniversary-today-spark: #ffe36d;
+  --anniversary-today-pink: #ff6bd5;
+  isolation: isolate;
+  border-color: transparent !important;
+  background:
+    radial-gradient(circle at 12% 16%, color-mix(in srgb, var(--anniversary-today-spark) 42%, transparent) 0 9%, transparent 22%),
+    radial-gradient(circle at 88% 8%, color-mix(in srgb, var(--anniversary-today-pink) 34%, transparent) 0 8%, transparent 22%),
+    linear-gradient(135deg, color-mix(in srgb, var(--anniversary-today-hot) 22%, transparent), transparent 34%, color-mix(in srgb, var(--anniversary-today-pink) 18%, transparent) 72%, transparent),
+    var(--island-paper-dots) 0 0 / 16px 16px,
+    color-mix(in srgb, #ffffff 90%, var(--anniversary-card-accent)) !important;
+  box-shadow: 0 3px 0 var(--color-shadow), 0 10px 18px var(--island-soft-shadow);
+}
+
+.anniversary-card.is-today > :not(.anniversary-actions) {
+  position: relative;
+  z-index: 1;
+}
+
+.anniversary-card.is-today::after {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  z-index: 2;
+  padding: 3px;
+  border-radius: inherit;
+  background:
+    conic-gradient(
+      from var(--anniversary-today-border-angle),
+      var(--anniversary-today-hot) 0deg,
+      #ffffff 34deg,
+      var(--anniversary-today-spark) 76deg,
+      var(--anniversary-today-pink) 132deg,
+      transparent 182deg,
+      transparent 218deg,
+      #ffffff 252deg,
+      var(--anniversary-today-hot) 306deg,
+      var(--anniversary-today-spark) 360deg
+    );
+  pointer-events: none;
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  animation: anniversaryTodayBorderSpin 1.65s linear infinite;
+}
+
+.anniversary-card.is-today .anniversary-icon {
+  border-color: color-mix(in srgb, var(--anniversary-today-hot) 82%, #ffffff);
+  background: color-mix(in srgb, var(--anniversary-today-hot) 24%, #ffffff);
+  box-shadow:
+    0 0 0 5px color-mix(in srgb, var(--anniversary-today-hot) 18%, transparent),
+    0 0 18px color-mix(in srgb, var(--anniversary-today-hot) 45%, transparent);
+  color: color-mix(in srgb, var(--anniversary-card-accent) 72%, #0077c8);
+}
+
+.anniversary-card.is-today .anniversary-value strong {
+  text-shadow:
+    0 0 10px color-mix(in srgb, var(--anniversary-today-hot) 46%, transparent),
+    0 2px 0 rgba(255, 255, 255, 0.86);
+}
+
+.anniversary-card.is-today .anniversary-actions {
+  z-index: 3;
 }
 
 .anniversary-card.style-lavender {
@@ -3910,6 +4040,18 @@ body .task-time-range-ant-dropdown .ant-picker-panel-container {
   }
 }
 
+@property --anniversary-today-border-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@keyframes anniversaryTodayBorderSpin {
+  to {
+    --anniversary-today-border-angle: 360deg;
+  }
+}
+
 .anniversary-form {
   width: 100%;
   gap: calc(16px * var(--app-ui-scale));
@@ -3976,6 +4118,7 @@ body .task-time-range-ant-dropdown .ant-picker-panel-container {
 
 .habit-panel {
   display: grid;
+  flex: 1 1 auto;
   grid-template-columns: minmax(calc(230px * var(--app-ui-scale)), calc(300px * var(--app-ui-scale))) minmax(0, 1fr);
   gap: calc(12px * var(--app-ui-scale));
   min-height: 0;
@@ -3999,12 +4142,12 @@ body .task-time-range-ant-dropdown .ant-picker-panel-container {
 
 .habit-list-panel {
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
 }
 
 .habit-list {
   display: grid;
-  grid-row: 3;
+  grid-row: 2;
   align-content: start;
   gap: calc(8px * var(--app-ui-scale));
   min-height: 0;
@@ -4016,6 +4159,10 @@ body .task-time-range-ant-dropdown .ant-picker-panel-container {
   grid-template-columns: repeat(auto-fill, minmax(min(100%, calc(260px * var(--app-ui-scale))), 1fr));
   gap: calc(12px * var(--app-ui-scale));
   padding: 4px calc(8px * var(--app-ui-scale)) calc(12px * var(--app-ui-scale)) 0;
+}
+
+.habit-panel.is-collection .habit-list.is-empty {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .habit-panel.is-detail .habit-list-panel {
@@ -4857,10 +5004,30 @@ body .task-time-range-ant-dropdown .ant-picker-panel-container {
     0 10px 18px var(--island-soft-shadow) !important;
 }
 
+.calendar-cell.is-rest-day {
+  --calendar-rest-day-bg: color-mix(in srgb, #e5e7eb 54%, var(--color-surface));
+  background:
+    var(--island-paper-dots) 0 0 / 16px 16px,
+    var(--calendar-rest-day-bg) !important;
+}
+
+.calendar-cell.is-adjusted-workday {
+  --calendar-adjusted-workday-accent: #64748b;
+}
+
+.calendar-cell.is-today.is-rest-day {
+  border-color: color-mix(in srgb, var(--color-primary) 72%, var(--color-border)) !important;
+  box-shadow:
+    0 3px 0 color-mix(in srgb, var(--color-primary) 42%, var(--color-border)),
+    0 10px 18px var(--island-soft-shadow) !important;
+}
+
 .calendar-cell header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: calc(6px * var(--app-ui-scale));
+  min-height: calc(38px * var(--app-ui-scale));
   color: var(--color-muted);
   font-weight: 900;
 }
@@ -4871,6 +5038,7 @@ body .task-time-range-ant-dropdown .ant-picker-panel-container {
 
 .calendar-cell header strong {
   display: grid;
+  flex: 0 0 calc(24px * var(--app-ui-scale));
   width: calc(24px * var(--app-ui-scale));
   height: calc(24px * var(--app-ui-scale));
   place-items: center;
@@ -4893,6 +5061,161 @@ body .task-time-range-ant-dropdown .ant-picker-panel-container {
   box-shadow:
     inset 0 0 0 2px color-mix(in srgb, var(--color-surface) 54%, var(--color-primary)),
     0 2px 0 color-mix(in srgb, var(--color-primary) 48%, var(--color-border));
+}
+
+.calendar-weekday-line {
+  display: flex;
+  align-items: center;
+  gap: calc(6px * var(--app-ui-scale));
+  height: calc(24px * var(--app-ui-scale));
+  min-width: 0;
+}
+
+.calendar-weekday-line > span {
+  flex: 0 0 auto;
+}
+
+.calendar-date-line {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  min-height: calc(38px * var(--app-ui-scale));
+  min-width: 0;
+}
+
+.calendar-date-stack {
+  display: grid;
+  justify-items: end;
+  gap: calc(2px * var(--app-ui-scale));
+  min-width: 0;
+}
+
+.calendar-date-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: calc(4px * var(--app-ui-scale));
+  min-width: 0;
+}
+
+.calendar-lunar-label {
+  display: block;
+  max-width: calc(76px * var(--app-ui-scale));
+  overflow: hidden;
+  color: color-mix(in srgb, var(--color-muted) 82%, var(--color-text));
+  font-size: calc(10px * var(--app-ui-scale));
+  font-weight: 800;
+  line-height: 1.15;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.calendar-lunar-label.is-festival-label {
+  color: var(--color-strong-emphasis-text);
+  font-weight: 900;
+}
+
+.calendar-workday-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: calc(16px * var(--app-ui-scale));
+  min-width: calc(16px * var(--app-ui-scale));
+  padding: 0 calc(4px * var(--app-ui-scale));
+  border: 1px solid color-mix(in srgb, var(--calendar-adjusted-workday-accent) 42%, var(--color-border));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--calendar-adjusted-workday-accent) 12%, var(--color-surface));
+  color: color-mix(in srgb, var(--calendar-adjusted-workday-accent) 88%, var(--color-text));
+  font-size: calc(10px * var(--app-ui-scale));
+  font-weight: 900;
+  line-height: 1;
+}
+
+.calendar-anniversary-strip {
+  display: flex;
+  flex: 1 1 auto;
+  align-self: center;
+  align-items: center;
+  gap: calc(3px * var(--app-ui-scale));
+  height: calc(24px * var(--app-ui-scale));
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-inline: contain;
+  padding: 0 1px;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--color-muted) 28%, transparent) transparent;
+}
+
+.calendar-anniversary-strip::-webkit-scrollbar {
+  height: 4px;
+}
+
+.calendar-anniversary-strip::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-muted) 28%, transparent);
+}
+
+.calendar-anniversary-tooltip {
+  display: flex;
+  align-items: center;
+  height: calc(24px * var(--app-ui-scale));
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.calendar-anniversary-tag {
+  --calendar-anniversary-accent: var(--color-primary);
+  display: inline-flex;
+  align-items: center;
+  max-width: calc(72px * var(--app-ui-scale));
+  height: calc(20px * var(--app-ui-scale));
+  overflow: hidden;
+  padding: 0 calc(7px * var(--app-ui-scale));
+  border: 1px solid color-mix(in srgb, var(--calendar-anniversary-accent) 38%, var(--color-border));
+  border-radius: 999px;
+  background:
+    var(--island-paper-dots) 0 0 / 12px 12px,
+    color-mix(in srgb, var(--calendar-anniversary-accent) 15%, var(--color-surface));
+  color: color-mix(in srgb, var(--calendar-anniversary-accent) 74%, var(--color-text)) !important;
+  cursor: default;
+  font-size: calc(10px * var(--app-ui-scale));
+  font-weight: 900;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.calendar-anniversary-tag:hover,
+.calendar-anniversary-tag:focus-visible {
+  border-color: color-mix(in srgb, var(--calendar-anniversary-accent) 66%, var(--color-border));
+  background: color-mix(in srgb, var(--calendar-anniversary-accent) 22%, var(--color-surface));
+  outline: none;
+}
+
+.calendar-anniversary-tag.style-lavender {
+  --calendar-anniversary-accent: #8a71d6;
+}
+
+.calendar-anniversary-tag.style-sunrise {
+  --calendar-anniversary-accent: #e59266;
+}
+
+.calendar-anniversary-tag.style-mint {
+  --calendar-anniversary-accent: #39aa72;
+}
+
+.calendar-anniversary-tag.style-ocean {
+  --calendar-anniversary-accent: #3a8fc2;
+}
+
+.calendar-anniversary-tag.style-rose {
+  --calendar-anniversary-accent: #d76487;
+}
+
+.calendar-anniversary-tag.style-classic {
+  --calendar-anniversary-accent: var(--color-text);
 }
 
 .calendar-items {
@@ -5072,6 +5395,31 @@ body .task-time-range-ant-dropdown .ant-picker-panel-container {
   min-width: calc(220px * var(--app-ui-scale));
   max-width: calc(280px * var(--app-ui-scale));
   padding: calc(4px * var(--app-ui-scale)) calc(2px * var(--app-ui-scale));
+}
+
+.calendar-anniversary-popover {
+  display: grid;
+  gap: calc(6px * var(--app-ui-scale));
+  min-width: calc(180px * var(--app-ui-scale));
+  max-width: calc(260px * var(--app-ui-scale));
+  padding: calc(2px * var(--app-ui-scale));
+}
+
+.calendar-anniversary-popover-title {
+  color: var(--color-text);
+  font-size: calc(14px * var(--app-ui-scale));
+  font-weight: 900;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.calendar-anniversary-popover-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(5px * var(--app-ui-scale));
+  color: var(--color-muted);
+  font-size: calc(12px * var(--app-ui-scale));
+  font-weight: 800;
 }
 
 .calendar-task-popover-title {
@@ -8903,6 +9251,7 @@ body .primary-button[class*="animal-btn"] {
   .auth-wave-layer,
   .auth-island-stage,
   .auth-drift-leaf,
+  .anniversary-card.is-today::after,
   .landing-float,
   .landing-float-line,
   .landing-typewriter-cursor {

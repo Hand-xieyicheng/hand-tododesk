@@ -19,6 +19,7 @@ import {
 import { Button, Card, Input, Modal, Select } from "animal-island-ui";
 import { Cake, CalendarHeart, Edit3, Gift, Heart, Hourglass, Plus, Trash2 } from "lucide-react";
 import { api } from "../api/client";
+import { NoDataPlaceholder } from "./NoDataPlaceholder";
 
 interface AnniversaryPanelProps {
   createOpen: boolean;
@@ -66,6 +67,21 @@ const holidayTemplateOptions = [
   { key: "CUSTOM", label: "手动输入" },
   ...builtInAnniversaryHolidayTemplates.map((template) => ({ key: template.id, label: template.title }))
 ];
+
+const birthdayCalendarTypeOptions = [
+  { key: "SOLAR", label: "阳历" },
+  { key: "LUNAR", label: "阴历" }
+];
+
+const lunarMonthOptions = Array.from({ length: 12 }, (_, index) => {
+  const value = String(index + 1);
+  return { key: value, label: `${value}月` };
+});
+
+const lunarDayOptions = Array.from({ length: 30 }, (_, index) => {
+  const value = String(index + 1);
+  return { key: value, label: `${value}日` };
+});
 
 const styleLabels: Record<AnniversaryCardStyle, string> = {
   classic: "经典",
@@ -136,8 +152,18 @@ function draftFromTemplate(templateId: string): AnniversaryDraft | null {
   };
 }
 
+function calendarTypeForCategory(category: AnniversaryCategory, calendarType: AnniversaryDraft["calendarType"]): AnniversaryDraft["calendarType"] {
+  if (category === "HOLIDAY") {
+    return calendarType;
+  }
+  if (category === "BIRTHDAY") {
+    return calendarType === "LUNAR" ? "LUNAR" : "SOLAR";
+  }
+  return "SOLAR";
+}
+
 function draftToPayload(draft: AnniversaryDraft): CreateAnniversaryRequest {
-  const calendarType = draft.category === "HOLIDAY" ? draft.calendarType : "SOLAR";
+  const calendarType = calendarTypeForCategory(draft.category, draft.calendarType);
   return {
     title: draft.title,
     notes: draft.notes || null,
@@ -169,6 +195,8 @@ interface SortableAnniversaryCardProps {
 function SortableAnniversaryCard({ event, onDelete, onEdit }: SortableAnniversaryCardProps) {
   const Icon = categoryIcons[event.category];
   const { attributes, isDragging, listeners, setNodeRef, transform, transition } = useSortable({ id: event.id });
+  const isToday = event.displayValue === "今天" || event.daysDelta === 0;
+  const cardClassName = `anniversary-card style-${event.cardStyle}${isToday ? " is-today" : ""}${isDragging ? " is-dragging" : ""}`;
   const style: CSSProperties = {
     opacity: isDragging ? 0.72 : undefined,
     transform: CSS.Transform.toString(transform),
@@ -184,7 +212,7 @@ function SortableAnniversaryCard({ event, onDelete, onEdit }: SortableAnniversar
       {...attributes}
       {...listeners}
     >
-      <Card className={`anniversary-card style-${event.cardStyle}${isDragging ? " is-dragging" : ""}`} pattern="default">
+      <Card className={cardClassName} pattern="default">
         <header>
           <span className="anniversary-icon" aria-hidden="true">
             <Icon size={18} />
@@ -234,6 +262,7 @@ export function AnniversaryPanel({ createOpen, onCreateOpenChange }: Anniversary
       ? anniversaries
       : anniversaries.filter((event) => event.category === activeCategory)
   ), [activeCategory, anniversaries]);
+  const anniversaryListEmpty = visibleAnniversaries.length === 0 && !loading;
 
   async function load() {
     setMessage("");
@@ -385,13 +414,14 @@ export function AnniversaryPanel({ createOpen, onCreateOpenChange }: Anniversary
                 options={categoryOptions}
                 onChange={(next) => {
                   const category = next as AnniversaryCategory;
+                  const calendarType = calendarTypeForCategory(category, draft.calendarType);
                   updateDraft({
                     category,
                     cardStyle: category === "HOLIDAY" ? "sunrise" : draft.cardStyle,
-                    calendarType: category === "HOLIDAY" ? draft.calendarType : "SOLAR",
-                    lunarMonth: category === "HOLIDAY" ? draft.lunarMonth : "",
-                    lunarDay: category === "HOLIDAY" ? draft.lunarDay : "",
-                    solarTerm: category === "HOLIDAY" ? draft.solarTerm : ""
+                    calendarType,
+                    lunarMonth: calendarType === "LUNAR" ? draft.lunarMonth : "",
+                    lunarDay: calendarType === "LUNAR" ? draft.lunarDay : "",
+                    solarTerm: calendarType === "SOLAR_TERM" ? draft.solarTerm : ""
                   });
                   if (category !== "HOLIDAY") {
                     setTemplateId("CUSTOM");
@@ -404,6 +434,39 @@ export function AnniversaryPanel({ createOpen, onCreateOpenChange }: Anniversary
               <Input value={draft.date} onChange={(event) => updateDraft({ date: event.target.value })} type="date" required shadow />
             </label>
           </div>
+          {draft.category === "BIRTHDAY" ? (
+            <div className="form-grid">
+              <label>
+                <span>历法</span>
+                <Select
+                  aria-label="历法"
+                  value={calendarTypeForCategory(draft.category, draft.calendarType)}
+                  options={birthdayCalendarTypeOptions}
+                  onChange={(next) => {
+                    const calendarType = next === "LUNAR" ? "LUNAR" : "SOLAR";
+                    updateDraft({
+                      calendarType,
+                      lunarMonth: calendarType === "LUNAR" ? draft.lunarMonth : "",
+                      lunarDay: calendarType === "LUNAR" ? draft.lunarDay : "",
+                      solarTerm: ""
+                    });
+                  }}
+                />
+              </label>
+              {draft.calendarType === "LUNAR" ? (
+                <>
+                  <label>
+                    <span>阴历月份</span>
+                    <Select aria-label="阴历月份" value={draft.lunarMonth} options={lunarMonthOptions} onChange={(next) => updateDraft({ lunarMonth: String(next) })} />
+                  </label>
+                  <label>
+                    <span>阴历日期</span>
+                    <Select aria-label="阴历日期" value={draft.lunarDay} options={lunarDayOptions} onChange={(next) => updateDraft({ lunarDay: String(next) })} />
+                  </label>
+                </>
+              ) : null}
+            </div>
+          ) : null}
           {draft.category === "HOLIDAY" ? (
             <label className="anniversary-template-field">
               <span>节日模板</span>
@@ -448,7 +511,7 @@ export function AnniversaryPanel({ createOpen, onCreateOpenChange }: Anniversary
         </form>
       </Modal>
 
-      <section className="anniversary-panel">
+      <section className={anniversaryListEmpty ? "anniversary-panel is-empty" : "anniversary-panel"}>
         <div className="anniversary-tabs segmented-control" aria-label="倒数纪念日分类">
           {categoryTabs.map((tab) => (
             <Button
@@ -464,8 +527,8 @@ export function AnniversaryPanel({ createOpen, onCreateOpenChange }: Anniversary
         {message ? <div className="inline-alert">{message}</div> : null}
         <DndContext collisionDetection={closestCenter} sensors={sensors} onDragEnd={handleDragEnd}>
           <SortableContext items={visibleAnniversaries.map((event) => event.id)} strategy={rectSortingStrategy}>
-            <div className="anniversary-grid" aria-busy={loading}>
-              {visibleAnniversaries.length === 0 && !loading ? <Card className="empty-state" type="dashed">暂无倒数纪念日</Card> : null}
+            <div className={anniversaryListEmpty ? "anniversary-grid is-empty" : "anniversary-grid"} aria-busy={loading}>
+              {anniversaryListEmpty ? <NoDataPlaceholder className="anniversary-empty-placeholder" /> : null}
               {visibleAnniversaries.map((event) => (
                 <SortableAnniversaryCard
                   event={event}

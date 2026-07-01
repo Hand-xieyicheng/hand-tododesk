@@ -119,6 +119,24 @@ describe("MemoPanel", () => {
     expect(screen.queryByText("搜索")).not.toBeInTheDocument();
   });
 
+  it("shows only the editor no-data image when there are no memos", async () => {
+    apiMock.memos.mockResolvedValue({ memos: [] });
+
+    const { container } = render(<MemoPanel />);
+
+    await waitFor(() => expect(apiMock.memos).toHaveBeenCalled());
+
+    const placeholders = screen.getAllByAltText("暂无数据");
+    expect(placeholders).toHaveLength(1);
+    expect(container.querySelector(".memo-list-scroll .no-data-placeholder img")).not.toBeInTheDocument();
+    expect(container.querySelector(".memo-empty-editor.no-data-placeholder img")).toBe(placeholders[0]);
+    expect(container.querySelector(".memo-list-scroll")).toHaveClass("is-empty");
+    placeholders.forEach((placeholder) => {
+      expect(placeholder).toHaveClass("no-data-placeholder-image");
+      expect(placeholder).toHaveStyle({ opacity: "0.5" });
+    });
+  });
+
   it("renders archive and create actions in the page topbar", async () => {
     const topbar = document.createElement("div");
     topbar.className = "topbar-actions";
@@ -393,6 +411,6 @@ describe("MemoPanel", () => {
 
     expect(screen.queryByText("测试备忘录")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("备忘录标题")).not.toBeInTheDocument();
-    expect(screen.getAllByText("暂无备忘录").length).toBeGreaterThan(0);
+    expect(screen.getAllByAltText("暂无数据").length).toBeGreaterThan(0);
   });
 });

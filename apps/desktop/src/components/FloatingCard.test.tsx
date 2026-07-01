@@ -10,6 +10,7 @@ const apiMock = vi.hoisted(() => ({
   cancelHabitCheckIn: vi.fn(),
   checkInHabit: vi.fn(),
   createTask: vi.fn(),
+  deleteTask: vi.fn(),
   getThemePreference: vi.fn(),
   habits: vi.fn(),
   setThemePreference: vi.fn(),
@@ -866,6 +867,26 @@ describe("FloatingCard", () => {
           status: "COMPLETED"
         }),
         type: "task:upserted"
+      })
+    })));
+
+    window.removeEventListener(desktopSyncBrowserEventName, rawListener);
+  });
+
+  it("deletes a floating task from the hover action and emits a sync event", async () => {
+    apiMock.deleteTask.mockResolvedValue(undefined);
+    const rawListener = vi.fn();
+    window.addEventListener(desktopSyncBrowserEventName, rawListener);
+    render(<FloatingCard />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "删除" }));
+
+    await waitFor(() => expect(apiMock.deleteTask).toHaveBeenCalledWith("task-1"));
+    await waitFor(() => expect(useTaskBoardStore.getState().tasks).toEqual([]));
+    await waitFor(() => expect(rawListener).toHaveBeenCalledWith(expect.objectContaining({
+      detail: expect.objectContaining({
+        taskId: "task-1",
+        type: "task:deleted"
       })
     })));
 

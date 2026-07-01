@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { InjectOptions, Response } from "light-my-request";
 import { buildApp } from "../app.js";
 import { signAccessToken } from "../services/tokens.js";
@@ -279,12 +279,28 @@ describe("task manual ordering", () => {
 });
 
 describe("calendar route", () => {
+  const originalTimezone = process.env.TZ;
+
+  beforeAll(() => {
+    process.env.TZ = "Asia/Shanghai";
+  });
+
   beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-06-25T04:00:00.000Z"));
     vi.clearAllMocks();
     db.execute.mockResolvedValue({ affectedRows: 1 });
     db.queryOne.mockResolvedValue(null);
     db.queryRows.mockResolvedValue([]);
     db.transaction.mockImplementation(async (callback: (connection: { execute: typeof db.execute }) => Promise<unknown>) => callback({ execute: db.execute }));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  afterAll(() => {
+    process.env.TZ = originalTimezone;
   });
 
   it("returns task occurrences with habit check-ins inside the date range", async () => {
@@ -323,6 +339,7 @@ describe("calendar route", () => {
         }
       ])
       .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
       .mockResolvedValueOnce([]);
     db.queryOne
       .mockResolvedValueOnce(null)
@@ -357,6 +374,112 @@ describe("calendar route", () => {
         color: "blue",
         sortOrder: 2000
       }
+    ]);
+  });
+
+  it("returns anniversary schedules whose display date is inside the date range", async () => {
+    const from = "2026-06-01T00:00:00.000Z";
+    const to = "2026-07-01T00:00:00.000Z";
+    const createdAt = new Date("2026-05-01T00:00:00.000Z");
+    db.queryRows
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          id: "ann-today",
+          userId: "user-1",
+          title: "今天生日",
+          notes: null,
+          category: "BIRTHDAY",
+          date: "2020-06-25",
+          repeat: "YEARLY",
+          direction: "AUTO",
+          cardStyle: "rose",
+          calendarType: "SOLAR",
+          lunarMonth: null,
+          lunarDay: null,
+          solarTerm: null,
+          sortOrder: 1000,
+          createdAt,
+          updatedAt: createdAt
+        },
+        {
+          id: "ann-boundary",
+          userId: "user-1",
+          title: "下月纪念日",
+          notes: null,
+          category: "COUNTDOWN",
+          date: "2026-07-01",
+          repeat: "NONE",
+          direction: "COUNTDOWN",
+          cardStyle: "ocean",
+          calendarType: "SOLAR",
+          lunarMonth: null,
+          lunarDay: null,
+          solarTerm: null,
+          sortOrder: 2000,
+          createdAt,
+          updatedAt: createdAt
+        }
+      ]);
+
+    const response = await injectTask("GET", `/calendar?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&view=month`);
+
+    expect(response.statusCode).toBe(200);
+    expect(db.queryRows).toHaveBeenNthCalledWith(3, expect.stringContaining("FROM `AnniversaryEvent`"), ["user-1"]);
+    expect(response.json().anniversaries).toEqual([
+      expect.objectContaining({
+        id: "ann-today",
+        title: "今天生日",
+        date: "2026-06-25",
+        category: "BIRTHDAY",
+        cardStyle: "rose",
+        displayValue: "今天",
+        daysDelta: 0,
+        sortOrder: 1000
+      })
+    ]);
+  });
+
+  it("uses anniversary occurrence dates when browsing a future month", async () => {
+    const from = "2026-07-01T00:00:00.000Z";
+    const to = "2026-08-01T00:00:00.000Z";
+    const createdAt = new Date("2026-05-01T00:00:00.000Z");
+    db.queryRows
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          id: "ann-birthday",
+          userId: "user-1",
+          title: "七月生日",
+          notes: null,
+          category: "BIRTHDAY",
+          date: "2020-07-10",
+          repeat: "YEARLY",
+          direction: "AUTO",
+          cardStyle: "rose",
+          calendarType: "SOLAR",
+          lunarMonth: null,
+          lunarDay: null,
+          solarTerm: null,
+          sortOrder: 1000,
+          createdAt,
+          updatedAt: createdAt
+        }
+      ]);
+
+    const response = await injectTask("GET", `/calendar?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&view=month`);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().anniversaries).toEqual([
+      expect.objectContaining({
+        id: "ann-birthday",
+        title: "七月生日",
+        date: "2026-07-10",
+        displayValue: "15天",
+        sortOrder: 1000
+      })
     ]);
   });
 });

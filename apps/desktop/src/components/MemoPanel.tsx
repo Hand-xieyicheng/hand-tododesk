@@ -1,7 +1,7 @@
 import { type ChangeEvent, type ClipboardEvent, type DragEvent, type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { ApiMemo, ApiMemoListItem } from "@todo/shared";
-import { Button, Card, Input } from "animal-island-ui";
+import { Button, Input } from "animal-island-ui";
 import { observer } from "mobx-react-lite";
 import {
   Archive,
@@ -35,6 +35,7 @@ import { escapeHtml, isRichContentEmpty, sanitizeRichHtml } from "../lib/memoRic
 import { memoStore } from "../stores/memoStore";
 import { useMemoDesktopSync } from "../stores/useMemoDesktopSync";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { NoDataPlaceholder } from "./NoDataPlaceholder";
 import { PrintShareDialog } from "./PrintShareDialog";
 
 const autosaveDelayMs = 1200;
@@ -101,6 +102,7 @@ function MemoPanelContent({ printButtonEnabled = false }: MemoPanelProps) {
   const pinActionLabel = isPinned ? "取消置顶" : "置顶";
   const archiveActionLabel = selectedMemo?.archivedAt ? "取消归档" : "归档";
   const deleteMemoTitle = title.trim() || selectedMemo?.title || "未命名备忘录";
+  const memoListEmpty = memos.length === 0 && !loading;
 
   const pinnedMemos = useMemo(() => memos.filter((memo) => memo.isPinned), [memos]);
   const regularMemos = useMemo(() => memos.filter((memo) => !memo.isPinned), [memos]);
@@ -541,8 +543,7 @@ function MemoPanelContent({ printButtonEnabled = false }: MemoPanelProps) {
 
         {message ? <div className="inline-alert">{message}</div> : null}
 
-        <div className="memo-list-scroll" aria-busy={loading}>
-          {memos.length === 0 && !loading ? <Card className="empty-state" type="dashed">暂无备忘录</Card> : null}
+        <div className={memoListEmpty ? "memo-list-scroll is-empty" : "memo-list-scroll"} aria-busy={loading}>
           {renderMemoGroup("置顶", pinnedMemos)}
           {renderMemoGroup(showArchived ? "已归档" : "最近更新", regularMemos)}
         </div>
@@ -682,9 +683,7 @@ function MemoPanelContent({ printButtonEnabled = false }: MemoPanelProps) {
             />
           </>
         ) : (
-          <Card className="empty-state memo-empty-editor" type="dashed">
-            暂无备忘录
-          </Card>
+          <NoDataPlaceholder className="memo-empty-editor" />
         )}
       </section>
       {selectedMemo ? (

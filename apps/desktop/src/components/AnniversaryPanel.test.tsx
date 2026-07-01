@@ -100,6 +100,20 @@ describe("AnniversaryPanel", () => {
     apiMock.deleteAnniversary.mockResolvedValue(undefined);
   });
 
+  it("shows a centered no-data image when there are no anniversaries", async () => {
+    const { container } = render(<AnniversaryPanel createOpen={false} onCreateOpenChange={vi.fn()} />);
+
+    await waitFor(() => expect(apiMock.anniversaries).toHaveBeenCalled());
+
+    const placeholder = screen.getByAltText("暂无数据");
+    expect(container.querySelector(".anniversary-grid .no-data-placeholder img")).toBe(placeholder);
+    expect(container.querySelector(".anniversary-empty-placeholder img")).toBe(placeholder);
+    expect(container.querySelector(".anniversary-panel")).toHaveClass("is-empty");
+    expect(container.querySelector(".anniversary-grid")).toHaveClass("is-empty");
+    expect(placeholder).toHaveClass("no-data-placeholder-image");
+    expect(placeholder).toHaveStyle({ opacity: "0.5" });
+  });
+
   it("filters cards by category tabs", async () => {
     apiMock.anniversaries.mockResolvedValue({
       anniversaries: [
@@ -162,6 +176,31 @@ describe("AnniversaryPanel", () => {
     })));
   });
 
+  it("creates a birthday with lunar calendar fields", async () => {
+    render(<AnniversaryPanel createOpen onCreateOpenChange={vi.fn()} />);
+
+    fireEvent.change(screen.getByLabelText("标题"), { target: { value: "农历生日" } });
+    fireEvent.change(screen.getByLabelText("分类"), { target: { value: "BIRTHDAY" } });
+    fireEvent.change(screen.getByLabelText("日期"), { target: { value: "2020-07-07" } });
+    fireEvent.change(screen.getByLabelText("重复"), { target: { value: "YEARLY" } });
+    fireEvent.change(screen.getByLabelText("方向"), { target: { value: "COUNTDOWN" } });
+    fireEvent.change(screen.getByLabelText("历法"), { target: { value: "LUNAR" } });
+    fireEvent.change(screen.getByLabelText("阴历月份"), { target: { value: "5" } });
+    fireEvent.change(screen.getByLabelText("阴历日期"), { target: { value: "17" } });
+    fireEvent.click(screen.getByRole("button", { name: "添加" }));
+
+    await waitFor(() => expect(apiMock.createAnniversary).toHaveBeenCalledWith(expect.objectContaining({
+      title: "农历生日",
+      category: "BIRTHDAY",
+      repeat: "YEARLY",
+      direction: "COUNTDOWN",
+      calendarType: "LUNAR",
+      lunarMonth: 5,
+      lunarDay: 17,
+      solarTerm: null
+    })));
+  });
+
   it("renders today, countdown, and elapsed card states", async () => {
     apiMock.anniversaries.mockResolvedValue({
       anniversaries: [
@@ -178,5 +217,13 @@ describe("AnniversaryPanel", () => {
     expect(screen.getByText("6年6月9天")).toBeInTheDocument();
     expect(screen.getByText("倒数")).toBeInTheDocument();
     expect(screen.getByText("正数")).toBeInTheDocument();
+
+    const todayCard = screen.getByRole("heading", { name: "今天生日" }).closest(".anniversary-card");
+    const futureCard = screen.getByRole("heading", { name: "周末" }).closest(".anniversary-card");
+    const pastCard = screen.getByRole("heading", { name: "使用滴答清单" }).closest(".anniversary-card");
+
+    expect(todayCard).toHaveClass("is-today");
+    expect(futureCard).not.toHaveClass("is-today");
+    expect(pastCard).not.toHaveClass("is-today");
   });
 });

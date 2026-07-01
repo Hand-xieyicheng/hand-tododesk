@@ -516,6 +516,98 @@ describe("TaskPanel", () => {
     syncEvents.stop();
   });
 
+  it("renders edit actions on list, quadrant, and kanban task cards", async () => {
+    const listRender = renderPanel("title");
+
+    expect(screen.getByRole("button", { name: "编辑准备周报" })).toBeInTheDocument();
+    listRender.unmount();
+
+    apiMock.taskQuadrants.mockResolvedValue({
+      quadrants: {
+        ...emptyQuadrants(),
+        IMPORTANT_URGENT: [task]
+      }
+    });
+    const quadrantRender = render(
+      <TaskPanel
+        createOpen={false}
+        showCompletedTasks
+        tags={tagOptions}
+        taskCardDisplayMode="title"
+        tagMaintenanceOpen={false}
+        taskTagFilter="__all__"
+        tasks={[task]}
+        viewMode="quadrant"
+        onChanged={vi.fn(async () => undefined)}
+        onCreateOpenChange={vi.fn()}
+        onTagMaintenanceOpenChange={vi.fn()}
+      />
+    );
+
+    expect(await screen.findByRole("button", { name: "编辑准备周报" })).toBeInTheDocument();
+    quadrantRender.unmount();
+
+    renderKanbanPanel([task], true, "title");
+
+    const workColumn = screen.getByRole("region", { name: "工作看板列" });
+    expect(within(workColumn).getByRole("button", { name: "编辑准备周报" })).toBeInTheDocument();
+  });
+
+  it("updates a task from the task page edit action and emits a sync event", async () => {
+    const updatedTask = taskWith({
+      title: "准备周报更新",
+      notes: "改成最新版本",
+      priority: "NOT_IMPORTANT_URGENT",
+      tags: [{ id: "tag-2", name: "生活" }]
+    });
+    apiMock.updateTask.mockResolvedValue({ task: updatedTask });
+    const onChanged = vi.fn(async () => undefined);
+    const syncEvents = collectDesktopSyncEvents();
+    render(
+      <TaskPanel
+        createOpen={false}
+        showCompletedTasks
+        tags={tagOptions}
+        taskCardDisplayMode="title"
+        tagMaintenanceOpen={false}
+        taskTagFilter="__all__"
+        tasks={[task]}
+        viewMode="list"
+        onChanged={onChanged}
+        onCreateOpenChange={vi.fn()}
+        onTagMaintenanceOpenChange={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "编辑准备周报" }));
+
+    const dialog = screen.getByRole("dialog", { name: "编辑待办" });
+    fireEvent.change(within(dialog).getByLabelText("标题"), { target: { value: "准备周报更新" } });
+    fireEvent.change(within(dialog).getByLabelText("备注"), { target: { value: "改成最新版本" } });
+    fireEvent.change(within(dialog).getByLabelText("优先级"), { target: { value: "NOT_IMPORTANT_URGENT" } });
+    fireEvent.change(within(dialog).getByLabelText("标签"), { target: { value: "tag-2" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "保存" }));
+
+    await waitFor(() => expect(apiMock.updateTask).toHaveBeenCalledWith("task-1", expect.objectContaining({
+      notes: "改成最新版本",
+      priority: "NOT_IMPORTANT_URGENT",
+      tagId: "tag-2",
+      title: "准备周报更新"
+    })));
+    await waitFor(() => expect(syncEvents.listener).toHaveBeenCalledWith(expect.objectContaining({
+      detail: expect.objectContaining({
+        task: expect.objectContaining({
+          id: "task-1",
+          title: "准备周报更新"
+        }),
+        type: "task:upserted"
+      })
+    })));
+    await waitFor(() => expect(onChanged).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "编辑待办" })).not.toBeInTheDocument());
+    syncEvents.stop();
+  });
+
   it("creates, renames, and deletes tags from the maintenance modal", async () => {
     apiMock.createTag.mockResolvedValue({ tag: { id: "tag-3", name: "私人" } });
     apiMock.updateTag.mockResolvedValue({ tag: { id: "tag-1", name: "办公" } });

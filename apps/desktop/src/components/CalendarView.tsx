@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { toLocalDateKey, type CalendarHabitCheckIn, type CalendarOccurrence, type CalendarView as CalendarViewMode } from "@todo/shared";
+import { getCalendarDayMetadata, toLocalDateKey, type CalendarAnniversary, type CalendarHabitCheckIn, type CalendarOccurrence, type CalendarView as CalendarViewMode } from "@todo/shared";
 import { Button, Card } from "animal-island-ui";
 import { CalendarClock, ChevronLeft, ChevronRight, CheckCircle2 } from "lucide-react";
 import { api } from "../api/client";
@@ -177,6 +177,7 @@ export function CalendarView({ onChanged }: CalendarViewProps) {
   const [cursor, setCursor] = useState(() => new Date());
   const [occurrences, setOccurrences] = useState<CalendarOccurrence[]>([]);
   const [habitCheckIns, setHabitCheckIns] = useState<CalendarHabitCheckIn[]>([]);
+  const [anniversaries, setAnniversaries] = useState<CalendarAnniversary[]>([]);
   const [message, setMessage] = useState("");
 
   const range = useMemo(() => getRange(cursor, mode), [cursor, mode]);
@@ -195,6 +196,13 @@ export function CalendarView({ onChanged }: CalendarViewProps) {
     }
     return map;
   }, [habitCheckIns]);
+  const anniversaryGroups = useMemo(() => {
+    const map = new Map<string, CalendarAnniversary[]>();
+    for (const anniversary of anniversaries) {
+      map.set(anniversary.date, [...(map.get(anniversary.date) ?? []), anniversary]);
+    }
+    return map;
+  }, [anniversaries]);
 
   async function load() {
     setMessage("");
@@ -202,6 +210,7 @@ export function CalendarView({ onChanged }: CalendarViewProps) {
       const payload = await api.calendar(range.from.toISOString(), range.to.toISOString(), mode);
       setOccurrences(payload.occurrences);
       setHabitCheckIns(payload.habitCheckIns);
+      setAnniversaries(payload.anniversaries ?? []);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "日历加载失败");
     }
@@ -237,6 +246,28 @@ export function CalendarView({ onChanged }: CalendarViewProps) {
       <CalendarTooltip className="calendar-habit-tooltip" key={checkIn.id} placement="top" title={checkIn.title}>
         <span className={`calendar-habit-icon color-${checkIn.color}`} aria-label={`习惯打卡：${checkIn.title}`} role="img" tabIndex={0} title={checkIn.title}>
           <Icon size={14} aria-hidden="true" />
+        </span>
+      </CalendarTooltip>
+    );
+  }
+
+  function renderAnniversaryTooltip(item: CalendarAnniversary) {
+    return (
+      <div className="calendar-anniversary-popover">
+        <div className="calendar-anniversary-popover-title">{item.title}</div>
+        <div className="calendar-anniversary-popover-meta">
+          <span>{item.displayValue}</span>
+          <span>{item.displaySubtext}</span>
+        </div>
+      </div>
+    );
+  }
+
+  function renderAnniversaryTag(item: CalendarAnniversary) {
+    return (
+      <CalendarTooltip className="calendar-anniversary-tooltip" key={item.id} placement="top" title={renderAnniversaryTooltip(item)}>
+        <span className={`calendar-anniversary-tag style-${item.cardStyle}`} aria-label={`倒数纪念日：${item.title}`} tabIndex={0} title={`${item.title} · ${item.displayValue}`}>
+          {item.title}
         </span>
       </CalendarTooltip>
     );
@@ -294,17 +325,48 @@ export function CalendarView({ onChanged }: CalendarViewProps) {
       <div className={`calendar-grid calendar-${mode}`}>
         {range.cells.map((cell) => {
           const key = keyOf(cell);
+          const dayMetadata = getCalendarDayMetadata(key);
+          const isFestivalLabel = dayMetadata.displayLabel !== dayMetadata.lunarLabel;
           const items = taskGroups.get(key) ?? [];
           const habitItems = habitCheckInGroups.get(key) ?? [];
+          const anniversaryItems = anniversaryGroups.get(key) ?? [];
           const hasHabitItems = habitItems.length > 0;
+          const hasAnniversaryItems = anniversaryItems.length > 0;
           const isToday = (mode === "month" || mode === "week") && isSameCalendarDate(cell, new Date());
           const cellStyle = mode === "month" && cell.getDate() === 1 ? { gridColumnStart: cell.getDay() + 1 } : undefined;
-          const cellClassName = ["calendar-cell", isToday ? "is-today" : "", hasHabitItems ? "has-habits" : ""].filter(Boolean).join(" ");
+          const cellClassName = [
+            "calendar-cell",
+            isToday ? "is-today" : "",
+            dayMetadata.isRestDay ? "is-rest-day" : "",
+            dayMetadata.isAdjustedWorkday ? "is-adjusted-workday" : "",
+            hasHabitItems ? "has-habits" : "",
+            hasAnniversaryItems ? "has-anniversaries" : ""
+          ].filter(Boolean).join(" ");
           return (
-            <Card className={cellClassName} key={key} pattern={items.length > 0 || hasHabitItems ? "app-yellow" : "default"} style={cellStyle}>
+            <Card className={cellClassName} key={key} pattern={items.length > 0 || hasHabitItems || hasAnniversaryItems ? "app-yellow" : "default"} style={cellStyle}>
               <header>
-                <span>{cell.toLocaleDateString("zh-CN", { weekday: "short" })}</span>
-                <strong><span className="calendar-date-number">{cell.getDate()}</span></strong>
+                <div className="calendar-weekday-line">
+                  <span>{cell.toLocaleDateString("zh-CN", { weekday: "short" })}</span>
+                  {hasAnniversaryItems ? (
+                    <div className="calendar-anniversary-strip" aria-label={`${key} 倒数纪念日`}>
+                      {anniversaryItems.map(renderAnniversaryTag)}
+                    </div>
+                  ) : null}
+                </div>
+                <div className="calendar-date-line">
+                  <div className="calendar-date-stack">
+                    <div className="calendar-date-primary">
+                      {dayMetadata.isAdjustedWorkday ? <span className="calendar-workday-badge" title={`${dayMetadata.displayLabel}调休上班`}>班</span> : null}
+                      <strong><span className="calendar-date-number">{cell.getDate()}</span></strong>
+                    </div>
+                    <span
+                      className={["calendar-lunar-label", isFestivalLabel ? "is-festival-label" : ""].filter(Boolean).join(" ")}
+                      title={dayMetadata.displayLabel}
+                    >
+                      {dayMetadata.displayLabel}
+                    </span>
+                  </div>
+                </div>
               </header>
               <div className="calendar-items">
                 {items.map((item) => (

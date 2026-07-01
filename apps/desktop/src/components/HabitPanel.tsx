@@ -35,6 +35,7 @@ import { api } from "../api/client";
 import { emitDesktopSyncEvent, listenDesktopSyncEvents } from "../lib/desktopSync";
 import { allHabitIconNames, getHabitIcon, habitIconOptions, iconSearchText, normalizeHabitIconName, presetHabitIconOptions } from "../lib/habitIcons";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { NoDataPlaceholder } from "./NoDataPlaceholder";
 
 interface HabitPanelProps {
   createOpen: boolean;
@@ -382,6 +383,7 @@ export function HabitPanel({ createOpen, returnToListSignal = 0, showArchived, o
   }, [iconQuery]);
   const filteredIconOptions = useMemo(() => matchingIconOptions.slice(0, visibleIconCount), [matchingIconOptions, visibleIconCount]);
   const hasMoreIcons = filteredIconOptions.length < matchingIconOptions.length;
+  const habitsEmpty = habits.length === 0 && !loading;
   const normalizedDraftIcon = normalizeHabitIconName(draft.icon);
   const SelectedIcon = getHabitIcon(normalizedDraftIcon);
   const draftIconInPreset = presetHabitIconOptions.includes(normalizedDraftIcon);
@@ -898,13 +900,13 @@ export function HabitPanel({ createOpen, returnToListSignal = 0, showArchived, o
         onConfirm={() => void confirmDeleteHabit()}
       />
 
-      <section className={`habit-panel ${selectedHabit ? "is-detail" : "is-collection"}`}>
+      <section className={["habit-panel", selectedHabit ? "is-detail" : "is-collection", habitsEmpty ? "is-empty" : ""].filter(Boolean).join(" ")}>
         <aside className="habit-list-panel">
           {message ? <div className="inline-alert">{message}</div> : null}
           <DndContext collisionDetection={closestCenter} sensors={sensors} onDragEnd={handleDragEnd}>
             <SortableContext items={habits.map((habit) => habit.id)} strategy={rectSortingStrategy}>
-              <div className="habit-list" aria-busy={loading}>
-                {habits.length === 0 && !loading ? <Card className="empty-state" type="dashed">暂无习惯</Card> : null}
+              <div className={habitsEmpty ? "habit-list is-empty" : "habit-list"} aria-busy={loading}>
+                {habitsEmpty ? <NoDataPlaceholder className="habit-empty-placeholder" /> : null}
                 {habits.map((habit) => (
                   <SortableHabitCard
                     habit={habit}

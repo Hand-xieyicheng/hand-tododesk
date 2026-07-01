@@ -20,7 +20,9 @@ vi.mock("animal-island-ui", async () => {
       </div>
     ),
     Divider: ({ type: _type, ...props }: React.HTMLAttributes<HTMLHRElement> & { type?: string }) => <hr {...props} />,
-    Footer: () => <div />,
+    Footer: ({ className, style, type }: { className?: string; style?: React.CSSProperties; type?: string }) => (
+      <div className={className} data-footer-type={type} style={style} />
+    ),
     Input: ({ allowClear: _allowClear, shadow: _shadow, ...props }: React.InputHTMLAttributes<HTMLInputElement> & { allowClear?: boolean; shadow?: boolean }) => (
       <input {...props} />
     ),
@@ -276,6 +278,21 @@ describe("App sidebar", () => {
     expect(logo.querySelector(".sidebar-logo-ear-left")).toBeInTheDocument();
     expect(logo.querySelector(".sidebar-logo-ear-right")).toBeInTheDocument();
     expect(logo.querySelector(".sidebar-logo-check")).toBeInTheDocument();
+  });
+
+  it("renders the tree footer with the seamless tiling class", async () => {
+    vi.mocked(api.getThemePreference).mockResolvedValue({ ...mockThemePreference, footerType: "tree" });
+
+    const { container } = render(
+      <MemoryRouter initialEntries={["/profile"]}>
+        <App />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => expect(api.getThemePreference).toHaveBeenCalled());
+    const footer = container.querySelector('[data-footer-type="tree"]');
+    expect(footer).toHaveClass("workspace-footer-art");
+    expect(footer).toHaveClass("workspace-footer-art-seamless");
   });
 
   it("hides task print entry by default", async () => {
