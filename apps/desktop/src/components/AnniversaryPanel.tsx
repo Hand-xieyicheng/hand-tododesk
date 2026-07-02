@@ -2,12 +2,18 @@ import { type CSSProperties, type FormEvent, useEffect, useMemo, useState } from
 import { closestCenter, DndContext, KeyboardSensor, PointerSensor, type DragEndEvent, useSensor, useSensors } from "@dnd-kit/core";
 import { arrayMove, rectSortingStrategy, SortableContext, sortableKeyboardCoordinates, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import DatePicker from "antd/es/date-picker";
+import "antd/es/date-picker/style/index";
+import dayjs, { type Dayjs } from "dayjs";
 import {
   anniversaryCategoryLabels,
   anniversaryCardStyleValues,
   anniversaryRepeatLabels,
   builtInAnniversaryHolidayTemplates,
+  lunarDateToSolarKey,
+  parseDateKey,
   resolveBuiltInAnniversaryTemplate,
+  solarDateToLunarParts,
   toLocalDateKey,
   type AnniversaryCardStyle,
   type AnniversaryCategory,
@@ -162,6 +168,69 @@ function calendarTypeForCategory(category: AnniversaryCategory, calendarType: An
   return "SOLAR";
 }
 
+function datePickerValue(value: string): Dayjs | null {
+  if (!value) {
+    return null;
+  }
+
+  const parsed = dayjs(`${value}T00:00:00`);
+  return parsed.isValid() ? parsed : null;
+}
+
+function parseTypedDateKey(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return "";
+  }
+
+  const match = /^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/.exec(trimmed);
+  if (!match) {
+    return "";
+  }
+
+  const year = match[1] ?? "";
+  const month = match[2] ?? "";
+  const day = match[3] ?? "";
+  const candidate = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+  const parsed = dayjs(`${candidate}T00:00:00`);
+  return parsed.isValid() && parsed.format("YYYY-MM-DD") === candidate ? candidate : "";
+}
+
+function lunarFieldsFromSolarDate(dateKey: string): Partial<AnniversaryDraft> {
+  try {
+    const lunar = solarDateToLunarParts(dateKey);
+    return {
+      lunarMonth: String(lunar.month),
+      lunarDay: String(lunar.day)
+    };
+  } catch {
+    return {};
+  }
+}
+
+function lunarYearFromSolarDate(dateKey: string) {
+  try {
+    return solarDateToLunarParts(dateKey).year;
+  } catch {
+    const parsed = parseDateKey(dateKey);
+    return parsed.year || new Date().getFullYear();
+  }
+}
+
+function solarDateFromLunarFields(dateKey: string, lunarMonth: string, lunarDay: string): string | null {
+  const month = Number(lunarMonth);
+  const day = Number(lunarDay);
+  if (!month || !day) {
+    return null;
+  }
+
+  try {
+    return lunarDateToSolarKey(lunarYearFromSolarDate(dateKey), month, day);
+  } catch {
+    return null;
+  }
+}
+
 function draftToPayload(draft: AnniversaryDraft): CreateAnniversaryRequest {
   const calendarType = calendarTypeForCategory(draft.category, draft.calendarType);
   return {
@@ -292,6 +361,48 @@ export function AnniversaryPanel({ createOpen, onCreateOpenChange }: Anniversary
 
   function updateDraft(patch: Partial<AnniversaryDraft>) {
     setDraft((current) => ({ ...current, ...patch }));
+  }
+
+  function updateDate(nextDate: string) {
+    const calendarType = calendarTypeForCategory(draft.category, draft.calendarType);
+    updateDraft({
+      date: nextDate,
+      ...(calendarType === "LUNAR" ? lunarFieldsFromSolarDate(nextDate) : {})
+    });
+  }
+
+  function updateDateFromPicker(nextValue: Dayjs | null) {
+    if (nextValue) {
+      updateDate(nextValue.format("YYYY-MM-DD"));
+    }
+  }
+
+  function commitTypedDateValue(nextValue: string) {
+    const parsed = parseTypedDateKey(nextValue);
+    if (parsed) {
+      updateDate(parsed);
+    }
+  }
+
+  function updateBirthdayCalendarType(next: string) {
+    const calendarType = next === "LUNAR" ? "LUNAR" : "SOLAR";
+    updateDraft({
+      calendarType,
+      lunarMonth: "",
+      lunarDay: "",
+      ...(calendarType === "LUNAR" ? lunarFieldsFromSolarDate(draft.date) : {}),
+      solarTerm: ""
+    });
+  }
+
+  function updateLunarDateField(patch: Pick<Partial<AnniversaryDraft>, "lunarMonth" | "lunarDay">) {
+    const lunarMonth = patch.lunarMonth ?? draft.lunarMonth;
+    const lunarDay = patch.lunarDay ?? draft.lunarDay;
+    const solarDate = solarDateFromLunarFields(draft.date, lunarMonth, lunarDay);
+    updateDraft({
+      ...patch,
+      ...(solarDate ? { date: solarDate } : {})
+    });
   }
 
   function closeModal() {
@@ -429,9 +540,32 @@ export function AnniversaryPanel({ createOpen, onCreateOpenChange }: Anniversary
                 }}
               />
             </label>
-            <label>
+            <label
+              onChangeCapture={(event) => {
+                const target = event.nativeEvent.target;
+                if (target instanceof HTMLInputElement) {
+                  commitTypedDateValue(target.value);
+                }
+              }}
+            >
               <span>日期</span>
-              <Input value={draft.date} onChange={(event) => updateDraft({ date: event.target.value })} type="date" required shadow />
+              <DatePicker
+                allowClear={false}
+                aria-label="日期"
+                className="anniversary-date-picker"
+                classNames={{ popup: { root: "anniversary-date-picker-dropdown" } }}
+                format="YYYY/MM/DD"
+                inputReadOnly={false}
+                placeholder="选择日期"
+                showNow={false}
+                styles={{ popup: { root: { zIndex: 2147483000 } } }}
+                value={datePickerValue(draft.date)}
+                onBlur={(event) => {
+                  const target = event.target as HTMLInputElement;
+                  commitTypedDateValue(target.value);
+                }}
+                onChange={updateDateFromPicker}
+              />
             </label>
           </div>
           {draft.category === "BIRTHDAY" ? (
@@ -442,26 +576,18 @@ export function AnniversaryPanel({ createOpen, onCreateOpenChange }: Anniversary
                   aria-label="历法"
                   value={calendarTypeForCategory(draft.category, draft.calendarType)}
                   options={birthdayCalendarTypeOptions}
-                  onChange={(next) => {
-                    const calendarType = next === "LUNAR" ? "LUNAR" : "SOLAR";
-                    updateDraft({
-                      calendarType,
-                      lunarMonth: calendarType === "LUNAR" ? draft.lunarMonth : "",
-                      lunarDay: calendarType === "LUNAR" ? draft.lunarDay : "",
-                      solarTerm: ""
-                    });
-                  }}
+                  onChange={(next) => updateBirthdayCalendarType(String(next))}
                 />
               </label>
               {draft.calendarType === "LUNAR" ? (
                 <>
-                  <label>
+                  <label className="anniversary-scrollable-select-field">
                     <span>阴历月份</span>
-                    <Select aria-label="阴历月份" value={draft.lunarMonth} options={lunarMonthOptions} onChange={(next) => updateDraft({ lunarMonth: String(next) })} />
+                    <Select aria-label="阴历月份" value={draft.lunarMonth} options={lunarMonthOptions} onChange={(next) => updateLunarDateField({ lunarMonth: String(next) })} />
                   </label>
-                  <label>
+                  <label className="anniversary-scrollable-select-field">
                     <span>阴历日期</span>
-                    <Select aria-label="阴历日期" value={draft.lunarDay} options={lunarDayOptions} onChange={(next) => updateDraft({ lunarDay: String(next) })} />
+                    <Select aria-label="阴历日期" value={draft.lunarDay} options={lunarDayOptions} onChange={(next) => updateLunarDateField({ lunarDay: String(next) })} />
                   </label>
                 </>
               ) : null}

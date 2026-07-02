@@ -11,6 +11,27 @@ const apiMock = vi.hoisted(() => ({
   updateAnniversaryOrder: vi.fn()
 }));
 
+vi.mock("antd/es/date-picker", async () => {
+  const React = await import("react");
+
+  function DatePickerMock(props: any) {
+    const label = props["aria-label"] ?? props.placeholder ?? "日期";
+    return React.createElement(
+      "div",
+      { className: `${props.className ?? ""} ant-picker`.trim() },
+      React.createElement("input", {
+        "aria-label": label,
+        placeholder: props.placeholder,
+        value: props.value ? props.value.format("YYYY/MM/DD") : "",
+        onBlur: props.onBlur,
+        onChange: () => undefined
+      })
+    );
+  }
+
+  return { default: DatePickerMock };
+});
+
 vi.mock("animal-island-ui", () => ({
   Button: ({ children, danger, disabled, htmlType, icon, loading, onClick, type, ...props }: any) => (
     <button
@@ -179,6 +200,8 @@ describe("AnniversaryPanel", () => {
   it("creates a birthday with lunar calendar fields", async () => {
     render(<AnniversaryPanel createOpen onCreateOpenChange={vi.fn()} />);
 
+    expect(document.querySelectorAll(".anniversary-date-picker.ant-picker")).toHaveLength(1);
+
     fireEvent.change(screen.getByLabelText("标题"), { target: { value: "农历生日" } });
     fireEvent.change(screen.getByLabelText("分类"), { target: { value: "BIRTHDAY" } });
     fireEvent.change(screen.getByLabelText("日期"), { target: { value: "2020-07-07" } });
@@ -198,6 +221,46 @@ describe("AnniversaryPanel", () => {
       lunarMonth: 5,
       lunarDay: 17,
       solarTerm: null
+    })));
+  });
+
+  it("updates lunar birthday fields when the solar date changes", async () => {
+    render(<AnniversaryPanel createOpen onCreateOpenChange={vi.fn()} />);
+
+    fireEvent.change(screen.getByLabelText("分类"), { target: { value: "BIRTHDAY" } });
+    fireEvent.change(screen.getByLabelText("日期"), { target: { value: "2026-07-02" } });
+    fireEvent.change(screen.getByLabelText("历法"), { target: { value: "LUNAR" } });
+
+    expect(screen.getByLabelText("阴历月份")).toHaveValue("5");
+    expect(screen.getByLabelText("阴历日期")).toHaveValue("18");
+    expect(screen.getByLabelText("阴历月份").closest("label")).toHaveClass("anniversary-scrollable-select-field");
+    expect(screen.getByLabelText("阴历日期").closest("label")).toHaveClass("anniversary-scrollable-select-field");
+
+    fireEvent.change(screen.getByLabelText("日期"), { target: { value: "2026-06-21" } });
+
+    expect(screen.getByLabelText("阴历月份")).toHaveValue("5");
+    expect(screen.getByLabelText("阴历日期")).toHaveValue("7");
+  });
+
+  it("updates the solar date when lunar birthday fields change", async () => {
+    render(<AnniversaryPanel createOpen onCreateOpenChange={vi.fn()} />);
+
+    fireEvent.change(screen.getByLabelText("标题"), { target: { value: "农历生日" } });
+    fireEvent.change(screen.getByLabelText("分类"), { target: { value: "BIRTHDAY" } });
+    fireEvent.change(screen.getByLabelText("日期"), { target: { value: "2026-07-02" } });
+    fireEvent.change(screen.getByLabelText("历法"), { target: { value: "LUNAR" } });
+    fireEvent.change(screen.getByLabelText("阴历日期"), { target: { value: "7" } });
+
+    expect(screen.getByLabelText("日期")).toHaveValue("2026/06/21");
+
+    fireEvent.click(screen.getByRole("button", { name: "添加" }));
+
+    await waitFor(() => expect(apiMock.createAnniversary).toHaveBeenCalledWith(expect.objectContaining({
+      title: "农历生日",
+      date: "2026-06-21",
+      calendarType: "LUNAR",
+      lunarMonth: 5,
+      lunarDay: 7
     })));
   });
 

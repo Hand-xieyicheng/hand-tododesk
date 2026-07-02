@@ -58,4 +58,25 @@ describe("calendar styles", () => {
     expect(workdayBadgeRule).toContain("border-radius: 999px");
     expect(workdayBadgeRule).toContain("font-size: calc(10px * var(--app-ui-scale))");
   });
+
+  it("keeps birthday lunar select dropdowns internally scrollable", () => {
+    const dropdownRule = getRule(".anniversary-scrollable-select-field [class*=\"animal-dropdown-\"]");
+    const scrollbarRule = getRule(".anniversary-scrollable-select-field [class*=\"animal-dropdown-\"]::-webkit-scrollbar-thumb");
+
+    expect(dropdownRule).toContain("max-height: min(calc(280px * var(--app-ui-scale)), 36vh)");
+    expect(dropdownRule).toContain("overflow-y: auto");
+    expect(dropdownRule).toContain("overscroll-behavior: contain");
+    expect(scrollbarRule).toContain("border-radius: 999px");
+  });
+
+  it("styles the anniversary ant design date picker like the form controls", () => {
+    const pickerRule = getRule(".anniversary-date-picker");
+    const pickerInputRule = getRule(".anniversary-date-picker input");
+    const pickerDropdownRule = getRule("body .anniversary-date-picker-dropdown");
+
+    expect(pickerRule).toContain("border-radius: 24px");
+    expect(pickerRule).toContain("box-shadow:");
+    expect(pickerInputRule).toContain("font-weight: 800");
+    expect(pickerDropdownRule).toContain("z-index: 2147483000");
+  });
 });

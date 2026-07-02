@@ -27,6 +27,7 @@ import {
   habitColorValues,
   habitFrequencyValues,
   habitRecommendedIconValues,
+  lunarDateToSolarKey,
   printFontSizeModeValues,
   printMarginModeValues,
   printTemplateIdValues,
@@ -34,6 +35,7 @@ import {
 	  legacyThemeIdMap,
 	  normalizeThemeId,
 	  sortTasksForDisplay,
+  solarDateToLunarParts,
 	  taskCardDisplayModeValues,
 	  taskViewModeValues,
 	  themeIdValues,
@@ -265,11 +267,11 @@ describe("app bootstrap schema", () => {
     });
 
     expect(appBootstrapResponseSchema.parse({
-      apiVersion: "0.2.25",
+      apiVersion: "0.2.26",
       releaseChannel: "stable",
       desktop: {
         minimumVersion: "0.1.0",
-        latestVersion: "0.2.25",
+        latestVersion: "0.2.26",
         updateEndpoint: "https://github.com/Hand-xieyicheng/hand-tododesk/releases/latest/download/latest.json"
       },
       featureFlags: {
@@ -285,11 +287,11 @@ describe("app bootstrap schema", () => {
 
   it("rejects unsupported release channels", () => {
     expect(appBootstrapResponseSchema.safeParse({
-      apiVersion: "0.2.25",
+      apiVersion: "0.2.26",
       releaseChannel: "beta",
       desktop: {
         minimumVersion: "0.1.0",
-        latestVersion: "0.2.25",
+        latestVersion: "0.2.26",
         updateEndpoint: "https://github.com/Hand-xieyicheng/hand-tododesk/releases/latest/download/latest.json"
       },
       featureFlags: defaultAppFeatureFlags
@@ -429,6 +431,21 @@ describe("anniversary schemas and display", () => {
       isLegalRestDay: true,
       isAdjustedWorkday: false,
       isRestDay: true
+    });
+  });
+
+  it("converts anniversary dates between solar and lunar calendars", () => {
+    expect(solarDateToLunarParts("2026-07-02")).toEqual({
+      year: 2026,
+      month: 5,
+      day: 18
+    });
+
+    expect(lunarDateToSolarKey(2026, 5, 7)).toBe("2026-06-21");
+    expect(solarDateToLunarParts(lunarDateToSolarKey(2026, 5, 7))).toEqual({
+      year: 2026,
+      month: 5,
+      day: 7
     });
   });
 

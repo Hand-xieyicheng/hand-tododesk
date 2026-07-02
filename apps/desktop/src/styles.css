@@ -2615,6 +2615,26 @@ label > [class*="animal-wrapper"] * {
   background-clip: content-box;
 }
 
+.anniversary-scrollable-select-field [class*="animal-dropdown-"] {
+  max-height: min(calc(280px * var(--app-ui-scale)), 36vh);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--color-primary) 48%, var(--color-border)) transparent;
+}
+
+.anniversary-scrollable-select-field [class*="animal-dropdown-"]::-webkit-scrollbar {
+  width: 8px;
+}
+
+.anniversary-scrollable-select-field [class*="animal-dropdown-"]::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-primary) 48%, var(--color-border));
+  background-clip: content-box;
+}
+
 textarea {
   width: 100%;
   min-height: calc(112px * var(--app-ui-scale));
@@ -2817,12 +2837,46 @@ textarea::placeholder {
   border-color: var(--color-primary) !important;
 }
 
+.anniversary-date-picker {
+  width: 100%;
+  min-height: calc(48px * var(--app-ui-scale)) !important;
+  border: 2px solid var(--color-border) !important;
+  border-radius: 24px !important;
+  background: color-mix(in srgb, var(--color-background) 84%, var(--color-surface)) !important;
+  box-shadow: 0 3px color-mix(in srgb, var(--color-border) 74%, var(--color-text)) !important;
+}
+
+.anniversary-date-picker input {
+  color: var(--color-text) !important;
+  font-size: calc(14px * var(--app-ui-scale));
+  font-weight: 800;
+}
+
+.anniversary-date-picker input::placeholder {
+  color: color-mix(in srgb, var(--color-muted) 72%, var(--color-surface));
+}
+
+.anniversary-date-picker.ant-picker-focused,
+.anniversary-date-picker:focus-within {
+  border-color: var(--color-primary) !important;
+}
+
 body .habit-date-picker-dropdown {
   max-width: calc(100vw - 16px);
   z-index: 2147483000 !important;
 }
 
+body .anniversary-date-picker-dropdown {
+  max-width: calc(100vw - 16px);
+  z-index: 2147483000 !important;
+}
+
 body .habit-date-picker-dropdown .ant-picker-panel-container {
+  max-width: calc(100vw - 16px);
+  overflow-x: auto;
+}
+
+body .anniversary-date-picker-dropdown .ant-picker-panel-container {
   max-width: calc(100vw - 16px);
   overflow-x: auto;
 }

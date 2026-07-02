@@ -1129,6 +1129,20 @@ export function getCalendarDayMetadata(dateKey: string): CalendarDayMetadata {
   };
 }
 
+export function solarDateToLunarParts(dateKey: string): AnniversaryDateParts {
+  if (!isValidDateKey(dateKey)) {
+    throw new Error("Invalid date key");
+  }
+
+  const parts = parseDateKey(dateKey);
+  const lunar = Solar.fromYmd(parts.year, parts.month, parts.day).getLunar();
+  return {
+    year: lunar.getYear(),
+    month: Math.abs(lunar.getMonth()),
+    day: lunar.getDay()
+  };
+}
+
 export function compareDateKeys(left: string, right: string) {
   return toDayNumber(parseDateKey(left)) - toDayNumber(parseDateKey(right));
 }
@@ -1356,7 +1370,7 @@ function yearlyOccurrence(event: AnniversaryTimingInput, year: number) {
   });
 }
 
-function lunarDateToSolarKey(year: number, month: number, day: number) {
+export function lunarDateToSolarKey(year: number, month: number, day: number) {
   return Lunar.fromYmd(year, month, day).getSolar().toString();
 }
 
