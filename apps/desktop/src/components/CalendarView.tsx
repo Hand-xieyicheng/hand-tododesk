@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { getCalendarDayMetadata, toLocalDateKey, type CalendarAnniversary, type CalendarHabitCheckIn, type CalendarOccurrence, type CalendarView as CalendarViewMode } from "@todo/shared";
+import { getCalendarDayMetadata, isTaskOverdue, toLocalDateKey, type CalendarAnniversary, type CalendarHabitCheckIn, type CalendarOccurrence, type CalendarView as CalendarViewMode } from "@todo/shared";
 import { Button, Card } from "animal-island-ui";
 import { CalendarClock, ChevronLeft, ChevronRight, CheckCircle2 } from "lucide-react";
 import { api } from "../api/client";
@@ -276,10 +276,11 @@ export function CalendarView({ onChanged }: CalendarViewProps) {
   function renderTaskTooltip(item: CalendarOccurrence) {
     const dueTime = formatDueTime(item.dueAt);
     const isDone = item.status === "COMPLETED";
+    const isOverdue = isTaskOverdue(item);
 
     return (
       <div className="calendar-task-popover">
-        <div className="calendar-task-popover-title">{item.title}</div>
+        <div className={isOverdue ? "calendar-task-popover-title is-overdue" : "calendar-task-popover-title"}>{item.title}</div>
         {item.task.notes ? <div className="calendar-task-popover-notes">{item.task.notes}</div> : null}
         <div className="calendar-task-popover-meta">
           <span>{statusLabels[item.status]}</span>
@@ -371,7 +372,7 @@ export function CalendarView({ onChanged }: CalendarViewProps) {
               <div className="calendar-items">
                 {items.map((item) => (
                   <CalendarTooltip className="calendar-task-tooltip" key={item.id} placement="top-start" title={renderTaskTooltip(item)}>
-                    <span className={item.status === "COMPLETED" ? "calendar-task is-done" : "calendar-task"}>{item.title}</span>
+                    <span className={["calendar-task", item.status === "COMPLETED" ? "is-done" : "", isTaskOverdue(item) ? "is-overdue" : ""].filter(Boolean).join(" ")}>{item.title}</span>
                   </CalendarTooltip>
                 ))}
               </div>

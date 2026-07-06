@@ -50,14 +50,14 @@ describe("sidebar styles", () => {
     expect(collapsedLogoRule).not.toContain("display: none");
   });
 
-  it("keeps the expanded sidebar logo inside a square padded slot", () => {
+  it("keeps the expanded sidebar logo inside a visually balanced padded slot", () => {
     const expandedBrandButtonRule = getRule(".app-shell:not(.is-sidebar-collapsed) .sidebar-brand-button");
     const sidebarLogoRule = getRule(".sidebar-brand-logo");
     const collapsedBrandButtonRule = getRule(".app-shell.is-sidebar-collapsed .sidebar-brand-button");
 
     expect(expandedBrandButtonRule).toContain("width: calc(132px * var(--app-ui-scale))");
-    expect(expandedBrandButtonRule).toContain("height: calc(132px * var(--app-ui-scale))");
-    expect(expandedBrandButtonRule).toContain("padding: calc(13px * var(--app-ui-scale))");
+    expect(expandedBrandButtonRule).toContain("height: calc(140px * var(--app-ui-scale))");
+    expect(expandedBrandButtonRule).toContain("padding: calc(17px * var(--app-ui-scale)) calc(13px * var(--app-ui-scale))");
     expect(sidebarLogoRule).toContain("aspect-ratio: 1");
     expect(collapsedBrandButtonRule).toContain("width: calc(52px * var(--app-ui-scale))");
     expect(collapsedBrandButtonRule).toContain("height: calc(52px * var(--app-ui-scale))");

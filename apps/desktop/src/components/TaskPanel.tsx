@@ -2,7 +2,7 @@ import { type CSSProperties, type FormEvent, type KeyboardEvent, type PointerEve
 import { closestCenter, DndContext, DragOverlay, KeyboardSensor, PointerSensor, type DragEndEvent, type DragStartEvent, useDroppable, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { sortTasksForDisplay, type ApiTag, type ApiTask, type CreateTaskRequest, type TaskCardDisplayMode, type TaskPriority, type TaskStatus, type TaskViewMode, type UpdateTaskRequest } from "@todo/shared";
+import { isTaskOverdue, sortTasksForDisplay, taskMatchesDateFilter, type ApiTag, type ApiTask, type CreateTaskRequest, type TaskCardDisplayMode, type TaskDateFilter, type TaskPriority, type TaskStatus, type TaskViewMode, type UpdateTaskRequest } from "@todo/shared";
 import { Button, Card, Divider, Input, Modal, Select } from "animal-island-ui";
 import { Check, Pencil, Plus, RotateCcw, Save, Trash2, X } from "lucide-react";
 import { api } from "../api/client";
@@ -19,6 +19,7 @@ interface TaskPanelProps {
   tags: ApiTag[];
   taskCardDisplayMode: TaskCardDisplayMode;
   tagMaintenanceOpen: boolean;
+  taskDateFilter?: TaskDateFilter;
   taskTagFilter: string;
   tasks: ApiTask[];
   viewMode: TaskViewMode;
@@ -227,6 +228,7 @@ function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {
   }
 
   const metaItems = getTaskMetaItems(task);
+  const isOverdue = isTaskOverdue(task);
 
   return (
     <Modal
@@ -243,7 +245,7 @@ function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {
           <span>{priorityLabels[task.priority]}</span>
           <span>{statusLabels[task.status]}</span>
         </div>
-        <h2>{task.title}</h2>
+        <h2 className={isOverdue ? "is-overdue" : undefined}>{task.title}</h2>
         <section className="task-detail-section">
           <span>备注</span>
           <p>{task.notes || "无备注"}</p>
@@ -268,6 +270,7 @@ interface TaskCardProps {
 
 function TaskCard({ task, compact, displayMode, onDelete, onEdit, onOpenDetails, onSetStatus }: TaskCardProps) {
   const isCompleted = task.status === "COMPLETED";
+  const isOverdue = isTaskOverdue(task);
   const titleOnly = displayMode === "title";
   const statusAction = isCompleted ? "恢复为未完成" : "完成";
   const nextStatus: TaskStatus = isCompleted ? "TODO" : "COMPLETED";
@@ -316,7 +319,7 @@ function TaskCard({ task, compact, displayMode, onDelete, onEdit, onOpenDetails,
 
   return (
     <Card
-      className={`task-item priority-${priorityClass(task.priority)}${compact ? " is-compact" : ""}${isCompleted ? " is-completed" : ""}${titleOnly ? " is-title-only" : ""}`}
+      className={`task-item priority-${priorityClass(task.priority)}${compact ? " is-compact" : ""}${isCompleted ? " is-completed" : ""}${isOverdue ? " is-overdue" : ""}${titleOnly ? " is-title-only" : ""}`}
       pattern="default"
     >
       <button
@@ -832,7 +835,7 @@ function TagMaintenanceModal({ open, tags, onChanged, onClose }: TagMaintenanceM
   );
 }
 
-export function TaskPanel({ createOpen, showCompletedTasks, tags, taskCardDisplayMode, tagMaintenanceOpen, taskTagFilter, tasks, viewMode, onChanged, onCreateOpenChange, onPanelMessageChange = () => undefined, onTagMaintenanceOpenChange }: TaskPanelProps) {
+export function TaskPanel({ createOpen, showCompletedTasks, tags, taskCardDisplayMode, tagMaintenanceOpen, taskDateFilter = "all", taskTagFilter, tasks, viewMode, onChanged, onCreateOpenChange, onPanelMessageChange = () => undefined, onTagMaintenanceOpenChange }: TaskPanelProps) {
   const setBoardTasks = useTaskBoardStore((state) => state.setTasks);
   const kanbanDragState = useRef<KanbanDragState | null>(null);
   const kanbanTaskSensors = useSensors(
@@ -864,9 +867,10 @@ export function TaskPanel({ createOpen, showCompletedTasks, tags, taskCardDispla
   const visibleTasks = useMemo(
     () => sortTasksForDisplay(
       (showCompletedTasks ? tasks : tasks.filter((task) => task.status !== "COMPLETED"))
+        .filter((task) => taskMatchesDateFilter(task, taskDateFilter))
         .filter((task) => taskMatchesTagFilter(task, taskTagFilter))
     ),
-    [showCompletedTasks, taskTagFilter, tasks]
+    [showCompletedTasks, taskDateFilter, taskTagFilter, tasks]
   );
   const visibleQuadrants = useMemo(() => {
     const nextQuadrants = emptyQuadrants();
@@ -874,18 +878,19 @@ export function TaskPanel({ createOpen, showCompletedTasks, tags, taskCardDispla
       const sourceItems = quadrants[item] ?? [];
       nextQuadrants[item] = sortTasksForDisplay(
         (showCompletedTasks ? sourceItems : sourceItems.filter((task) => task.status !== "COMPLETED"))
+          .filter((task) => taskMatchesDateFilter(task, taskDateFilter))
           .filter((task) => taskMatchesTagFilter(task, taskTagFilter))
       );
     }
     return nextQuadrants;
-  }, [quadrants, showCompletedTasks, taskTagFilter]);
+  }, [quadrants, showCompletedTasks, taskDateFilter, taskTagFilter]);
   const visibleQuadrantTasks = useMemo(
     () => priorityOrder.flatMap((item) => visibleQuadrants[item]),
     [visibleQuadrants]
   );
   const kanbanColumns = useMemo(
-    () => buildKanbanColumns(tasks, tags, showCompletedTasks),
-    [showCompletedTasks, tags, tasks]
+    () => buildKanbanColumns(tasks.filter((task) => taskMatchesDateFilter(task, taskDateFilter)), tags, showCompletedTasks),
+    [showCompletedTasks, tags, taskDateFilter, tasks]
   );
   const visibleKanbanTasks = useMemo(
     () => kanbanColumns.flatMap((column) => column.tasks),

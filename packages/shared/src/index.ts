@@ -779,9 +779,136 @@ type DisplaySortableTask = Pick<ApiTask, "id" | "createdAt"> & {
   status?: TaskStatus | string | null;
 };
 
+type OverdueTaskLike = {
+  dueAt?: string | null;
+  status?: TaskStatus | string | null;
+};
+
+export const taskDateFilterValues = ["all", "today", "tomorrow", "week", "month", "none"] as const;
+export type TaskDateFilter = (typeof taskDateFilterValues)[number];
+
+export const taskDateFilterOptions: Array<{ key: TaskDateFilter; label: string }> = [
+  { key: "all", label: "全部时间" },
+  { key: "today", label: "今日" },
+  { key: "tomorrow", label: "明日" },
+  { key: "week", label: "本周" },
+  { key: "month", label: "本月" },
+  { key: "none", label: "无时间" }
+];
+
+type DateFilteredTaskLike = {
+  startAt?: string | null;
+  dueAt?: string | null;
+};
+
 function taskCreatedAtTime(task: DisplaySortableTask) {
   const timestamp = Date.parse(task.createdAt);
   return Number.isNaN(timestamp) ? Number.MAX_SAFE_INTEGER : timestamp;
+}
+
+export function isTaskOverdue(task: OverdueTaskLike, now = new Date()) {
+  if (task.status === "COMPLETED" || !task.dueAt) {
+    return false;
+  }
+
+  const dueTime = Date.parse(task.dueAt);
+  if (Number.isNaN(dueTime)) {
+    return false;
+  }
+
+  return dueTime < now.getTime();
+}
+
+function parseTaskDate(value: string | null | undefined) {
+  if (!value) {
+    return null;
+  }
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function startOfLocalDay(date: Date) {
+  const next = new Date(date);
+  next.setHours(0, 0, 0, 0);
+  return next;
+}
+
+function endOfLocalDay(date: Date) {
+  const next = new Date(date);
+  next.setHours(23, 59, 59, 999);
+  return next;
+}
+
+function localDayRange(now: Date, offsetDays: number) {
+  const start = startOfLocalDay(now);
+  start.setDate(start.getDate() + offsetDays);
+  return {
+    start,
+    end: endOfLocalDay(start)
+  };
+}
+
+function localWeekRange(now: Date) {
+  const start = startOfLocalDay(now);
+  const daysSinceMonday = (start.getDay() + 6) % 7;
+  start.setDate(start.getDate() - daysSinceMonday);
+  const end = endOfLocalDay(start);
+  end.setDate(start.getDate() + 6);
+  return { start, end };
+}
+
+function localMonthRange(now: Date) {
+  return {
+    start: new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0),
+    end: new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
+  };
+}
+
+function taskDateInterval(task: DateFilteredTaskLike) {
+  const startAt = parseTaskDate(task.startAt);
+  const dueAt = parseTaskDate(task.dueAt);
+  if (!startAt && !dueAt) {
+    return null;
+  }
+
+  const startTime = (startAt ?? dueAt)!.getTime();
+  const endTime = (dueAt ?? startAt)!.getTime();
+  return {
+    start: Math.min(startTime, endTime),
+    end: Math.max(startTime, endTime)
+  };
+}
+
+function dateRangesOverlap(taskRange: { start: number; end: number }, filterRange: { start: Date; end: Date }) {
+  return taskRange.start <= filterRange.end.getTime() && taskRange.end >= filterRange.start.getTime();
+}
+
+export function taskMatchesDateFilter(task: DateFilteredTaskLike, filter: TaskDateFilter, now = new Date()) {
+  if (filter === "all") {
+    return true;
+  }
+
+  const taskRange = taskDateInterval(task);
+  if (filter === "none") {
+    return !taskRange;
+  }
+  if (!taskRange) {
+    return false;
+  }
+
+  if (filter === "today") {
+    return dateRangesOverlap(taskRange, localDayRange(now, 0));
+  }
+  if (filter === "tomorrow") {
+    return dateRangesOverlap(taskRange, localDayRange(now, 1));
+  }
+  if (filter === "week") {
+    return dateRangesOverlap(taskRange, localWeekRange(now));
+  }
+  if (filter === "month") {
+    return dateRangesOverlap(taskRange, localMonthRange(now));
+  }
+  return true;
 }
 
 export function compareTasksForDisplay(left: DisplaySortableTask, right: DisplaySortableTask) {

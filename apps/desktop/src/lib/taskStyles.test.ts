@@ -135,6 +135,19 @@ describe("task styles", () => {
     expect(styles).not.toMatch(/(?:^|[;{]\s*)color:\s*var\(--color-primary\)/m);
   });
 
+  it("uses a dedicated warm red for overdue unfinished task titles", () => {
+    const rootRule = getRule(":root");
+    const taskOverdueRule = getRuleContaining(".task-item.is-overdue .task-title-row h3");
+    const floatingOverdueRule = getRuleContaining(".floating-task.is-overdue .floating-task-title");
+    const calendarOverdueRule = getRule(".calendar-task.is-overdue");
+
+    expect(rootRule).toContain("--task-overdue-text: #d84a4a");
+    expect(taskOverdueRule).toContain("color: var(--task-overdue-text)");
+    expect(floatingOverdueRule).toContain("color: var(--floating-card-task-overdue-text");
+    expect(calendarOverdueRule).toContain("color: var(--task-overdue-text)");
+    expect(taskOverdueRule).not.toContain("color: var(--color-primary)");
+  });
+
   it("uses a bright card background while task cards are being dragged", () => {
     const taskDraggingRule = getRule(".task-sortable.is-dragging");
     const taskDraggingCardRule = getRule(".task-sortable.is-dragging > .task-item");
@@ -174,5 +187,26 @@ describe("task styles", () => {
     expect(narrowToolbarRule).toContain("height: calc(34px * var(--app-ui-scale))");
     expect(narrowToolbarRule).toContain("min-height: calc(34px * var(--app-ui-scale))");
     expect(narrowToolbarRule).not.toContain("grid-column: 1 / -1");
+  });
+
+  it("keeps task date filters aligned with their neighboring status tags", () => {
+    const topbarRule = getRule(".topbar-date-filter");
+    const topbarTriggerRule = getRuleContaining('.topbar-date-filter [class*="animal-trigger"]');
+    const floatingRule = getRule(".floating-date-filter");
+    const floatingTriggerRule = getRuleContaining('.floating-date-filter [class*="animal-trigger"]');
+
+    expect(topbarRule).toContain("height: var(--topbar-action-height)");
+    expect(topbarTriggerRule).toContain("height: var(--topbar-action-height) !important");
+    expect(floatingRule).toContain("height: calc(28px * var(--app-ui-scale))");
+    expect(floatingTriggerRule).toContain("border-radius: 999px !important");
+  });
+
+  it("keeps floating habit shortcut tooltip text constrained inside the card window", () => {
+    const tooltipRule = getRule('.floating-habit-shortcut-tooltip [role="tooltip"]');
+    const contentRule = getRuleContaining('.floating-habit-shortcut-tooltip [class*="animal-content"]');
+
+    expect(tooltipRule).toContain("max-width: min(calc(220px * var(--app-ui-scale)), calc(100vw - 24px))");
+    expect(contentRule).toContain("white-space: normal");
+    expect(contentRule).toContain("overflow-wrap: anywhere");
   });
 });

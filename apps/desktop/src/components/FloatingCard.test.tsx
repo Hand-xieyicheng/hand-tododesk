@@ -117,16 +117,16 @@ vi.mock("animal-island-ui", () => ({
   ),
   Card: ({ children, className }: any) => <section className={className}>{children}</section>,
   Input: ({ onChange, value }: any) => <input value={value} onChange={onChange} />,
-  Select: ({ onChange, options, value }: any) => (
-    <select value={value} onChange={(event) => onChange(event.target.value)}>
+  Select: ({ "aria-label": ariaLabel, onChange, options, value }: any) => (
+    <select aria-label={ariaLabel} value={value} onChange={(event) => onChange(event.target.value)}>
       {options.map((option: any) => {
         const optionValue = option.value ?? option.key;
         return <option key={optionValue} value={optionValue}>{option.label}</option>;
       })}
     </select>
   ),
-  Tooltip: ({ children, className, title }: any) => (
-    <div className={className}>
+  Tooltip: ({ children, className, placement, title }: any) => (
+    <div className={className} data-placement={placement ?? "top"}>
       {children}
       <div role="tooltip">{title}</div>
     </div>
@@ -333,6 +333,69 @@ describe("FloatingCard", () => {
     expect(taskTooltip).toHaveTextContent("#财务");
   });
 
+  it("filters desktop card tasks by selected date", async () => {
+    apiMock.tasks.mockResolvedValue({
+      tasks: [
+        taskWith({
+          id: "today-task",
+          title: "今日票据",
+          dueAt: new Date(getTodayEndDatetimeLocal()).toISOString()
+        }),
+        taskWith({
+          id: "tomorrow-task",
+          title: "明日票据",
+          dueAt: new Date(getTomorrowEndDatetimeLocal()).toISOString()
+        }),
+        taskWith({
+          id: "no-time-task",
+          title: "无时间票据",
+          startAt: null,
+          dueAt: null
+        })
+      ]
+    });
+
+    render(<FloatingCard />);
+
+    const dateFilter = await screen.findByRole("combobox", { name: "日期" });
+    expect(dateFilter).toHaveValue("all");
+    expect(screen.getAllByText("今日票据").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("明日票据").length).toBeGreaterThan(0);
+
+    fireEvent.change(dateFilter, { target: { value: "none" } });
+
+    expect(screen.queryAllByText("今日票据")).toHaveLength(0);
+    expect(screen.queryAllByText("明日票据")).toHaveLength(0);
+    expect(screen.getAllByText("无时间票据").length).toBeGreaterThan(0);
+  });
+
+  it("marks overdue unfinished task titles on the desktop card", async () => {
+    apiMock.tasks.mockResolvedValue({
+      tasks: [
+        taskWith({
+          dueAt: "2000-01-01T00:00:00.000Z",
+          status: "TODO",
+          title: "桌面过期未完成"
+        }),
+        taskWith({
+          id: "done-overdue",
+          dueAt: "2000-01-01T00:00:00.000Z",
+          status: "COMPLETED",
+          title: "桌面过期已完成"
+        })
+      ]
+    });
+
+    const { container } = render(<FloatingCard />);
+
+    await waitFor(() => expect(container.querySelectorAll(".floating-task-title")).toHaveLength(2));
+    const renderedTasks = [...container.querySelectorAll(".floating-task")];
+    const overdueCard = renderedTasks.find((item) => item.querySelector(".floating-task-title")?.textContent === "桌面过期未完成");
+    const completedCard = renderedTasks.find((item) => item.querySelector(".floating-task-title")?.textContent === "桌面过期已完成");
+    expect(overdueCard).toHaveClass("is-overdue");
+    expect(completedCard).not.toHaveClass("is-overdue");
+  });
+
   it("applies synced floating card theme variables", async () => {
     const { container } = render(<FloatingCard />);
 
@@ -351,6 +414,24 @@ describe("FloatingCard", () => {
     expect(apiMock.habits).toHaveBeenCalledWith(false);
     expect(shortcut).toHaveAttribute("aria-pressed", "false");
     expect(shortcut.querySelector(".lucide-book-open")).not.toBeNull();
+  });
+
+  it("uses edge-aware placements for floating habit shortcut tooltips", async () => {
+    apiMock.habits.mockResolvedValue({
+      habits: [
+        { ...todayHabit, id: "habit-left", title: "Time-perhaps" },
+        { ...todayHabit, id: "habit-middle", title: "中间习惯" },
+        { ...todayHabit, id: "habit-right", title: "右侧长习惯" }
+      ]
+    });
+
+    const { container } = render(<FloatingCard />);
+
+    await screen.findByRole("button", { name: "打卡 Time-perhaps" });
+
+    const tooltips = [...container.querySelectorAll(".floating-habit-shortcut-tooltip")];
+    expect(tooltips).toHaveLength(3);
+    expect(tooltips.map((tooltip) => tooltip.getAttribute("data-placement"))).toEqual(["top-start", "top", "top-end"]);
   });
 
   it("hides habit shortcuts when the preference is disabled", async () => {

@@ -27,6 +27,7 @@ import {
   habitColorValues,
   habitFrequencyValues,
   habitRecommendedIconValues,
+  isTaskOverdue,
   lunarDateToSolarKey,
   printFontSizeModeValues,
   printMarginModeValues,
@@ -35,6 +36,8 @@ import {
 	  legacyThemeIdMap,
 	  normalizeThemeId,
 	  sortTasksForDisplay,
+  taskDateFilterOptions,
+  taskMatchesDateFilter,
   solarDateToLunarParts,
 	  taskCardDisplayModeValues,
 	  taskViewModeValues,
@@ -267,11 +270,11 @@ describe("app bootstrap schema", () => {
     });
 
     expect(appBootstrapResponseSchema.parse({
-      apiVersion: "0.2.26",
+      apiVersion: "0.2.27",
       releaseChannel: "stable",
       desktop: {
         minimumVersion: "0.1.0",
-        latestVersion: "0.2.26",
+        latestVersion: "0.2.27",
         updateEndpoint: "https://github.com/Hand-xieyicheng/hand-tododesk/releases/latest/download/latest.json"
       },
       featureFlags: {
@@ -287,11 +290,11 @@ describe("app bootstrap schema", () => {
 
   it("rejects unsupported release channels", () => {
     expect(appBootstrapResponseSchema.safeParse({
-      apiVersion: "0.2.26",
+      apiVersion: "0.2.27",
       releaseChannel: "beta",
       desktop: {
         minimumVersion: "0.1.0",
-        latestVersion: "0.2.26",
+        latestVersion: "0.2.27",
         updateEndpoint: "https://github.com/Hand-xieyicheng/hand-tododesk/releases/latest/download/latest.json"
       },
       featureFlags: defaultAppFeatureFlags
@@ -586,6 +589,55 @@ describe("task display sorting", () => {
     });
     expect(updateTaskOrderRequestSchema.safeParse({ orderedIds: [] }).success).toBe(false);
     expect(updateTaskOrderRequestSchema.safeParse({ orderedIds: ["task-1", "task-1"] }).success).toBe(false);
+  });
+
+  it("marks only unfinished tasks with past due dates as overdue", () => {
+    const now = new Date("2026-07-02T12:00:00.000Z");
+
+    expect(isTaskOverdue({ dueAt: "2026-07-02T11:59:59.000Z", status: "TODO" }, now)).toBe(true);
+    expect(isTaskOverdue({ dueAt: "2026-07-02T12:00:00.000Z", status: "TODO" }, now)).toBe(false);
+    expect(isTaskOverdue({ dueAt: "2026-07-01T12:00:00.000Z", status: "COMPLETED" }, now)).toBe(false);
+    expect(isTaskOverdue({ dueAt: null, status: "TODO" }, now)).toBe(false);
+  });
+
+  it("exposes the planned task date filter labels", () => {
+    expect(taskDateFilterOptions.map((option) => option.label)).toEqual([
+      "全部时间",
+      "今日",
+      "明日",
+      "本周",
+      "本月",
+      "无时间"
+    ]);
+  });
+
+  it("matches tasks by local date filter ranges", () => {
+    const now = new Date("2026-07-06T10:00:00+08:00");
+    const todayTask = { startAt: null, dueAt: "2026-07-06T07:00:00.000Z" };
+    const tomorrowTask = { startAt: null, dueAt: "2026-07-07T07:00:00.000Z" };
+    const weekTask = { startAt: null, dueAt: "2026-07-12T07:00:00.000Z" };
+    const monthTask = { startAt: null, dueAt: "2026-07-31T07:00:00.000Z" };
+    const nextMonthTask = { startAt: null, dueAt: "2026-08-01T07:00:00.000Z" };
+    const noTimeTask = { startAt: null, dueAt: null };
+    const rangeTask = {
+      startAt: "2026-07-06T01:00:00.000Z",
+      dueAt: "2026-07-08T10:00:00.000Z"
+    };
+
+    expect(taskMatchesDateFilter(todayTask, "all", now)).toBe(true);
+    expect(taskMatchesDateFilter(noTimeTask, "all", now)).toBe(true);
+    expect(taskMatchesDateFilter(todayTask, "today", now)).toBe(true);
+    expect(taskMatchesDateFilter(tomorrowTask, "today", now)).toBe(false);
+    expect(taskMatchesDateFilter(tomorrowTask, "tomorrow", now)).toBe(true);
+    expect(taskMatchesDateFilter(rangeTask, "today", now)).toBe(true);
+    expect(taskMatchesDateFilter(todayTask, "week", now)).toBe(true);
+    expect(taskMatchesDateFilter(tomorrowTask, "week", now)).toBe(true);
+    expect(taskMatchesDateFilter(weekTask, "week", now)).toBe(true);
+    expect(taskMatchesDateFilter(nextMonthTask, "week", now)).toBe(false);
+    expect(taskMatchesDateFilter(monthTask, "month", now)).toBe(true);
+    expect(taskMatchesDateFilter(nextMonthTask, "month", now)).toBe(false);
+    expect(taskMatchesDateFilter(noTimeTask, "none", now)).toBe(true);
+    expect(taskMatchesDateFilter(todayTask, "none", now)).toBe(false);
   });
 
   it("keeps completed tasks below open tasks, then uses manual order and created date", () => {

@@ -27,8 +27,8 @@ vi.mock("animal-island-ui", async () => {
       <input {...props} />
     ),
     Loading: () => <div />,
-    Select: ({ onChange, options = [], value }: any) => (
-      <select aria-label="标签" value={value} onChange={(event) => onChange?.(event.target.value)}>
+    Select: ({ "aria-label": ariaLabel, onChange, options = [], value }: any) => (
+      <select aria-label={ariaLabel ?? "标签"} value={value} onChange={(event) => onChange?.(event.target.value)}>
         {options.map((option: any) => (
           <option key={option.key ?? option.value} value={option.key ?? option.value}>{option.label}</option>
         ))}
@@ -113,7 +113,7 @@ vi.mock("./components/ProfileCenter", () => ({
 }));
 
 vi.mock("./components/TaskPanel", () => ({
-  TaskPanel: () => <div />
+  TaskPanel: ({ taskDateFilter }: any) => <div data-testid="task-panel-date-filter">{taskDateFilter}</div>
 }));
 
 vi.mock("./lib/useAppUpdater", () => ({
@@ -304,6 +304,22 @@ describe("App sidebar", () => {
 
     await waitFor(() => expect(localStorage.getItem("tododesk.theme")).toBe(mockThemePreference.themeId));
     expect(screen.queryByRole("button", { name: "便签打印" })).not.toBeInTheDocument();
+  });
+
+  it("shows the task date filter beside the unfinished count and passes it to the task panel", async () => {
+    render(
+      <MemoryRouter initialEntries={["/tasks"]}>
+        <App />
+      </MemoryRouter>
+    );
+
+    const dateFilter = await screen.findByRole("combobox", { name: "日期" });
+    expect(dateFilter).toHaveValue("all");
+    expect(screen.getByTestId("task-panel-date-filter")).toHaveTextContent("all");
+
+    fireEvent.change(dateFilter, { target: { value: "today" } });
+
+    expect(screen.getByTestId("task-panel-date-filter")).toHaveTextContent("today");
   });
 
   it("shows task print entry when enabled", async () => {

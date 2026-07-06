@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { ApiTask } from "@todo/shared";
+import type { ApiTask, TaskDateFilter } from "@todo/shared";
 import { desktopSyncBrowserEventName } from "../lib/desktopSync";
 import { getTodayEndDatetimeLocal, getTomorrowEndDatetimeLocal } from "../lib/datetime";
 import { TaskPanel } from "./TaskPanel";
@@ -189,10 +189,11 @@ function emptyQuadrants() {
   };
 }
 
-function renderPanel(displayMode: "full" | "title", panelTasks: ApiTask[] = [task], tagFilter = "__all__") {
+function renderPanel(displayMode: "full" | "title", panelTasks: ApiTask[] = [task], tagFilter = "__all__", dateFilter: TaskDateFilter = "all") {
   return render(
     <TaskPanel
       createOpen={false}
+      taskDateFilter={dateFilter}
       showCompletedTasks
       tags={tagOptions}
       taskCardDisplayMode={displayMode}
@@ -221,11 +222,13 @@ function renderKanbanPanel(
   showCompletedTasks = true,
   displayMode: "full" | "title" = "title",
   onChanged = vi.fn(async () => undefined),
-  onPanelMessageChange = vi.fn()
+  onPanelMessageChange = vi.fn(),
+  dateFilter: TaskDateFilter = "all"
 ) {
   return render(
     <TaskPanel
       createOpen={false}
+      taskDateFilter={dateFilter}
       showCompletedTasks={showCompletedTasks}
       tags={tagOptions}
       taskCardDisplayMode={displayMode}
@@ -326,6 +329,25 @@ describe("TaskPanel", () => {
     expect(container.querySelector(".task-notes")).toHaveTextContent("整理本周项目进展和风险");
     expect(container.querySelector(".task-meta")).toHaveTextContent("重要且紧急");
     expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+  });
+
+  it("marks overdue unfinished task titles on the task page", () => {
+    const overdueTask = taskWith({
+      dueAt: "2000-01-01T00:00:00.000Z",
+      status: "TODO",
+      title: "过期未完成"
+    });
+    const completedOverdueTask = taskWith({
+      id: "done-overdue",
+      dueAt: "2000-01-01T00:00:00.000Z",
+      status: "COMPLETED",
+      title: "过期已完成"
+    });
+
+    renderPanel("full", [overdueTask, completedOverdueTask]);
+
+    expect(screen.getByRole("heading", { name: "过期未完成" }).closest(".task-item")).toHaveClass("is-overdue");
+    expect(screen.getByRole("heading", { name: "过期已完成" }).closest(".task-item")).not.toHaveClass("is-overdue");
   });
 
   it("defaults the create deadline to today at 23:59", async () => {
@@ -765,6 +787,31 @@ describe("TaskPanel", () => {
 
     expect(screen.queryByText("工作任务")).not.toBeInTheDocument();
     expect(screen.getByText("生活任务")).toBeInTheDocument();
+  });
+
+  it("filters list tasks by selected date", () => {
+    const todayTask = taskWith({
+      id: "today-task",
+      title: "今日任务",
+      dueAt: new Date(getTodayEndDatetimeLocal()).toISOString()
+    });
+    const tomorrowTask = taskWith({
+      id: "tomorrow-task",
+      title: "明日任务",
+      dueAt: new Date(getTomorrowEndDatetimeLocal()).toISOString()
+    });
+    const noTimeTask = taskWith({
+      id: "no-time-task",
+      title: "无时间任务",
+      startAt: null,
+      dueAt: null
+    });
+
+    renderPanel("full", [todayTask, tomorrowTask, noTimeTask], "__all__", "today");
+
+    expect(screen.getByText("今日任务")).toBeInTheDocument();
+    expect(screen.queryByText("明日任务")).not.toBeInTheDocument();
+    expect(screen.queryByText("无时间任务")).not.toBeInTheDocument();
   });
 
   it("sorts quadrant tasks with completed items at the bottom", async () => {

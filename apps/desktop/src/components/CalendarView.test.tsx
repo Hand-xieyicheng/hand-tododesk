@@ -253,6 +253,53 @@ describe("CalendarView", () => {
     expect(taskCell?.querySelector(".calendar-date-number")).toHaveTextContent("26");
   });
 
+  it("marks overdue unfinished task titles on the calendar page", async () => {
+    const baseOccurrence = calendarPayload.occurrences[0]!;
+    apiMock.calendar.mockResolvedValue({
+      ...calendarPayload,
+      occurrences: [
+        {
+          ...baseOccurrence,
+          id: "task-overdue:2026-06-25",
+          title: "日历过期未完成",
+          date: "2026-06-25T10:00:00.000Z",
+          dueAt: "2000-01-01T00:00:00.000Z",
+          status: "TODO",
+          task: {
+            ...baseOccurrence.task,
+            id: "task-overdue",
+            title: "日历过期未完成",
+            dueAt: "2000-01-01T00:00:00.000Z",
+            status: "TODO"
+          }
+        },
+        {
+          ...baseOccurrence,
+          id: "task-done-overdue:2026-06-25",
+          taskId: "task-done-overdue",
+          title: "日历过期已完成",
+          date: "2026-06-25T10:00:00.000Z",
+          dueAt: "2000-01-01T00:00:00.000Z",
+          status: "COMPLETED",
+          task: {
+            ...baseOccurrence.task,
+            id: "task-done-overdue",
+            title: "日历过期已完成",
+            dueAt: "2000-01-01T00:00:00.000Z",
+            status: "COMPLETED"
+          }
+        }
+      ],
+      habitCheckIns: []
+    });
+
+    render(<CalendarView onChanged={vi.fn()} />);
+
+    await waitFor(() => expect(apiMock.calendar).toHaveBeenCalled());
+    expect(screen.getByText("日历过期未完成")).toHaveClass("calendar-task", "is-overdue");
+    expect(screen.getByText("日历过期已完成")).not.toHaveClass("is-overdue");
+  });
+
   it("renders task hover popovers outside the calendar card to avoid clipping", async () => {
     const { container } = render(<CalendarView onChanged={vi.fn()} />);
 

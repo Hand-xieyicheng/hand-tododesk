@@ -3,8 +3,8 @@ import type { CSSProperties, FormEvent, ReactNode } from "react";
 import { closestCenter, DndContext, KeyboardSensor, PointerSensor, type DragEndEvent, type DragStartEvent, useDroppable, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { defaultThemeId, defaultVisibleSidebarModules, sortTasksForDisplay, toLocalDateKey, type ApiHabit, type ApiTag, type ApiTask, type ApiThemePreference, type CreateTaskRequest, type FloatingCardThemeId, type FloatingCardViewMode, type TaskCardDisplayMode, type TaskPriority, type TaskStatus, type UpdateTaskRequest } from "@todo/shared";
-import { Button, Card, Input, Select, Tooltip } from "animal-island-ui";
+import { defaultThemeId, defaultVisibleSidebarModules, isTaskOverdue, sortTasksForDisplay, taskDateFilterOptions, taskMatchesDateFilter, toLocalDateKey, type ApiHabit, type ApiTag, type ApiTask, type ApiThemePreference, type CreateTaskRequest, type FloatingCardThemeId, type FloatingCardViewMode, type TaskCardDisplayMode, type TaskDateFilter, type TaskPriority, type TaskStatus, type UpdateTaskRequest } from "@todo/shared";
+import { Button, Card, Input, Select, Tooltip, type TooltipPlacement } from "animal-island-ui";
 import { Check, Eye, EyeOff, LayoutGrid, List, Pencil, Plus, RefreshCw, Save, Tags, Trash2, X } from "lucide-react";
 import { api } from "../api/client";
 import { emitDesktopSyncEvent, listenDesktopSyncEvents } from "../lib/desktopSync";
@@ -56,6 +56,16 @@ const floatingCardViewModeLabels: Record<FloatingCardViewMode, string> = {
 };
 
 const floatingCardViewModeOrder: FloatingCardViewMode[] = ["list", "quadrant", "tag"];
+
+function getHabitShortcutTooltipPlacement(index: number, total: number): TooltipPlacement {
+  if (index <= 0) {
+    return "top-start";
+  }
+  if (index >= total - 1) {
+    return "top-end";
+  }
+  return "top";
+}
 
 const defaultThemePreference: ApiThemePreference = {
   themeId: defaultThemeId,
@@ -332,6 +342,7 @@ export function FloatingCard() {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
   const [showCompletedTasks, setShowCompletedTasks] = useState(defaultThemePreference.showCompletedTasks);
+  const [taskDateFilter, setTaskDateFilter] = useState<TaskDateFilter>("all");
   const [floatingCardHabitCheckInEnabled, setFloatingCardHabitCheckInEnabled] = useState(defaultThemePreference.floatingCardHabitCheckInEnabled);
   const [taskCardDisplayMode, setTaskCardDisplayMode] = useState<TaskCardDisplayMode>(defaultThemePreference.taskCardDisplayMode);
   const [floatingCardThemeId, setFloatingCardThemeId] = useState<FloatingCardThemeId>(() => normalizeFloatingCardThemeId(localStorage.getItem("tododesk.floatingCardThemeId")));
@@ -352,8 +363,11 @@ export function FloatingCard() {
   const [draft, setDraft] = useState<TaskDraft>(() => emptyDraft());
 
   const visibleTasks = useMemo(() => {
-    return sortTasksForDisplay(showCompletedTasks ? tasks : tasks.filter((task) => task.status !== "COMPLETED"));
-  }, [showCompletedTasks, tasks]);
+    return sortTasksForDisplay(
+      (showCompletedTasks ? tasks : tasks.filter((task) => task.status !== "COMPLETED"))
+        .filter((task) => taskMatchesDateFilter(task, taskDateFilter))
+    );
+  }, [showCompletedTasks, taskDateFilter, tasks]);
   const tagOptions = useMemo(() => [
     { key: noTagSelectValue, label: "不选择" },
     ...tags.map((tag) => ({ key: tag.id, label: tag.name }))
@@ -730,6 +744,7 @@ export function FloatingCard() {
 
   function renderFloatingTask(task: ApiTask, options: { groupId: string; priority?: TaskPriority; showTagMeta: boolean; tagId?: string | null; view: FloatingCardViewMode }) {
     const isCompleted = task.status === "COMPLETED";
+    const isOverdue = isTaskOverdue(task);
     const titleOnly = taskCardDisplayMode === "title";
     const statusAction = isCompleted ? "重置为未完成" : "完成";
     const nextStatus: TaskStatus = isCompleted ? "TODO" : "COMPLETED";
@@ -738,7 +753,7 @@ export function FloatingCard() {
     const tagMeta = options.showTagMeta ? task.tags.map((tag) => <span key={tag.id}>#{tag.name}</span>) : null;
     const fullContent = (
       <div className="floating-task-tooltip-content">
-        <strong>{task.title}</strong>
+        <strong className={isOverdue ? "is-overdue" : undefined}>{task.title}</strong>
         <p>{task.notes || "无备注"}</p>
         <div className="floating-task-tooltip-meta">
           <span>{priorityLabels[task.priority]}</span>
@@ -774,7 +789,7 @@ export function FloatingCard() {
         task={task}
         view={options.view}
       >
-        <Card className={`${isCompleted ? "floating-task is-completed" : "floating-task"}${titleOnly ? " is-title-only" : ""}`} pattern="default">
+        <Card className={`floating-task${isCompleted ? " is-completed" : ""}${isOverdue ? " is-overdue" : ""}${titleOnly ? " is-title-only" : ""}`} pattern="default">
           <button
             aria-checked={isCompleted}
             aria-label={statusAction}
@@ -869,11 +884,12 @@ export function FloatingCard() {
     );
   }
 
-  function renderHabitShortcut(habit: ApiHabit) {
+  function renderHabitShortcut(habit: ApiHabit, index: number, shortcuts: ApiHabit[]) {
     const Icon = getHabitIcon(habit.icon);
     const actionLabel = habit.todayChecked ? `取消打卡 ${habit.title}` : `打卡 ${habit.title}`;
+    const placement = getHabitShortcutTooltipPlacement(index, shortcuts.length);
     return (
-      <Tooltip className="floating-habit-shortcut-tooltip" key={habit.id} placement="top" title={actionLabel} trigger="hover" variant="default">
+      <Tooltip className="floating-habit-shortcut-tooltip" key={habit.id} placement={placement} title={actionLabel} trigger="hover" variant="default">
         <button
           aria-label={actionLabel}
           aria-pressed={habit.todayChecked}
@@ -930,6 +946,10 @@ export function FloatingCard() {
         <div className="floating-summary">
           <span>{openTaskCount} 个未完成</span>
           {showCompletedTasks ? <span>含已完成</span> : <span>仅未完成</span>}
+          <label className="floating-date-filter">
+            <span>日期</span>
+            <Select aria-label="日期" value={taskDateFilter} onChange={(next) => setTaskDateFilter(next as TaskDateFilter)} options={taskDateFilterOptions} />
+          </label>
         </div>
 
         {formMode ? (

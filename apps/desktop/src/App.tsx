@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, PointerEvent } from "react";
-import { defaultAppFeatureFlags, defaultThemeId, defaultVisibleSidebarModules, normalizeThemeId, sortTasksForDisplay, type ApiTask, type ApiThemePreference, type ApiUser, type AppBootstrapResponse, type AppCloseBehavior, type AppFeatureFlags, type DisplaySize, type FloatingCardThemeId, type FontFamily, type FooterType as AppFooterType, type SidebarModule, type TaskCardDisplayMode, type TaskViewMode, type ThemeId, type TitleColor } from "@todo/shared";
+import { defaultAppFeatureFlags, defaultThemeId, defaultVisibleSidebarModules, normalizeThemeId, sortTasksForDisplay, taskDateFilterOptions, type ApiTask, type ApiThemePreference, type ApiUser, type AppBootstrapResponse, type AppCloseBehavior, type AppFeatureFlags, type DisplaySize, type FloatingCardThemeId, type FontFamily, type FooterType as AppFooterType, type SidebarModule, type TaskCardDisplayMode, type TaskDateFilter, type TaskViewMode, type ThemeId, type TitleColor } from "@todo/shared";
 import { Button, Footer, Loading, Select, Title, Tooltip } from "animal-island-ui";
 import { Bell, CalendarDays, CheckSquare2, Clock3, Eye, EyeOff, Flame, Hourglass, Kanban, LayoutGrid, List, ListTodo, LogOut, NotebookPen, Pin, Plus, Printer, RefreshCw, Tags, UserRound } from "lucide-react";
 import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
@@ -169,6 +169,7 @@ export function App() {
   const tags = useTaskBoardStore((state) => state.tags);
   const resetTaskBoard = useTaskBoardStore((state) => state.reset);
   const setTaskSnapshot = useTaskBoardStore((state) => state.setSnapshot);
+  const [taskDateFilter, setTaskDateFilter] = useState<TaskDateFilter>("all");
   const [taskTagFilter, setTaskTagFilter] = useState(allTagsFilterValue);
   const [taskTagMaintenanceOpen, setTaskTagMaintenanceOpen] = useState(false);
   const [appBootstrap, setAppBootstrap] = useState<AppBootstrapResponse | null>(null);
@@ -853,6 +854,12 @@ export function App() {
             {activeView === "tasks" || activeView === "calendar" || activeView === "pomodoro" ? (
               <span className="status-pill"><Bell size={14} /> {openTasks.length} 个未完成</span>
             ) : null}
+            {activeView === "tasks" ? (
+              <label className="topbar-date-filter">
+                <span>日期</span>
+                <Select aria-label="日期" value={taskDateFilter} onChange={(next) => setTaskDateFilter(next as TaskDateFilter)} options={taskDateFilterOptions} />
+              </label>
+            ) : null}
             {activeView === "profile" ? (
               <Button
                 className="primary-button"
@@ -986,6 +993,7 @@ export function App() {
                 tags={tags}
                 taskCardDisplayMode={taskCardDisplayMode}
                 tagMaintenanceOpen={taskTagMaintenanceOpen}
+                taskDateFilter={taskDateFilter}
                 taskTagFilter={taskTagFilter}
                 tasks={tasks}
                 viewMode={effectiveTaskViewMode}
