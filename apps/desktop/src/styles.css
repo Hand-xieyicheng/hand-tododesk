@@ -6504,14 +6504,50 @@ body .task-time-range-ant-dropdown .ant-picker-panel-container {
 .landing-page {
   --landing-font-family: "Lemi Muhe Yuanti", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --landing-max-width: 1180px;
+  --color-background: #fffdf1;
+  --color-surface: #fffdf1;
+  --color-surface-strong: #f0e8d8;
+  --color-text: #725d42;
+  --color-muted: #9f927d;
+  --color-muted-text: #9f927d;
+  --color-primary: #19c8b9;
+  --color-secondary: #e59266;
+  --color-accent: #19c8b9;
+  --color-warning: #f7cd67;
+  --color-border: #c4b89e;
+  --color-on-primary: #ffffff;
+  --color-shadow: rgba(114, 93, 66, 0.13);
+  --color-soft-shadow: rgba(61, 52, 40, 0.08);
+  --color-dots: rgba(114, 93, 66, 0.08);
+  --color-focus-ring: #19c8b9;
+  --color-active-nav-text: var(--color-primary);
+  --color-active-nav-shadow: color-mix(in srgb, var(--color-primary) 52%, var(--color-text));
+  --color-hover-text: color-mix(in srgb, var(--color-primary) 62%, var(--color-text));
+  --color-emphasis-text: color-mix(in srgb, var(--color-primary) 46%, var(--color-text));
+  --color-strong-emphasis-text: color-mix(in srgb, var(--color-primary) 70%, var(--color-text));
   --landing-hairline: color-mix(in srgb, var(--color-border) 56%, transparent);
+  --island-ink: var(--color-text);
+  --island-shadow: var(--color-shadow);
+  --island-soft-shadow: var(--color-soft-shadow);
+  --island-paper-dots: radial-gradient(circle, var(--color-dots) 1px, transparent 1.6px);
   --animal-font-family: var(--landing-font-family) !important;
+  --animal-primary-color: var(--color-primary);
+  --animal-primary-color-bg: var(--color-surface-strong);
+  --animal-warning-color: var(--color-warning);
+  --animal-error-color: var(--color-accent);
+  --animal-text-color: var(--color-text);
+  --animal-text-color-secondary: var(--color-muted);
+  --animal-text-color-muted: var(--color-muted);
+  --animal-border-color: var(--color-border);
+  --animal-bg-color: var(--color-surface);
+  --animal-bg-color-secondary: var(--color-surface-strong);
+  color-scheme: light;
   min-height: 100vh;
   overflow-x: hidden;
   background:
+    var(--island-paper-dots) 0 0 / 18px 18px,
     linear-gradient(180deg, rgba(255, 253, 241, 0.94), rgba(232, 246, 239, 0.9) 48%, rgba(255, 248, 230, 0.96)),
     repeating-linear-gradient(100deg, color-mix(in srgb, var(--color-primary) 16%, transparent) 0 2px, transparent 2px 52px),
-    var(--island-paper-dots) 0 0 / 18px 18px,
     #fff8e6;
   color: var(--color-text);
   font-family: var(--landing-font-family) !important;
@@ -6685,11 +6721,13 @@ body .task-time-range-ant-dropdown .ant-picker-panel-container {
   background: transparent;
 }
 
-.landing-brand img {
+.landing-brand-logo {
   display: block;
   width: 100%;
+  aspect-ratio: 1;
   height: auto;
   filter: drop-shadow(0 5px 0 var(--color-shadow));
+  line-height: 0;
 }
 
 .landing-nav-actions {
@@ -7014,44 +7052,121 @@ body .task-time-range-ant-dropdown .ant-picker-panel-container {
   line-height: 1;
 }
 
+@keyframes landing-advantage-scroll {
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
 .landing-advantage-section {
   display: grid;
-  grid-template-columns: minmax(0, 0.9fr) minmax(360px, 1.1fr);
-  align-items: start;
-  gap: 42px;
+  grid-template-columns: 1fr;
+  align-items: stretch;
+  gap: 30px;
+  overflow: hidden;
   border-top: 1px solid color-mix(in srgb, var(--color-border) 38%, transparent);
   border-bottom: 1px solid color-mix(in srgb, var(--color-border) 38%, transparent);
 }
 
 .landing-advantage-section .landing-section-heading {
+  max-width: 760px;
   margin-bottom: 0;
 }
 
-.landing-advantage-list {
-  display: grid;
-  gap: 12px;
+.landing-advantage-marquee {
+  --landing-advantage-gap: 16px;
+  position: relative;
+  min-width: 0;
+  width: 100%;
+  overflow: hidden;
+  padding: 6px 0 10px;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent);
 }
 
-.landing-advantage-item {
+.landing-advantage-rail {
+  display: flex;
+  width: max-content;
+  animation: landing-advantage-scroll 24s linear infinite;
+  will-change: transform;
+}
+
+.landing-advantage-marquee:hover .landing-advantage-rail {
+  animation-play-state: paused;
+}
+
+.landing-advantage-track {
+  display: flex;
+  flex: 0 0 auto;
+  gap: var(--landing-advantage-gap);
+  padding-right: var(--landing-advantage-gap);
+}
+
+.landing-advantage-card {
   display: flex;
   align-items: flex-start;
+  flex: 0 0 clamp(280px, 28vw, 420px);
   gap: 12px;
   min-width: 0;
-  padding: 16px 18px;
+  min-height: 94px;
+  padding: 18px;
   border: 2px solid color-mix(in srgb, var(--color-primary) 28%, var(--landing-hairline));
   border-radius: 8px;
-  background: color-mix(in srgb, var(--color-primary) 10%, var(--color-surface));
-  box-shadow: 0 4px 0 rgba(25, 200, 185, 0.08);
+  background:
+    linear-gradient(135deg, rgba(255, 253, 241, 0.96), rgba(255, 255, 255, 0.78)),
+    color-mix(in srgb, var(--color-primary) 10%, var(--color-surface));
+  box-shadow: 0 4px 0 rgba(25, 200, 185, 0.08), 0 14px 28px var(--color-soft-shadow);
   color: var(--color-text);
   font-size: 16px;
   font-weight: 950;
   line-height: 1.45;
 }
 
-.landing-advantage-item svg {
+.landing-advantage-card:nth-child(2n) {
+  background:
+    linear-gradient(135deg, rgba(232, 246, 239, 0.82), rgba(255, 253, 241, 0.9)),
+    var(--color-surface);
+}
+
+.landing-advantage-card:nth-child(3n) {
+  border-color: color-mix(in srgb, var(--color-secondary) 36%, var(--landing-hairline));
+}
+
+.landing-advantage-card svg {
   flex: 0 0 auto;
   margin-top: 1px;
   color: var(--color-strong-emphasis-text);
+}
+
+.landing-icp-footer {
+  width: min(100%, var(--landing-max-width));
+  margin: 0 auto;
+  padding: 24px 24px 38px;
+  text-align: center;
+}
+
+.landing-icp-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  color: color-mix(in srgb, var(--color-muted-text) 88%, var(--color-text));
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.4;
+  text-decoration: none;
+  transition: color 0.18s ease, transform 0.18s ease;
+}
+
+.landing-icp-link:hover {
+  color: var(--color-emphasis-text);
+  transform: translateY(-1px);
+}
+
+.landing-icp-link:focus-visible {
+  border-radius: 8px;
+  outline: 3px solid color-mix(in srgb, var(--color-focus-ring) 68%, transparent);
+  outline-offset: 4px;
 }
 
 .landing-download-section {
@@ -7381,6 +7496,8 @@ body .primary-button[class*="animal-btn"] {
 .auth-page-logo {
   width: clamp(90px, 8vw, 120px);
   max-width: calc(100vw - 36px);
+  aspect-ratio: 1;
+  line-height: 0;
 }
 
 .auth-card-header {
@@ -9062,13 +9179,27 @@ body .primary-button[class*="animal-btn"] {
     gap: 22px;
   }
 
-  .landing-advantage-item {
+  .landing-advantage-marquee {
+    --landing-advantage-gap: 12px;
+    width: calc(100% + 32px);
+    margin-inline: -16px;
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 9%, #000 91%, transparent);
+    mask-image: linear-gradient(90deg, transparent, #000 9%, #000 91%, transparent);
+  }
+
+  .landing-advantage-card {
+    flex-basis: min(78vw, 320px);
+    min-height: 88px;
     padding: 14px 15px;
     font-size: 15px;
   }
 
   .landing-download-section {
     padding-bottom: 68px;
+  }
+
+  .landing-icp-footer {
+    padding: 18px 16px 30px;
   }
 
   .workspace {
@@ -9400,10 +9531,21 @@ body .primary-button[class*="animal-btn"] {
   .anniversary-card.is-today::after,
   .landing-float,
   .landing-float-line,
+  .landing-advantage-rail,
   .landing-typewriter-cursor {
     animation: none !important;
     transition: none !important;
     transform: none !important;
+  }
+
+  .landing-advantage-marquee {
+    overflow-x: auto;
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+
+  .landing-advantage-track[aria-hidden="true"] {
+    display: none;
   }
 
   .landing-typewriter-cursor {

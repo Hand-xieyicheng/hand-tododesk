@@ -16,10 +16,11 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import landingBanner from "../assets/landing-banner.png";
-import todoDeskLogo from "../assets/tododesk-logo.png";
+import { SidebarLogo } from "./SidebarLogo";
 
 const releaseUrl =
   "https://github.com/Hand-xieyicheng/hand-tododesk/releases/latest";
+const icpFilingUrl = "https://beian.miit.gov.cn/";
 const heroTagline = "一只陪你梳理待办、备忘、日历和专注时间的小柴犬工作台。";
 
 const featureItems = [
@@ -178,7 +179,7 @@ export function LandingPage() {
             ? ".landing-download-copy, .landing-download-card"
             : revealType === "feature"
               ? ".landing-feature-heading, .landing-feature-card"
-              : ".landing-section-heading, .landing-advantage-item";
+              : ".landing-section-heading, .landing-advantage-marquee";
 
         const sectionFrom =
           revealType === "download"
@@ -262,7 +263,7 @@ export function LandingPage() {
             type="button"
             onClick={() => navigate("/")}
           >
-            <img src={todoDeskLogo} alt="小柴记" />
+            <SidebarLogo className="landing-brand-logo" />
           </button>
           <div className="landing-nav-actions">
             <Button
@@ -443,15 +444,42 @@ export function LandingPage() {
           <span className="landing-section-eyebrow">优点</span>
           <h2 id="landing-advantages-title">适合日常反复打开的效率工具</h2>
         </div>
-        <div className="landing-advantage-list">
-          {advantageItems.map((item) => (
-            <div className="landing-advantage-item" key={item}>
-              <CheckCircle2 size={20} />
-              <span>{item}</span>
-            </div>
-          ))}
+        <div
+          className="landing-advantage-marquee"
+          aria-label="小柴记优点横向自动滚动列表"
+        >
+          <div className="landing-advantage-rail">
+            {[0, 1].map((trackIndex) => (
+              <div
+                className="landing-advantage-track"
+                key={trackIndex}
+                aria-hidden={trackIndex === 1 ? "true" : undefined}
+              >
+                {advantageItems.map((item) => (
+                  <article
+                    className="landing-advantage-card"
+                    key={`${trackIndex}-${item}`}
+                  >
+                    <CheckCircle2 size={21} />
+                    <span>{item}</span>
+                  </article>
+                ))}
+              </div>
+            ))}
+          </div>
         </div>
       </section>
+
+      <footer className="landing-icp-footer" aria-label="备案信息">
+        <a
+          className="landing-icp-link"
+          href={icpFilingUrl}
+          target="_blank"
+          rel="noreferrer"
+        >
+          闽ICP备2022006727号
+        </a>
+      </footer>
     </main>
   );
 }

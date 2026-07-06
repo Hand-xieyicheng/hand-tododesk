@@ -3,9 +3,9 @@ import { defaultThemeId, type ApiUser } from "@todo/shared";
 import { Button, Card, Divider, Input, Loading, Title } from "animal-island-ui";
 import { KeyRound, Mail, UserPlus } from "lucide-react";
 import { api } from "../api/client";
-import todoDeskLogo from "../assets/tododesk-logo.png";
 import { deleteRememberedPassword, getLastLoginEmail, getRememberedPassword, getRememberedPasswordEmail, saveLastLoginEmail, saveRememberedPassword } from "../lib/authStorage";
 import { applyTheme } from "../lib/themes";
+import { SidebarLogo } from "./SidebarLogo";
 
 type AuthMode = "login" | "register" | "forgot";
 
@@ -107,7 +107,7 @@ export function AuthView({ initialMode = "login", onAuthed }: AuthViewProps) {
         <span className="auth-drift-leaf auth-drift-leaf-three" />
       </div>
       <div className="auth-page-brand" aria-label="小柴记 桌面待办">
-        <img className="brand-logo auth-page-logo" src={todoDeskLogo} alt="小柴记" />
+        <SidebarLogo className="auth-page-logo" />
       </div>
       <Card className="auth-panel" pattern="default">
         <div className="auth-card-header">
