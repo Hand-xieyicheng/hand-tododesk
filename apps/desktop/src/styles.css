@@ -3840,6 +3840,7 @@ body .task-time-range-ant-dropdown .ant-picker-panel-container {
   grid-template-columns: repeat(auto-fill, minmax(min(100%, calc(244px * var(--app-ui-scale))), 1fr));
   gap: calc(12px * var(--app-ui-scale));
   min-height: 0;
+  align-content: start;
   align-items: stretch;
   overflow-y: auto;
 }

@@ -416,10 +416,12 @@ describe("FloatingCard", () => {
     expect(shortcut.querySelector(".lucide-book-open")).not.toBeNull();
   });
 
-  it("uses edge-aware placements for floating habit shortcut tooltips", async () => {
+  it("left-aligns the first three floating habit shortcut tooltips", async () => {
     apiMock.habits.mockResolvedValue({
       habits: [
         { ...todayHabit, id: "habit-left", title: "Time-perhaps" },
+        { ...todayHabit, id: "habit-second", title: "第二个很长的习惯名称" },
+        { ...todayHabit, id: "habit-third", title: "第三个很长的习惯名称" },
         { ...todayHabit, id: "habit-middle", title: "中间习惯" },
         { ...todayHabit, id: "habit-right", title: "右侧长习惯" }
       ]
@@ -430,8 +432,8 @@ describe("FloatingCard", () => {
     await screen.findByRole("button", { name: "打卡 Time-perhaps" });
 
     const tooltips = [...container.querySelectorAll(".floating-habit-shortcut-tooltip")];
-    expect(tooltips).toHaveLength(3);
-    expect(tooltips.map((tooltip) => tooltip.getAttribute("data-placement"))).toEqual(["top-start", "top", "top-end"]);
+    expect(tooltips).toHaveLength(5);
+    expect(tooltips.map((tooltip) => tooltip.getAttribute("data-placement"))).toEqual(["top-start", "top-start", "top-start", "top", "top-end"]);
   });
 
   it("hides habit shortcuts when the preference is disabled", async () => {

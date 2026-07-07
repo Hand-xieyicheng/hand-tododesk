@@ -48,6 +48,7 @@ const priorityOrder: TaskPriority[] = [
 const priorityOptions = priorityOrder.map((priority) => ({ key: priority, label: priorityLabels[priority] }));
 const noTagSelectValue = "__none__";
 const otherTagGroupId = "__other__";
+const leftAlignedHabitShortcutTooltipCount = 3;
 
 const floatingCardViewModeLabels: Record<FloatingCardViewMode, string> = {
   list: "默认列表",
@@ -58,7 +59,7 @@ const floatingCardViewModeLabels: Record<FloatingCardViewMode, string> = {
 const floatingCardViewModeOrder: FloatingCardViewMode[] = ["list", "quadrant", "tag"];
 
 function getHabitShortcutTooltipPlacement(index: number, total: number): TooltipPlacement {
-  if (index <= 0) {
+  if (index < Math.min(leftAlignedHabitShortcutTooltipCount, total)) {
     return "top-start";
   }
   if (index >= total - 1) {
