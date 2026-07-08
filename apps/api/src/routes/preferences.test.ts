@@ -36,6 +36,7 @@ const currentPreference = {
   sidebarCollapsed: 0,
   printButtonEnabled: 0,
   floatingCardHabitCheckInEnabled: 1,
+  pageAnimationEnabled: 1,
   fontFamily: "system"
 };
 
@@ -74,7 +75,8 @@ describe("preference routes", () => {
       visibleSidebarModules: ["tasks", "memos", "anniversaries", "habits", "calendar", "pomodoro"],
       sidebarCollapsed: false,
       printButtonEnabled: false,
-      floatingCardHabitCheckInEnabled: true
+      floatingCardHabitCheckInEnabled: true,
+      pageAnimationEnabled: true
     });
   });
 
@@ -124,6 +126,7 @@ describe("preference routes", () => {
       false,
       false,
       true,
+      true,
       "system"
     ]);
   });
@@ -153,6 +156,7 @@ describe("preference routes", () => {
       "tasks,memos,anniversaries,habits,calendar,pomodoro",
       false,
       false,
+      true,
       true,
       "system"
     ]);
@@ -194,6 +198,7 @@ describe("preference routes", () => {
       "tasks,memos,anniversaries,habits,calendar,pomodoro",
       false,
       false,
+      true,
       true,
       "system"
     ]);
@@ -237,6 +242,7 @@ describe("preference routes", () => {
       false,
       false,
       true,
+      true,
       "system"
     ]);
   });
@@ -278,6 +284,7 @@ describe("preference routes", () => {
       false,
       false,
       true,
+      true,
       "lemi-chunxu-wanxing"
     ]);
   });
@@ -306,6 +313,7 @@ describe("preference routes", () => {
       "default",
       "tasks,memos,anniversaries,habits,calendar,pomodoro",
       false,
+      true,
       true,
       true,
       "system"
@@ -338,6 +346,7 @@ describe("preference routes", () => {
       false,
       false,
       false,
+      true,
       "system"
     ]);
 
@@ -364,6 +373,38 @@ describe("preference routes", () => {
       false,
       false,
       true,
+      true,
+      "system"
+    ]);
+  });
+
+  it("saves page animation preference", async () => {
+    db.queryOne.mockResolvedValue(currentPreference);
+
+    const response = await injectPreference("PUT", { pageAnimationEnabled: false });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      pageAnimationEnabled: false
+    });
+    expect(db.execute).toHaveBeenLastCalledWith(expect.stringContaining("pageAnimationEnabled"), [
+      "user-1",
+      "peach",
+      "app-teal",
+      true,
+      "sea",
+      true,
+      "list",
+      "full",
+      "warm-paper",
+      "list",
+      "hide",
+      "default",
+      "tasks,memos,anniversaries,habits,calendar,pomodoro",
+      false,
+      false,
+      true,
+      false,
       "system"
     ]);
   });
@@ -404,6 +445,7 @@ describe("preference routes", () => {
       "tasks,memos,anniversaries,habits,calendar,pomodoro",
       false,
       false,
+      true,
       true,
       "system"
     ]);
@@ -446,6 +488,7 @@ describe("preference routes", () => {
       true,
       false,
       true,
+      true,
       "system"
     ]);
   });
@@ -476,6 +519,7 @@ describe("preference routes", () => {
       false,
       false,
       true,
+      true,
       "system"
     ]);
   });
@@ -505,6 +549,7 @@ describe("preference routes", () => {
       "",
       false,
       false,
+      true,
       true,
       "system"
     ]);

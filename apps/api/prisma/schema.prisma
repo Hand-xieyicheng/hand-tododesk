@@ -318,6 +318,7 @@ model UserThemePreference {
   sidebarCollapsed   Boolean  @default(false)
   printButtonEnabled Boolean  @default(false)
   floatingCardHabitCheckInEnabled Boolean @default(true)
+  pageAnimationEnabled Boolean @default(true)
   fontFamily         String   @default("system")
   updatedAt          DateTime @updatedAt
   user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)

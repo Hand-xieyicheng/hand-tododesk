@@ -27,6 +27,7 @@ const defaultThemePreference: ApiThemePreference = {
   footerType: "sea",
   printButtonEnabled: false,
   floatingCardHabitCheckInEnabled: true,
+  pageAnimationEnabled: true,
   showCompletedTasks: true,
   taskViewMode: "list",
   taskCardDisplayMode: "full",

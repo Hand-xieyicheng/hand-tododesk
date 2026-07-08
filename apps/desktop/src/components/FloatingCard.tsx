@@ -75,6 +75,7 @@ const defaultThemePreference: ApiThemePreference = {
   footerType: "sea",
   printButtonEnabled: false,
   floatingCardHabitCheckInEnabled: true,
+  pageAnimationEnabled: true,
   showCompletedTasks: true,
   taskViewMode: "list",
   taskCardDisplayMode: "full",
@@ -86,6 +87,12 @@ const defaultThemePreference: ApiThemePreference = {
   sidebarCollapsed: false,
   fontFamily: "system"
 };
+
+function pageMotionStyle(pageAnimationEnabled: boolean, animationIndex: number): CSSProperties | undefined {
+  return pageAnimationEnabled
+    ? { "--page-motion-delay": `${animationIndex * 100}ms` } as CSSProperties
+    : undefined;
+}
 
 function emptyDraft(): TaskDraft {
   return {
@@ -345,6 +352,7 @@ export function FloatingCard() {
   const [showCompletedTasks, setShowCompletedTasks] = useState(defaultThemePreference.showCompletedTasks);
   const [taskDateFilter, setTaskDateFilter] = useState<TaskDateFilter>("all");
   const [floatingCardHabitCheckInEnabled, setFloatingCardHabitCheckInEnabled] = useState(defaultThemePreference.floatingCardHabitCheckInEnabled);
+  const [pageAnimationEnabled, setPageAnimationEnabled] = useState(defaultThemePreference.pageAnimationEnabled);
   const [taskCardDisplayMode, setTaskCardDisplayMode] = useState<TaskCardDisplayMode>(defaultThemePreference.taskCardDisplayMode);
   const [floatingCardThemeId, setFloatingCardThemeId] = useState<FloatingCardThemeId>(() => normalizeFloatingCardThemeId(localStorage.getItem("tododesk.floatingCardThemeId")));
   const [floatingCardViewMode, setFloatingCardViewMode] = useState<FloatingCardViewMode>(() => (
@@ -387,6 +395,7 @@ export function FloatingCard() {
     const nextFloatingCardThemeId = normalizeFloatingCardThemeId(preference.floatingCardThemeId);
     setShowCompletedTasks(preference.showCompletedTasks);
     setFloatingCardHabitCheckInEnabled(preference.floatingCardHabitCheckInEnabled);
+    setPageAnimationEnabled(preference.pageAnimationEnabled);
     setTaskCardDisplayMode(preference.taskCardDisplayMode);
     setFloatingCardThemeId(nextFloatingCardThemeId);
     setFloatingCardViewMode(preference.floatingCardViewMode);
@@ -743,7 +752,7 @@ export function FloatingCard() {
     return <List size={16} />;
   }
 
-  function renderFloatingTask(task: ApiTask, options: { groupId: string; priority?: TaskPriority; showTagMeta: boolean; tagId?: string | null; view: FloatingCardViewMode }) {
+  function renderFloatingTask(task: ApiTask, options: { animationIndex: number; groupId: string; priority?: TaskPriority; showTagMeta: boolean; tagId?: string | null; view: FloatingCardViewMode }) {
     const isCompleted = task.status === "COMPLETED";
     const isOverdue = isTaskOverdue(task);
     const titleOnly = taskCardDisplayMode === "title";
@@ -790,7 +799,11 @@ export function FloatingCard() {
         task={task}
         view={options.view}
       >
-        <Card className={`floating-task${isCompleted ? " is-completed" : ""}${isOverdue ? " is-overdue" : ""}${titleOnly ? " is-title-only" : ""}`} pattern="default">
+        <Card
+          className={`floating-task${isCompleted ? " is-completed" : ""}${isOverdue ? " is-overdue" : ""}${titleOnly ? " is-title-only" : ""}${pageAnimationEnabled ? " page-motion-card page-motion-from-bottom" : ""}`}
+          pattern="default"
+          style={pageMotionStyle(pageAnimationEnabled, options.animationIndex)}
+        >
           <button
             aria-checked={isCompleted}
             aria-label={statusAction}
@@ -849,6 +862,7 @@ export function FloatingCard() {
             <FloatingTaskGroupSection group={group} key={group.id}>
               {group.tasks.length === 0 ? <div className="floating-task-group-empty" aria-hidden="true" /> : null}
               {group.tasks.map((task) => renderFloatingTask(task, {
+                animationIndex: Math.max(visibleTasks.findIndex((item) => item.id === task.id), 0),
                 groupId: group.id,
                 priority: group.priority,
                 showTagMeta: group.view !== "tag",
@@ -874,7 +888,8 @@ export function FloatingCard() {
         <SortableContext items={visibleTasks.map((task) => task.id)} strategy={verticalListSortingStrategy}>
           <section className="floating-task-list" aria-busy={loading}>
             {visibleTasks.length === 0 && !loading ? <Card className="empty-state" type="dashed">暂无待办</Card> : null}
-            {visibleTasks.map((task) => renderFloatingTask(task, {
+            {visibleTasks.map((task, index) => renderFloatingTask(task, {
+              animationIndex: index,
               groupId: "list",
               showTagMeta: true,
               view: "list"

@@ -112,7 +112,7 @@ vi.mock("animal-island-ui", () => ({
       {children}
     </button>
   ),
-  Card: ({ children, className }: any) => <section className={className}>{children}</section>,
+  Card: ({ children, className, style }: any) => <section className={className} style={style}>{children}</section>,
   Divider: () => <hr />,
   Input: ({ allowClear: _allowClear, shadow: _shadow, onChange, value, ...props }: any) => <input {...props} value={value} onChange={onChange} />,
   Modal: ({ children, onClose, open, title }: any) => (
@@ -189,10 +189,11 @@ function emptyQuadrants() {
   };
 }
 
-function renderPanel(displayMode: "full" | "title", panelTasks: ApiTask[] = [task], tagFilter = "__all__", dateFilter: TaskDateFilter = "all") {
+function renderPanel(displayMode: "full" | "title", panelTasks: ApiTask[] = [task], tagFilter = "__all__", dateFilter: TaskDateFilter = "all", pageAnimationEnabled = true) {
   return render(
     <TaskPanel
       createOpen={false}
+      pageAnimationEnabled={pageAnimationEnabled}
       taskDateFilter={dateFilter}
       showCompletedTasks
       tags={tagOptions}
@@ -329,6 +330,87 @@ describe("TaskPanel", () => {
     expect(container.querySelector(".task-notes")).toHaveTextContent("整理本周项目进展和风险");
     expect(container.querySelector(".task-meta")).toHaveTextContent("重要且紧急");
     expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+  });
+
+  it("stagger-animates task cards from the bottom when page animation is enabled", () => {
+    const secondTask = taskWith({ id: "task-2", title: "整理会议纪要" });
+    const { container } = renderPanel("full", [task, secondTask]);
+
+    const cards = Array.from(container.querySelectorAll<HTMLElement>(".task-item"));
+    expect(cards).toHaveLength(2);
+    expect(cards[0]).toHaveClass("page-motion-card", "page-motion-from-bottom");
+    expect(cards[0]?.style.getPropertyValue("--page-motion-delay")).toBe("0ms");
+    expect(cards[1]).toHaveClass("page-motion-card", "page-motion-from-bottom");
+    expect(cards[1]?.style.getPropertyValue("--page-motion-delay")).toBe("100ms");
+  });
+
+  it("removes task card animation hooks when page animation is disabled", () => {
+    const { container } = renderPanel("full", [task], "__all__", "all", false);
+
+    const card = container.querySelector(".task-item");
+    expect(card).not.toHaveClass("page-motion-card");
+    expect((card as HTMLElement).style.getPropertyValue("--page-motion-delay")).toBe("");
+  });
+
+  it("restarts task card animation delays inside each quadrant", async () => {
+    const urgentFirst = taskWith({ id: "urgent-first", title: "紧急第一项", priority: "IMPORTANT_URGENT", createdAt: "2026-06-01T00:00:00.000Z" });
+    const urgentSecond = taskWith({ id: "urgent-second", title: "紧急第二项", priority: "IMPORTANT_URGENT", createdAt: "2026-06-02T00:00:00.000Z" });
+    const plannedFirst = taskWith({ id: "planned-first", title: "计划第一项", priority: "IMPORTANT_NOT_URGENT", createdAt: "2026-06-01T00:00:00.000Z" });
+    const plannedSecond = taskWith({ id: "planned-second", title: "计划第二项", priority: "IMPORTANT_NOT_URGENT", createdAt: "2026-06-02T00:00:00.000Z" });
+    apiMock.taskQuadrants.mockResolvedValue({
+      quadrants: {
+        ...emptyQuadrants(),
+        IMPORTANT_URGENT: [urgentFirst, urgentSecond],
+        IMPORTANT_NOT_URGENT: [plannedFirst, plannedSecond]
+      }
+    });
+
+    render(
+      <TaskPanel
+        createOpen={false}
+        showCompletedTasks
+        tags={tagOptions}
+        taskCardDisplayMode="title"
+        tagMaintenanceOpen={false}
+        taskTagFilter="__all__"
+        tasks={[urgentFirst, urgentSecond, plannedFirst, plannedSecond]}
+        viewMode="quadrant"
+        onChanged={vi.fn(async () => undefined)}
+        onCreateOpenChange={vi.fn()}
+        onTagMaintenanceOpenChange={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(screen.getByText("计划第二项")).toBeInTheDocument());
+
+    const urgentFirstCard = screen.getByRole("heading", { name: "紧急第一项" }).closest(".task-item") as HTMLElement;
+    const urgentSecondCard = screen.getByRole("heading", { name: "紧急第二项" }).closest(".task-item") as HTMLElement;
+    const plannedFirstCard = screen.getByRole("heading", { name: "计划第一项" }).closest(".task-item") as HTMLElement;
+    const plannedSecondCard = screen.getByRole("heading", { name: "计划第二项" }).closest(".task-item") as HTMLElement;
+
+    expect(urgentFirstCard.style.getPropertyValue("--page-motion-delay")).toBe("0ms");
+    expect(urgentSecondCard.style.getPropertyValue("--page-motion-delay")).toBe("100ms");
+    expect(plannedFirstCard.style.getPropertyValue("--page-motion-delay")).toBe("0ms");
+    expect(plannedSecondCard.style.getPropertyValue("--page-motion-delay")).toBe("100ms");
+  });
+
+  it("restarts task card animation delays inside each kanban column", () => {
+    const workFirst = taskWith({ id: "work-first", title: "工作第一项", tags: [{ id: "tag-1", name: "工作" }], createdAt: "2026-06-01T00:00:00.000Z" });
+    const workSecond = taskWith({ id: "work-second", title: "工作第二项", tags: [{ id: "tag-1", name: "工作" }], createdAt: "2026-06-02T00:00:00.000Z" });
+    const lifeFirst = taskWith({ id: "life-first", title: "生活第一项", tags: [{ id: "tag-2", name: "生活" }], createdAt: "2026-06-01T00:00:00.000Z" });
+    const lifeSecond = taskWith({ id: "life-second", title: "生活第二项", tags: [{ id: "tag-2", name: "生活" }], createdAt: "2026-06-02T00:00:00.000Z" });
+
+    renderKanbanPanel([workFirst, workSecond, lifeFirst, lifeSecond]);
+
+    const workFirstCard = screen.getByRole("heading", { name: "工作第一项" }).closest(".task-item") as HTMLElement;
+    const workSecondCard = screen.getByRole("heading", { name: "工作第二项" }).closest(".task-item") as HTMLElement;
+    const lifeFirstCard = screen.getByRole("heading", { name: "生活第一项" }).closest(".task-item") as HTMLElement;
+    const lifeSecondCard = screen.getByRole("heading", { name: "生活第二项" }).closest(".task-item") as HTMLElement;
+
+    expect(workFirstCard.style.getPropertyValue("--page-motion-delay")).toBe("0ms");
+    expect(workSecondCard.style.getPropertyValue("--page-motion-delay")).toBe("100ms");
+    expect(lifeFirstCard.style.getPropertyValue("--page-motion-delay")).toBe("0ms");
+    expect(lifeSecondCard.style.getPropertyValue("--page-motion-delay")).toBe("100ms");
   });
 
   it("marks overdue unfinished task titles on the task page", () => {

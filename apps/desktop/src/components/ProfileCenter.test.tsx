@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { defaultVisibleSidebarModules, type ApiUser, type AppBootstrapResponse, type SidebarModule } from "@todo/shared";
 import type { AppUpdaterController } from "../lib/useAppUpdater";
@@ -59,11 +59,11 @@ const user: ApiUser = {
 };
 
 const appBootstrap: AppBootstrapResponse = {
-  apiVersion: "0.2.28",
+  apiVersion: "0.2.29",
   releaseChannel: "stable",
   desktop: {
     minimumVersion: "0.1.0",
-    latestVersion: "0.2.28",
+    latestVersion: "0.2.29",
     updateEndpoint: "https://example.com/latest.json"
   },
   featureFlags: {
@@ -88,7 +88,7 @@ const sidebarModuleOptions: Array<{ id: SidebarModule; label: string }> = [
 function createUpdater(status: AppUpdaterController["status"]): AppUpdaterController {
   return {
     status,
-    currentVersion: "0.2.28",
+    currentVersion: "0.2.29",
     targetVersion: null,
     releaseDate: null,
     releaseNotes: null,
@@ -114,6 +114,7 @@ function renderProfile(updater: AppUpdaterController, props: Partial<Parameters<
       footerVisible
       footerType="sea"
       fontFamily="system"
+      pageAnimationEnabled
       printButtonEnabled={false}
       sidebarModuleOptions={sidebarModuleOptions}
       taskCardDisplayMode="full"
@@ -128,6 +129,7 @@ function renderProfile(updater: AppUpdaterController, props: Partial<Parameters<
       onAppCloseBehaviorChanged={vi.fn()}
       onDisplaySizeChanged={vi.fn()}
       onPasswordChanged={vi.fn()}
+      onPageAnimationEnabledChanged={vi.fn()}
       onPrintButtonEnabledChanged={vi.fn()}
       onTaskCardDisplayModeChanged={vi.fn()}
       onTitleColorChanged={vi.fn()}
@@ -160,6 +162,7 @@ describe("ProfileCenter", () => {
 
     expect(screen.getByText("系统配置")).toBeInTheDocument();
     expect(screen.getByText("待办事项卡片显示")).toBeInTheDocument();
+    expect(screen.getByText("开启页面动画效果")).toBeInTheDocument();
     expect(screen.getByText(/完整卡片/)).toBeInTheDocument();
     expect(screen.getByText("仅标题")).toBeInTheDocument();
     expect(screen.getByText("关闭 app 时")).toBeInTheDocument();
@@ -191,12 +194,29 @@ describe("ProfileCenter", () => {
       onFloatingCardHabitCheckInEnabledChanged
     } as Partial<Parameters<typeof ProfileCenter>[0]>);
 
-    expect(screen.getByText("固定卡片快捷习惯打卡")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /否/ }));
+    const shortcutConfig = screen.getByText("固定卡片快捷习惯打卡").closest(".display-size-config");
+    expect(shortcutConfig).not.toBeNull();
+    fireEvent.click(within(shortcutConfig as HTMLElement).getByRole("button", { name: /否/ }));
     expect(onFloatingCardHabitCheckInEnabledChanged).toHaveBeenCalledWith(false);
 
-    fireEvent.click(screen.getByRole("button", { name: /是/ }));
+    fireEvent.click(within(shortcutConfig as HTMLElement).getByRole("button", { name: /是/ }));
     expect(onFloatingCardHabitCheckInEnabledChanged).toHaveBeenCalledWith(true);
+  });
+
+  it("shows page animation settings", () => {
+    const onPageAnimationEnabledChanged = vi.fn();
+    renderProfile(createUpdater("idle"), {
+      pageAnimationEnabled: true,
+      onPageAnimationEnabledChanged
+    } as Partial<Parameters<typeof ProfileCenter>[0]>);
+
+    const animationConfig = screen.getByText("开启页面动画效果").closest(".display-size-config");
+    expect(animationConfig).not.toBeNull();
+    fireEvent.click(within(animationConfig as HTMLElement).getByRole("button", { name: /否/ }));
+    expect(onPageAnimationEnabledChanged).toHaveBeenCalledWith(false);
+
+    fireEvent.click(within(animationConfig as HTMLElement).getByRole("button", { name: /是/ }));
+    expect(onPageAnimationEnabledChanged).toHaveBeenCalledWith(true);
   });
 
   it("renders sortable module items with module color identifiers", () => {

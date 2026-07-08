@@ -39,6 +39,7 @@ import { NoDataPlaceholder } from "./NoDataPlaceholder";
 
 interface HabitPanelProps {
   createOpen: boolean;
+  pageAnimationEnabled?: boolean;
   returnToListSignal?: number;
   showArchived: boolean;
   onCreateOpenChange(open: boolean): void;
@@ -147,6 +148,12 @@ function parseTypedDateKey(value: string) {
   const candidate = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
   const parsed = dayjs(`${candidate}T00:00:00`);
   return parsed.isValid() && parsed.format("YYYY-MM-DD") === candidate ? candidate : "";
+}
+
+function pageMotionStyle(pageAnimationEnabled: boolean, animationIndex: number): CSSProperties | undefined {
+  return pageAnimationEnabled
+    ? { "--page-motion-delay": `${animationIndex * 100}ms` } as CSSProperties
+    : undefined;
 }
 
 function emptyDraft(): HabitDraft {
@@ -292,14 +299,16 @@ function HabitDatePicker({ allowClear = true, label, placeholder, value, onChang
 }
 
 interface SortableHabitCardProps {
+  animationIndex?: number;
   habit: ApiHabit;
+  pageAnimationEnabled?: boolean;
   selected: boolean;
   onBeginEdit(habit: ApiHabit): void;
   onSelect(habitId: string): void;
   onToggleToday(habit: ApiHabit): void;
 }
 
-function SortableHabitCard({ habit, selected, onBeginEdit, onSelect, onToggleToday }: SortableHabitCardProps) {
+function SortableHabitCard({ animationIndex = 0, habit, pageAnimationEnabled = true, selected, onBeginEdit, onSelect, onToggleToday }: SortableHabitCardProps) {
   const { attributes, isDragging, listeners, setNodeRef, transform, transition } = useSortable({ id: habit.id });
   const style: CSSProperties = {
     opacity: isDragging ? 0.72 : undefined,
@@ -317,9 +326,10 @@ function SortableHabitCard({ habit, selected, onBeginEdit, onSelect, onToggleTod
       {...listeners}
     >
       <Card
-        className={`habit-list-card color-${habit.color}${selected ? " is-active" : ""}${habit.archivedAt ? " is-archived" : ""}${isDragging ? " is-dragging" : ""}`}
+        className={`habit-list-card color-${habit.color}${selected ? " is-active" : ""}${habit.archivedAt ? " is-archived" : ""}${isDragging ? " is-dragging" : ""}${pageAnimationEnabled ? " page-motion-card page-motion-from-right" : ""}`}
         onClick={() => onSelect(habit.id)}
         pattern="default"
+        style={pageMotionStyle(pageAnimationEnabled, animationIndex)}
       >
         <button className="habit-list-main" type="button" onClick={() => onSelect(habit.id)}>
           <HabitIconBadge habit={habit} />
@@ -349,7 +359,7 @@ function SortableHabitCard({ habit, selected, onBeginEdit, onSelect, onToggleTod
   );
 }
 
-export function HabitPanel({ createOpen, returnToListSignal = 0, showArchived, onCreateOpenChange, onDetailModeChange }: HabitPanelProps) {
+export function HabitPanel({ createOpen, pageAnimationEnabled = true, returnToListSignal = 0, showArchived, onCreateOpenChange, onDetailModeChange }: HabitPanelProps) {
   const [habits, setHabits] = useState<ApiHabit[]>([]);
   const [selectedId, setSelectedId] = useState<string>("");
   const [detail, setDetail] = useState<ApiHabitDetail | null>(null);
@@ -907,10 +917,12 @@ export function HabitPanel({ createOpen, returnToListSignal = 0, showArchived, o
             <SortableContext items={habits.map((habit) => habit.id)} strategy={rectSortingStrategy}>
               <div className={habitsEmpty ? "habit-list is-empty" : "habit-list"} aria-busy={loading}>
                 {habitsEmpty ? <NoDataPlaceholder className="habit-empty-placeholder" /> : null}
-                {habits.map((habit) => (
+                {habits.map((habit, index) => (
                   <SortableHabitCard
+                    animationIndex={index}
                     habit={habit}
                     key={habit.id}
+                    pageAnimationEnabled={pageAnimationEnabled}
                     selected={selectedId === habit.id}
                     onBeginEdit={beginEdit}
                     onSelect={setSelectedId}

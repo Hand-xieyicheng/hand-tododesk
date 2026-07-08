@@ -15,6 +15,7 @@ import { TaskTimeRangePicker } from "./TaskTimeRangePicker";
 
 interface TaskPanelProps {
   createOpen: boolean;
+  pageAnimationEnabled?: boolean;
   showCompletedTasks: boolean;
   tags: ApiTag[];
   taskCardDisplayMode: TaskCardDisplayMode;
@@ -134,6 +135,12 @@ function getTaskMetaItems(task: ApiTask) {
     `${task.pomodoroCompletedCount} 个番茄`,
     ...task.tags.map((tag) => `#${tag.name}`)
   ].filter((item): item is string => Boolean(item));
+}
+
+function pageMotionStyle(pageAnimationEnabled: boolean, animationIndex: number): CSSProperties | undefined {
+  return pageAnimationEnabled
+    ? { "--page-motion-delay": `${animationIndex * 100}ms` } as CSSProperties
+    : undefined;
 }
 
 function taskMatchesTagFilter(task: ApiTask, filter: string) {
@@ -260,15 +267,17 @@ function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {
 
 interface TaskCardProps {
   task: ApiTask;
+  animationIndex?: number;
   compact?: boolean;
   displayMode: TaskCardDisplayMode;
+  pageAnimationEnabled?: boolean;
   onDelete(task: ApiTask): Promise<void>;
   onEdit(task: ApiTask): void;
   onOpenDetails(task: ApiTask): void;
   onSetStatus(task: ApiTask, status: TaskStatus): Promise<void>;
 }
 
-function TaskCard({ task, compact, displayMode, onDelete, onEdit, onOpenDetails, onSetStatus }: TaskCardProps) {
+function TaskCard({ task, animationIndex = 0, compact, displayMode, pageAnimationEnabled = true, onDelete, onEdit, onOpenDetails, onSetStatus }: TaskCardProps) {
   const isCompleted = task.status === "COMPLETED";
   const isOverdue = isTaskOverdue(task);
   const titleOnly = displayMode === "title";
@@ -319,8 +328,9 @@ function TaskCard({ task, compact, displayMode, onDelete, onEdit, onOpenDetails,
 
   return (
     <Card
-      className={`task-item priority-${priorityClass(task.priority)}${compact ? " is-compact" : ""}${isCompleted ? " is-completed" : ""}${isOverdue ? " is-overdue" : ""}${titleOnly ? " is-title-only" : ""}`}
+      className={`task-item priority-${priorityClass(task.priority)}${compact ? " is-compact" : ""}${isCompleted ? " is-completed" : ""}${isOverdue ? " is-overdue" : ""}${titleOnly ? " is-title-only" : ""}${pageAnimationEnabled ? " page-motion-card page-motion-from-bottom" : ""}`}
       pattern="default"
+      style={pageMotionStyle(pageAnimationEnabled, animationIndex)}
     >
       <button
         aria-label={statusAction}
@@ -416,9 +426,11 @@ function SortableTaskCard({ groupId, priority, tagId, view, wrapperClassName, ..
 }
 
 interface KanbanTaskCardProps {
+  animationIndex?: number;
   disabled: boolean;
   displayMode: TaskCardDisplayMode;
   dragging: boolean;
+  pageAnimationEnabled?: boolean;
   task: ApiTask;
   updating: boolean;
   onDelete(task: ApiTask): Promise<void>;
@@ -427,14 +439,16 @@ interface KanbanTaskCardProps {
   onSetStatus(task: ApiTask, status: TaskStatus): Promise<void>;
 }
 
-function KanbanTaskCard({ disabled, displayMode, dragging, task, updating, onDelete, onEdit, onOpenDetails, onSetStatus }: KanbanTaskCardProps) {
+function KanbanTaskCard({ animationIndex = 0, disabled, displayMode, dragging, pageAnimationEnabled = true, task, updating, onDelete, onEdit, onOpenDetails, onSetStatus }: KanbanTaskCardProps) {
   const sourceTagId = task.tags[0]?.id ?? null;
 
   return (
     <SortableTaskCard
       compact
+      animationIndex={animationIndex}
       displayMode={displayMode}
       groupId={getKanbanGroupId(sourceTagId)}
+      pageAnimationEnabled={pageAnimationEnabled}
       tagId={sourceTagId}
       task={task}
       view="kanban"
@@ -835,7 +849,7 @@ function TagMaintenanceModal({ open, tags, onChanged, onClose }: TagMaintenanceM
   );
 }
 
-export function TaskPanel({ createOpen, showCompletedTasks, tags, taskCardDisplayMode, tagMaintenanceOpen, taskDateFilter = "all", taskTagFilter, tasks, viewMode, onChanged, onCreateOpenChange, onPanelMessageChange = () => undefined, onTagMaintenanceOpenChange }: TaskPanelProps) {
+export function TaskPanel({ createOpen, pageAnimationEnabled = true, showCompletedTasks, tags, taskCardDisplayMode, tagMaintenanceOpen, taskDateFilter = "all", taskTagFilter, tasks, viewMode, onChanged, onCreateOpenChange, onPanelMessageChange = () => undefined, onTagMaintenanceOpenChange }: TaskPanelProps) {
   const setBoardTasks = useTaskBoardStore((state) => state.setTasks);
   const kanbanDragState = useRef<KanbanDragState | null>(null);
   const kanbanTaskSensors = useSensors(
@@ -1319,11 +1333,13 @@ export function TaskPanel({ createOpen, showCompletedTasks, tags, taskCardDispla
             <SortableContext items={visibleTasks.map((task) => task.id)} strategy={verticalListSortingStrategy}>
               <section className="task-list">
                 {visibleTasks.length === 0 ? <Card className="empty-state" type="dashed">暂无待办</Card> : null}
-                {visibleTasks.map((task) => (
+                {visibleTasks.map((task, index) => (
                   <SortableTaskCard
+                    animationIndex={index}
                     displayMode={taskCardDisplayMode}
                     groupId="list"
                     key={task.id}
+                    pageAnimationEnabled={pageAnimationEnabled}
                     task={task}
                     view="list"
                     onDelete={deleteTask}
@@ -1360,12 +1376,14 @@ export function TaskPanel({ createOpen, showCompletedTasks, tags, taskCardDispla
                   onCreateTask={openCreateForKanbanColumn}
                 >
                   <SortableContext items={column.tasks.map((task) => task.id)} strategy={verticalListSortingStrategy}>
-                    {column.tasks.map((task) => (
+                    {column.tasks.map((task, index) => (
                       <KanbanTaskCard
+                        animationIndex={index}
                         disabled={Boolean(updatingKanbanTaskId)}
                         displayMode={taskCardDisplayMode}
                         dragging={draggingKanbanTaskId === task.id}
                         key={task.id}
+                        pageAnimationEnabled={pageAnimationEnabled}
                         task={task}
                         updating={updatingKanbanTaskId === task.id}
                         onDelete={deleteTask}
@@ -1409,12 +1427,14 @@ export function TaskPanel({ createOpen, showCompletedTasks, tags, taskCardDispla
                       <SortableContext items={items.map((task) => task.id)} strategy={verticalListSortingStrategy}>
                         <QuadrantTaskList>
                           {items.length === 0 ? <div className="empty-state">暂无待办</div> : null}
-                          {items.map((task) => (
+                          {items.map((task, index) => (
                             <SortableTaskCard
+                              animationIndex={index}
                               compact
                               displayMode={taskCardDisplayMode}
                               groupId={item}
                               key={task.id}
+                              pageAnimationEnabled={pageAnimationEnabled}
                               priority={item}
                               task={task}
                               view="quadrant"

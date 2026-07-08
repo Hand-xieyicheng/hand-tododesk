@@ -1,6 +1,6 @@
 {
   "name": "@todo/desktop",
-  "version": "0.2.28",
+  "version": "0.2.29",
   "type": "module",
   "private": true,
   "scripts": {
@@ -23,7 +23,7 @@
     "@tauri-apps/plugin-process": "^2.3.1",
     "@tauri-apps/plugin-updater": "^2.10.1",
     "@todo/shared": "file:../../packages/shared",
-    "animal-island-ui": "^1.0.1",
+    "animal-island-ui": "^1.2.0",
     "antd": "^6.5.0",
     "dayjs": "^1.11.21",
     "gsap": "^3.15.0",

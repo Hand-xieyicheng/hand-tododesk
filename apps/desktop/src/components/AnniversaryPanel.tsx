@@ -29,6 +29,7 @@ import { NoDataPlaceholder } from "./NoDataPlaceholder";
 
 interface AnniversaryPanelProps {
   createOpen: boolean;
+  pageAnimationEnabled?: boolean;
   onCreateOpenChange(open: boolean): void;
 }
 
@@ -255,17 +256,25 @@ function directionBadge(event: ApiAnniversaryEvent) {
   return event.displayDirection === "COUNTDOWN" ? "倒数" : "正数";
 }
 
+function pageMotionStyle(pageAnimationEnabled: boolean, animationIndex: number): CSSProperties | undefined {
+  return pageAnimationEnabled
+    ? { "--page-motion-delay": `${animationIndex * 100}ms` } as CSSProperties
+    : undefined;
+}
+
 interface SortableAnniversaryCardProps {
+  animationIndex?: number;
   event: ApiAnniversaryEvent;
+  pageAnimationEnabled?: boolean;
   onDelete(event: ApiAnniversaryEvent): void;
   onEdit(event: ApiAnniversaryEvent): void;
 }
 
-function SortableAnniversaryCard({ event, onDelete, onEdit }: SortableAnniversaryCardProps) {
+function SortableAnniversaryCard({ animationIndex = 0, event, pageAnimationEnabled = true, onDelete, onEdit }: SortableAnniversaryCardProps) {
   const Icon = categoryIcons[event.category];
   const { attributes, isDragging, listeners, setNodeRef, transform, transition } = useSortable({ id: event.id });
   const isToday = event.displayValue === "今天" || event.daysDelta === 0;
-  const cardClassName = `anniversary-card style-${event.cardStyle}${isToday ? " is-today" : ""}${isDragging ? " is-dragging" : ""}`;
+  const cardClassName = `anniversary-card style-${event.cardStyle}${isToday ? " is-today" : ""}${isDragging ? " is-dragging" : ""}${pageAnimationEnabled ? " page-motion-card page-motion-from-right" : ""}`;
   const style: CSSProperties = {
     opacity: isDragging ? 0.72 : undefined,
     transform: CSS.Transform.toString(transform),
@@ -281,7 +290,7 @@ function SortableAnniversaryCard({ event, onDelete, onEdit }: SortableAnniversar
       {...attributes}
       {...listeners}
     >
-      <Card className={cardClassName} pattern="default">
+      <Card className={cardClassName} pattern="default" style={pageMotionStyle(pageAnimationEnabled, animationIndex)}>
         <header>
           <span className="anniversary-icon" aria-hidden="true">
             <Icon size={18} />
@@ -310,7 +319,7 @@ function SortableAnniversaryCard({ event, onDelete, onEdit }: SortableAnniversar
   );
 }
 
-export function AnniversaryPanel({ createOpen, onCreateOpenChange }: AnniversaryPanelProps) {
+export function AnniversaryPanel({ createOpen, pageAnimationEnabled = true, onCreateOpenChange }: AnniversaryPanelProps) {
   const [anniversaries, setAnniversaries] = useState<ApiAnniversaryEvent[]>([]);
   const [activeCategory, setActiveCategory] = useState<CategoryFilter>("ALL");
   const [draft, setDraft] = useState<AnniversaryDraft>(() => emptyDraft());
@@ -655,10 +664,12 @@ export function AnniversaryPanel({ createOpen, onCreateOpenChange }: Anniversary
           <SortableContext items={visibleAnniversaries.map((event) => event.id)} strategy={rectSortingStrategy}>
             <div className={anniversaryListEmpty ? "anniversary-grid is-empty" : "anniversary-grid"} aria-busy={loading}>
               {anniversaryListEmpty ? <NoDataPlaceholder className="anniversary-empty-placeholder" /> : null}
-              {visibleAnniversaries.map((event) => (
+              {visibleAnniversaries.map((event, index) => (
                 <SortableAnniversaryCard
+                  animationIndex={index}
                   event={event}
                   key={event.id}
+                  pageAnimationEnabled={pageAnimationEnabled}
                   onDelete={(nextEvent) => void deleteAnniversary(nextEvent)}
                   onEdit={beginEdit}
                 />

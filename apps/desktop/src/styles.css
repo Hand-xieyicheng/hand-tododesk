@@ -62,6 +62,7 @@
   --color-hover-text: color-mix(in srgb, var(--color-primary) 62%, var(--color-text));
   --color-emphasis-text: color-mix(in srgb, var(--color-primary) 46%, var(--color-text));
   --color-strong-emphasis-text: color-mix(in srgb, var(--color-primary) 70%, var(--color-text));
+  --profile-selected-option-border: color-mix(in srgb, var(--color-primary) 72%, var(--color-border));
   --island-ink: var(--color-text);
   --island-shadow: var(--color-shadow);
   --island-soft-shadow: var(--color-soft-shadow);
@@ -341,6 +342,10 @@ textarea:focus-visible,
 :root[data-theme="white-ink"] .app-shell.is-sidebar-collapsed .sidebar {
   background: var(--island-paper-dots) 4px 8px / 22px 22px, linear-gradient(180deg, #ffffff 0%, #ffffff 100%);
   box-shadow: inset -1px 0 0 #ffffff, 10px 0 24px rgba(17, 24, 39, 0.12);
+}
+
+:root[data-theme="white-ink"] {
+  --profile-selected-option-border: color-mix(in srgb, var(--color-accent) 72%, var(--color-border));
 }
 
 .brand-block {
@@ -2925,6 +2930,24 @@ body .task-time-range-ant-dropdown .ant-picker-panel-container {
   gap: calc(7px * var(--app-ui-scale));
 }
 
+.page-motion-card {
+  animation-delay: var(--page-motion-delay, 0ms);
+  animation-fill-mode: backwards;
+  will-change: opacity, transform;
+}
+
+.page-motion-from-bottom {
+  animation-name: pageMotionFromBottom;
+  animation-duration: 420ms;
+  animation-timing-function: cubic-bezier(0.2, 0.78, 0.18, 1);
+}
+
+.page-motion-from-right {
+  animation-name: pageMotionFromRight;
+  animation-duration: 420ms;
+  animation-timing-function: cubic-bezier(0.2, 0.78, 0.18, 1);
+}
+
 .task-item {
   position: relative;
   display: grid;
@@ -4274,7 +4297,6 @@ body .task-time-range-ant-dropdown .ant-picker-panel-container {
   align-content: space-between;
   padding: calc(13px * var(--app-ui-scale)) !important;
   box-shadow: 0 4px 0 color-mix(in srgb, var(--habit-accent) 18%, var(--color-shadow));
-  animation: habitCollectionCardIn 420ms cubic-bezier(0.2, 0.78, 0.18, 1) both;
 }
 
 .habit-list-card:active {
@@ -4896,14 +4918,25 @@ body .task-time-range-ant-dropdown .ant-picker-panel-container {
   }
 }
 
-@keyframes habitCollectionCardIn {
+@keyframes pageMotionFromBottom {
   from {
     opacity: 0;
-    transform: translateY(8px) scale(0.985);
+    transform: translateY(14px);
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateY(0);
+  }
+}
+
+@keyframes pageMotionFromRight {
+  from {
+    opacity: 0;
+    transform: translateX(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
   }
 }
 
@@ -4931,6 +4964,7 @@ body .task-time-range-ant-dropdown .ant-picker-panel-container {
 
 @media (prefers-reduced-motion: reduce) {
   .habit-panel,
+  .page-motion-card,
   .habit-list-card,
   .habit-detail-panel,
   .habit-panel.is-detail .habit-list-panel {
@@ -5731,7 +5765,7 @@ body .task-time-range-ant-dropdown .ant-picker-panel-container {
 }
 
 .theme-tile.is-active {
-  border-color: var(--color-primary);
+  border-color: var(--profile-selected-option-border);
   background:
     radial-gradient(circle, color-mix(in srgb, var(--color-primary) 20%, transparent) 1.5px, transparent 2px) 0 0 / 16px 16px,
     color-mix(in srgb, var(--color-primary) 9%, var(--color-surface));
@@ -5797,7 +5831,7 @@ body .task-time-range-ant-dropdown .ant-picker-panel-container {
 }
 
 .title-color-swatch.is-active {
-  border-color: var(--color-primary);
+  border-color: var(--profile-selected-option-border);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 22%, transparent), 0 4px 0 var(--color-shadow);
 }
 
@@ -5845,7 +5879,7 @@ body .task-time-range-ant-dropdown .ant-picker-panel-container {
 }
 
 .floating-card-theme-option.is-active {
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 22%, transparent), 0 3px 0 var(--color-shadow);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--profile-selected-option-border) 22%, transparent), 0 3px 0 var(--color-shadow);
 }
 
 .floating-card-theme-option strong {
@@ -5915,6 +5949,14 @@ body .task-time-range-ant-dropdown .ant-picker-panel-container {
 
 .module-option[data-sidebar-module="memos"] {
   --module-color: #19c8b9;
+}
+
+.module-option[data-sidebar-module="anniversaries"] {
+  --module-color: #a78bfa;
+}
+
+.module-option[data-sidebar-module="habits"] {
+  --module-color: #5fcf94;
 }
 
 .module-option[data-sidebar-module="calendar"] {
@@ -6054,7 +6096,7 @@ body .task-time-range-ant-dropdown .ant-picker-panel-container {
 }
 
 .font-family-option.is-active {
-  border-color: var(--color-primary);
+  border-color: var(--profile-selected-option-border);
   background: color-mix(in srgb, var(--color-primary) 8%, var(--color-surface));
 }
 
@@ -9523,6 +9565,7 @@ body .primary-button[class*="animal-btn"] {
 
 @media (prefers-reduced-motion: reduce) {
   .app-loading-overlay,
+  .page-motion-card,
   .auth-screen::before,
   .auth-animated-bg::before,
   .auth-animated-bg::after,

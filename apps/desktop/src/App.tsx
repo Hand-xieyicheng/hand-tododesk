@@ -56,6 +56,7 @@ const defaultThemePreference: ApiThemePreference = {
   footerType: "sea",
   printButtonEnabled: false,
   floatingCardHabitCheckInEnabled: true,
+  pageAnimationEnabled: true,
   showCompletedTasks: true,
   taskViewMode: "list",
   taskCardDisplayMode: "full",
@@ -186,6 +187,7 @@ export function App() {
   const [footerType, setFooterType] = useState<AppFooterType>("sea");
   const [printButtonEnabled, setPrintButtonEnabled] = useState(false);
   const [floatingCardHabitCheckInEnabled, setFloatingCardHabitCheckInEnabled] = useState(true);
+  const [pageAnimationEnabled, setPageAnimationEnabled] = useState(true);
   const [taskPrintDialogOpen, setTaskPrintDialogOpen] = useState(false);
   const [showCompletedTasks, setShowCompletedTasks] = useState(true);
   const [taskCardDisplayMode, setTaskCardDisplayMode] = useState<TaskCardDisplayMode>("full");
@@ -291,6 +293,7 @@ export function App() {
     setFooterType(preference.footerType);
     setPrintButtonEnabled(preference.printButtonEnabled);
     setFloatingCardHabitCheckInEnabled(preference.floatingCardHabitCheckInEnabled);
+    setPageAnimationEnabled(preference.pageAnimationEnabled);
     setShowCompletedTasks(preference.showCompletedTasks);
     setTaskViewMode(preference.taskViewMode);
     setTaskCardDisplayMode(preference.taskCardDisplayMode);
@@ -619,6 +622,17 @@ export function App() {
       .catch((error) => {
         setFloatingCardHabitCheckInEnabled(previous);
         setMessage(error instanceof Error ? error.message : "固定卡片习惯打卡配置保存失败");
+      });
+  }
+
+  function handlePageAnimationEnabledChanged(next: boolean) {
+    const previous = pageAnimationEnabled;
+    setPageAnimationEnabled(next);
+    void api.setThemePreference({ pageAnimationEnabled: next })
+      .then(publishThemePreference)
+      .catch((error) => {
+        setPageAnimationEnabled(previous);
+        setMessage(error instanceof Error ? error.message : "页面动画配置保存失败");
       });
   }
 
@@ -989,6 +1003,7 @@ export function App() {
             element={(
               <TaskPanel
                 createOpen={taskCreateOpen}
+                pageAnimationEnabled={pageAnimationEnabled}
                 showCompletedTasks={showCompletedTasks}
                 tags={tags}
                 taskCardDisplayMode={taskCardDisplayMode}
@@ -1007,13 +1022,14 @@ export function App() {
           <Route path={viewRoutes.memos} element={<MemoPanel printButtonEnabled={printButtonEnabled} />} />
           <Route
             path={viewRoutes.anniversaries}
-            element={featureFlags.anniversaries ? <AnniversaryPanel createOpen={anniversaryCreateOpen} onCreateOpenChange={setAnniversaryCreateOpen} /> : <Navigate to={viewRoutes.tasks} replace />}
+            element={featureFlags.anniversaries ? <AnniversaryPanel createOpen={anniversaryCreateOpen} pageAnimationEnabled={pageAnimationEnabled} onCreateOpenChange={setAnniversaryCreateOpen} /> : <Navigate to={viewRoutes.tasks} replace />}
           />
           <Route
             path={viewRoutes.habits}
             element={featureFlags.habits ? (
               <HabitPanel
                 createOpen={habitCreateOpen}
+                pageAnimationEnabled={pageAnimationEnabled}
                 returnToListSignal={habitReturnToListSignal}
                 showArchived={habitShowArchived}
                 onCreateOpenChange={setHabitCreateOpen}
@@ -1041,6 +1057,7 @@ export function App() {
                 appCloseBehavior={appCloseBehavior}
                 displaySize={displaySize}
                 fontFamily={fontFamily}
+                pageAnimationEnabled={pageAnimationEnabled}
                 printButtonEnabled={printButtonEnabled}
                 sidebarModuleOptions={sidebarModuleOptions}
                 themeId={themeId}
@@ -1054,6 +1071,7 @@ export function App() {
                 onFloatingCardThemeChanged={handleFloatingCardThemeChanged}
                 onAppCloseBehaviorChanged={handleAppCloseBehaviorChanged}
                 onPasswordChanged={handlePasswordChanged}
+                onPageAnimationEnabledChanged={handlePageAnimationEnabledChanged}
                 onPrintButtonEnabledChanged={handlePrintButtonEnabledChanged}
                 onTaskCardDisplayModeChanged={handleTaskCardDisplayModeChanged}
                 onTitleColorChanged={handleTitleColorChanged}

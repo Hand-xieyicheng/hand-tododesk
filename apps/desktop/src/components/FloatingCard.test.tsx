@@ -115,7 +115,7 @@ vi.mock("animal-island-ui", () => ({
       {children}
     </button>
   ),
-  Card: ({ children, className }: any) => <section className={className}>{children}</section>,
+  Card: ({ children, className, style }: any) => <section className={className} style={style}>{children}</section>,
   Input: ({ onChange, value }: any) => <input value={value} onChange={onChange} />,
   Select: ({ "aria-label": ariaLabel, onChange, options, value }: any) => (
     <select aria-label={ariaLabel} value={value} onChange={(event) => onChange(event.target.value)}>
@@ -172,6 +172,7 @@ const titlePreference: ApiThemePreference = {
   displaySize: "default",
   visibleSidebarModules: defaultVisibleSidebarModules,
   sidebarCollapsed: false,
+  pageAnimationEnabled: true,
   fontFamily: "system"
 };
 
@@ -331,6 +332,36 @@ describe("FloatingCard", () => {
     expect(taskTooltip).toHaveTextContent("无时间");
     expect(taskTooltip).toHaveTextContent("1 个番茄");
     expect(taskTooltip).toHaveTextContent("#财务");
+  });
+
+  it("stagger-animates desktop task cards from the bottom when page animation is enabled", async () => {
+    apiMock.tasks.mockResolvedValue({
+      tasks: [task, taskWith({ id: "task-2", title: "核对预算" })]
+    });
+
+    const { container } = render(<FloatingCard />);
+
+    await waitFor(() => expect(container.querySelectorAll(".floating-task-title")).toHaveLength(2));
+    const cards = Array.from(container.querySelectorAll<HTMLElement>(".floating-task"));
+    expect(cards).toHaveLength(2);
+    expect(cards[0]).toHaveClass("page-motion-card", "page-motion-from-bottom");
+    expect(cards[0]?.style.getPropertyValue("--page-motion-delay")).toBe("0ms");
+    expect(cards[1]).toHaveClass("page-motion-card", "page-motion-from-bottom");
+    expect(cards[1]?.style.getPropertyValue("--page-motion-delay")).toBe("100ms");
+  });
+
+  it("removes desktop task animation hooks when page animation is disabled", async () => {
+    apiMock.getThemePreference.mockResolvedValue({
+      ...titlePreference,
+      pageAnimationEnabled: false
+    });
+
+    const { container } = render(<FloatingCard />);
+
+    await waitFor(() => expect(container.querySelector(".floating-task-title")).toHaveTextContent("整理票据"));
+    const card = container.querySelector(".floating-task");
+    expect(card).not.toHaveClass("page-motion-card");
+    expect((card as HTMLElement).style.getPropertyValue("--page-motion-delay")).toBe("");
   });
 
   it("filters desktop card tasks by selected date", async () => {

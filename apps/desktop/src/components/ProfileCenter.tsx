@@ -28,6 +28,7 @@ interface ProfileCenterProps {
   footerVisible: boolean;
   footerType: AppFooterType;
   fontFamily: FontFamily;
+  pageAnimationEnabled: boolean;
   printButtonEnabled: boolean;
   sidebarModuleOptions: SidebarModuleOption[];
   taskCardDisplayMode: TaskCardDisplayMode;
@@ -42,6 +43,7 @@ interface ProfileCenterProps {
   onFontFamilyChanged(fontFamily: FontFamily): void;
   onDisplaySizeChanged(displaySize: DisplaySize): void;
   onPasswordChanged(): void;
+  onPageAnimationEnabledChanged(enabled: boolean): void;
   onPrintButtonEnabledChanged(enabled: boolean): void;
   onTaskCardDisplayModeChanged(taskCardDisplayMode: TaskCardDisplayMode): void;
   onTitleColorChanged(titleColor: TitleColor): void;
@@ -268,6 +270,7 @@ export function ProfileCenter({
   footerVisible,
   footerType,
   fontFamily,
+  pageAnimationEnabled,
   printButtonEnabled,
   sidebarModuleOptions,
   taskCardDisplayMode,
@@ -282,6 +285,7 @@ export function ProfileCenter({
   onFontFamilyChanged,
   onDisplaySizeChanged,
   onPasswordChanged,
+  onPageAnimationEnabledChanged,
   onPrintButtonEnabledChanged,
   onTaskCardDisplayModeChanged,
   onTitleColorChanged,
@@ -902,6 +906,17 @@ export function ProfileCenter({
               options={taskCardDisplayModeOptions}
               value={taskCardDisplayMode}
               onChange={(value) => onTaskCardDisplayModeChanged(value as TaskCardDisplayMode)}
+            />
+          </div>
+          <div className="display-size-config">
+            <span className="display-size-config-label">开启页面动画效果</span>
+            <Radio
+              options={[
+                { label: "是", value: "on" },
+                { label: "否", value: "off" }
+              ]}
+              value={pageAnimationEnabled ? "on" : "off"}
+              onChange={(value) => onPageAnimationEnabledChanged(value === "on")}
             />
           </div>
           <div className="display-size-config">

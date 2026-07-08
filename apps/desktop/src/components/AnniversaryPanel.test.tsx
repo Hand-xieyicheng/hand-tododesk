@@ -49,7 +49,7 @@ vi.mock("animal-island-ui", () => ({
       {children}
     </button>
   ),
-  Card: ({ children, className }: any) => <section className={className}>{children}</section>,
+  Card: ({ children, className, style }: any) => <section className={className} style={style}>{children}</section>,
   Input: ({ maxLength, onChange, required, type = "text", value }: any) => (
     <input maxLength={maxLength} required={required} type={type} value={value} onChange={onChange} />
   ),
@@ -152,6 +152,38 @@ describe("AnniversaryPanel", () => {
 
     expect(screen.queryByRole("heading", { name: "使用滴答清单" })).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "小林生日" })).toBeInTheDocument();
+  });
+
+  it("stagger-animates anniversary cards from the right when page animation is enabled", async () => {
+    apiMock.anniversaries.mockResolvedValue({
+      anniversaries: [
+        anniversaryWith({ id: "a-1", title: "使用滴答清单", category: "ANNIVERSARY" }),
+        anniversaryWith({ id: "b-1", title: "小林生日", category: "BIRTHDAY", displayValue: "今天", displaySubtext: "2026/6/18 就是今天" })
+      ]
+    });
+
+    const { container } = render(<AnniversaryPanel createOpen={false} pageAnimationEnabled onCreateOpenChange={vi.fn()} />);
+
+    expect(await screen.findByRole("heading", { name: "使用滴答清单" })).toBeInTheDocument();
+    const cards = Array.from(container.querySelectorAll<HTMLElement>(".anniversary-card"));
+    expect(cards).toHaveLength(2);
+    expect(cards[0]).toHaveClass("page-motion-card", "page-motion-from-right");
+    expect(cards[0]?.style.getPropertyValue("--page-motion-delay")).toBe("0ms");
+    expect(cards[1]).toHaveClass("page-motion-card", "page-motion-from-right");
+    expect(cards[1]?.style.getPropertyValue("--page-motion-delay")).toBe("100ms");
+  });
+
+  it("removes anniversary card animation hooks when page animation is disabled", async () => {
+    apiMock.anniversaries.mockResolvedValue({
+      anniversaries: [anniversaryWith({ id: "a-1", title: "使用滴答清单", category: "ANNIVERSARY" })]
+    });
+
+    const { container } = render(<AnniversaryPanel createOpen={false} pageAnimationEnabled={false} onCreateOpenChange={vi.fn()} />);
+
+    expect(await screen.findByRole("heading", { name: "使用滴答清单" })).toBeInTheDocument();
+    const card = container.querySelector(".anniversary-card");
+    expect(card).not.toHaveClass("page-motion-card");
+    expect((card as HTMLElement).style.getPropertyValue("--page-motion-delay")).toBe("");
   });
 
   it("keeps anniversary cards in place while refresh is pending", async () => {

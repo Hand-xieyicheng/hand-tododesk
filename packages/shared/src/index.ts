@@ -456,6 +456,7 @@ export const updateThemePreferenceRequestSchema = z
     footerType: z.enum(footerTypeValues).optional(),
     printButtonEnabled: z.boolean().optional(),
     floatingCardHabitCheckInEnabled: z.boolean().optional(),
+    pageAnimationEnabled: z.boolean().optional(),
     showCompletedTasks: z.boolean().optional(),
     taskViewMode: z.enum(taskViewModeValues).optional(),
     taskCardDisplayMode: z.enum(taskCardDisplayModeValues).optional(),
@@ -474,6 +475,7 @@ export const updateThemePreferenceRequestSchema = z
     value.footerType ||
     value.printButtonEnabled !== undefined ||
     value.floatingCardHabitCheckInEnabled !== undefined ||
+    value.pageAnimationEnabled !== undefined ||
     value.showCompletedTasks !== undefined ||
     value.taskViewMode ||
     value.taskCardDisplayMode ||
@@ -608,6 +610,7 @@ export interface ApiThemePreference {
   footerType: FooterType;
   printButtonEnabled: boolean;
   floatingCardHabitCheckInEnabled: boolean;
+  pageAnimationEnabled: boolean;
   showCompletedTasks: boolean;
   taskViewMode: TaskViewMode;
   taskCardDisplayMode: TaskCardDisplayMode;

@@ -249,6 +249,30 @@ describe("HabitPanel", () => {
     expect(placeholder).toHaveStyle({ opacity: "0.5" });
   });
 
+  it("stagger-animates habit cards from the right when page animation is enabled", async () => {
+    const secondHabit: ApiHabit = { ...habit, id: "habit-2", title: "喝水记录", color: "blue", icon: "Droplets" };
+    apiMock.habits.mockResolvedValue({ habits: [habit, secondHabit] });
+
+    const { container } = render(<HabitPanel createOpen={false} pageAnimationEnabled showArchived={false} onCreateOpenChange={vi.fn()} />);
+
+    await waitFor(() => expect(screen.getByText("喝水记录")).toBeInTheDocument());
+    const cards = Array.from(container.querySelectorAll<HTMLElement>(".habit-list-card"));
+    expect(cards).toHaveLength(2);
+    expect(cards[0]).toHaveClass("page-motion-card", "page-motion-from-right");
+    expect(cards[0]?.style.getPropertyValue("--page-motion-delay")).toBe("0ms");
+    expect(cards[1]).toHaveClass("page-motion-card", "page-motion-from-right");
+    expect(cards[1]?.style.getPropertyValue("--page-motion-delay")).toBe("100ms");
+  });
+
+  it("removes habit card animation hooks when page animation is disabled", async () => {
+    const { container } = render(<HabitPanel createOpen={false} pageAnimationEnabled={false} showArchived={false} onCreateOpenChange={vi.fn()} />);
+
+    await waitFor(() => expect(getHabitListTitle(container, "学习日语")).toBeInTheDocument());
+    const card = container.querySelector(".habit-list-card");
+    expect(card).not.toHaveClass("page-motion-card");
+    expect((card as HTMLElement).style.getPropertyValue("--page-motion-delay")).toBe("");
+  });
+
   it("returns to the habit card collection when the parent sends a list return signal", async () => {
     const { container, rerender } = render(
       <HabitPanel createOpen={false} returnToListSignal={0} showArchived={false} onCreateOpenChange={vi.fn()} />

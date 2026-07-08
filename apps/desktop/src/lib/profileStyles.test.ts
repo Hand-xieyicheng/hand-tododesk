@@ -11,6 +11,27 @@ function getRule(selector: string) {
 }
 
 describe("profile styles", () => {
+  it("keeps selected profile option borders visible when the theme primary is white", () => {
+    const whiteInkRootRule = getRule(':root[data-theme="white-ink"]');
+    const themeTileRule = getRule(".theme-tile.is-active");
+    const titleColorRule = getRule(".title-color-swatch.is-active");
+    const fontFamilyRule = getRule(".font-family-option.is-active");
+
+    expect(styles).toContain("--profile-selected-option-border: color-mix(in srgb, var(--color-primary) 72%, var(--color-border))");
+    expect(whiteInkRootRule).toContain("--profile-selected-option-border: color-mix(in srgb, var(--color-accent) 72%, var(--color-border))");
+    expect(themeTileRule).toContain("border-color: var(--profile-selected-option-border)");
+    expect(titleColorRule).toContain("border-color: var(--profile-selected-option-border)");
+    expect(fontFamilyRule).toContain("border-color: var(--profile-selected-option-border)");
+  });
+
+  it("assigns dedicated colors to anniversary and habit display module cards", () => {
+    const anniversaryRule = getRule('.module-option[data-sidebar-module="anniversaries"]');
+    const habitRule = getRule('.module-option[data-sidebar-module="habits"]');
+
+    expect(anniversaryRule).toContain("--module-color: #a78bfa");
+    expect(habitRule).toContain("--module-color: #5fcf94");
+  });
+
   it("keeps avatar upload controls constrained within the overview card", () => {
     const editorRule = getRule(".avatar-editor");
     const cropStageRule = getRule(".avatar-crop-stage");
