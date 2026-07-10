@@ -44,8 +44,8 @@ describe("tag routes", () => {
 
   it("lists current user tags", async () => {
     db.queryRows.mockResolvedValueOnce([
-      { id: "tag-1", userId: "user-1", name: "工作" },
-      { id: "tag-2", userId: "user-1", name: "生活" }
+      { id: "tag-1", userId: "user-1", name: "工作", sortOrder: 1000 },
+      { id: "tag-2", userId: "user-1", name: "生活", sortOrder: 2000 }
     ]);
 
     const response = await injectTag("GET");
@@ -58,23 +58,45 @@ describe("tag routes", () => {
       ]
     });
     expect(db.queryRows).toHaveBeenCalledWith(expect.stringContaining("WHERE `userId` = ?"), ["user-1"]);
+    expect(db.queryRows).toHaveBeenCalledWith(expect.stringContaining("ORDER BY `sortOrder` ASC, `createdAt` ASC, `name` ASC, `id` ASC"), ["user-1"]);
   });
 
   it("creates trimmed tags and rejects duplicates", async () => {
     db.queryOne
       .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce({ id: "generated-tag", userId: "user-1", name: "娱乐" });
+      .mockResolvedValueOnce({ nextSortOrder: 1000 })
+      .mockResolvedValueOnce({ id: "generated-tag", userId: "user-1", name: "娱乐", sortOrder: 1000 });
 
     const created = await injectTag("POST", "/tags", { name: " 娱乐 " });
 
     expect(created.statusCode).toBe(201);
     expect(created.json()).toEqual({ tag: { id: "generated-tag", name: "娱乐" } });
-    expect(db.execute).toHaveBeenCalledWith(expect.stringContaining("INSERT INTO `Tag`"), ["generated-tag", "user-1", "娱乐"]);
+    expect(db.execute).toHaveBeenCalledWith(expect.stringContaining("INSERT INTO `Tag`"), ["generated-tag", "user-1", "娱乐", 1000]);
 
     db.queryOne.mockResolvedValueOnce({ id: "existing-tag", userId: "user-1", name: "娱乐" });
     const duplicate = await injectTag("POST", "/tags", { name: "娱乐" });
 
     expect(duplicate.statusCode).toBe(409);
+  });
+
+  it("persists tag order for owned tags only", async () => {
+    db.queryRows.mockResolvedValueOnce([
+      { id: "tag-2" },
+      { id: "tag-1" }
+    ]);
+
+    const reordered = await injectTag("PUT", "/tags/order", { orderedIds: ["tag-2", "tag-1"] });
+
+    expect(reordered.statusCode).toBe(200);
+    expect(reordered.json()).toEqual({ ok: true });
+    expect(db.queryRows).toHaveBeenCalledWith(expect.stringContaining("FROM `Tag`"), ["user-1", "tag-2", "tag-1"]);
+    expect(db.execute).toHaveBeenNthCalledWith(1, "UPDATE `Tag` SET `sortOrder` = ? WHERE `id` = ? AND `userId` = ?", [1000, "tag-2", "user-1"]);
+    expect(db.execute).toHaveBeenNthCalledWith(2, "UPDATE `Tag` SET `sortOrder` = ? WHERE `id` = ? AND `userId` = ?", [2000, "tag-1", "user-1"]);
+
+    db.queryRows.mockResolvedValueOnce([{ id: "tag-1" }]);
+    const missing = await injectTag("PUT", "/tags/order", { orderedIds: ["tag-1", "other-tag"] });
+
+    expect(missing.statusCode).toBe(404);
   });
 
   it("renames only owned tags and rejects name conflicts", async () => {

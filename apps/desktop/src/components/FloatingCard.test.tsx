@@ -575,9 +575,15 @@ describe("FloatingCard", () => {
       floatingCardViewMode: "tag",
       taskCardDisplayMode: "full"
     });
+    apiMock.tags.mockResolvedValueOnce({ tags: [tagOptions[1]!, tagOptions[0]!] });
     apiMock.tasks.mockResolvedValue({
       tasks: [
         task,
+        taskWith({
+          id: "task-life",
+          title: "生活事项",
+          tags: [{ id: "tag-2", name: "生活" }]
+        }),
         taskWith({
           id: "task-untagged",
           title: "无标签事项",
@@ -588,9 +594,10 @@ describe("FloatingCard", () => {
 
     const { container } = render(<FloatingCard />);
 
+    await screen.findByRole("heading", { name: "生活" });
     expect(await screen.findByRole("heading", { name: "财务" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "其它" })).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "生活" })).not.toBeInTheDocument();
+    expect([...container.querySelectorAll(".floating-task-group-header h3")].map((item) => item.textContent)).toEqual(["生活", "财务", "其它"]);
     expect(container.querySelector(".floating-task-list")).not.toHaveTextContent("#财务");
   });
 

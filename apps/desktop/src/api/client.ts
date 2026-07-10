@@ -42,6 +42,7 @@ import type {
   UpdateHabitOrderRequest,
   UpdateHabitRequest,
   UpdateProfileRequest,
+  UpdateTagOrderRequest,
   UpdateTagRequest,
   UpdateThemePreferenceRequest,
   UpdateTaskOrderRequest,
@@ -73,6 +74,7 @@ import {
   updateHabitOrderRequestSchema,
   updateHabitRequestSchema,
   updateProfileRequestSchema,
+  updateTagOrderRequestSchema,
   updateTagRequestSchema,
   updateTaskOrderRequestSchema,
   updateThemePreferenceRequestSchema
@@ -489,6 +491,12 @@ export const api = {
     return request<{ tag: ApiTag }>(`/tags/${id}`, {
       method: "PATCH",
       body: JSON.stringify(updateTagRequestSchema.parse(input))
+    });
+  },
+  async updateTagOrder(input: UpdateTagOrderRequest) {
+    return request<{ ok: true }>("/tags/order", {
+      method: "PUT",
+      body: JSON.stringify(updateTagOrderRequestSchema.parse(input))
     });
   },
   async deleteTag(id: string) {
