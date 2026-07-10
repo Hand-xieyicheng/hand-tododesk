@@ -428,8 +428,28 @@ function createStore(): AiStore {
       }
       const hasMore = rows.length > boundedLimit;
       const page = rows.slice(0, boundedLimit);
+      const messages = page.map(serializeMessage).reverse();
+      const hydratedMessages = await Promise.all(messages.map(async (message) => {
+        const proposalId = message.kind === "PROPOSAL"
+          ? message.metadata?.proposal?.id
+          : undefined;
+        if (!proposalId) {
+          return message;
+        }
+        const proposal = await store.getProposal(userId, proposalId);
+        if (!proposal) {
+          return message;
+        }
+        return {
+          ...message,
+          metadata: {
+            ...(message.metadata ?? {}),
+            proposal
+          }
+        };
+      }));
       return {
-        messages: page.map(serializeMessage).reverse(),
+        messages: hydratedMessages,
         nextCursor: hasMore ? page[page.length - 1]?.id ?? null : null
       };
     },
