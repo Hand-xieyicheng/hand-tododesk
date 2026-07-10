@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { ApiAiMessage, ApiAiSession } from "@todo/shared";
+import type { ApiAiMessage, ApiAiProposal, ApiAiSession } from "@todo/shared";
 import { api } from "../../api/client";
 
 function errorMessage(error: unknown) {
@@ -157,6 +157,14 @@ export function useAiAssistant(active = true) {
     }
   }, [activeSessionId, reloadSessions]);
 
+  const replaceProposal = useCallback((messageId: string, proposal: ApiAiProposal) => {
+    setMessages((current) => current.map((message) => (
+      message.id === messageId
+        ? { ...message, metadata: { ...(message.metadata ?? {}), proposal } }
+        : message
+    )));
+  }, []);
+
   return {
     sessions,
     activeSessionId,
@@ -170,6 +178,7 @@ export function useAiAssistant(active = true) {
     createSession,
     renameSession,
     deleteSession,
+    replaceProposal,
     setMessages
   };
 }

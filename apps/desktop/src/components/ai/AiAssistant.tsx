@@ -53,6 +53,7 @@ export function AiAssistant({ enabled, onDomainsChanged }: AiAssistantProps) {
                 <AiMessageList
                   messages={state.messages}
                   onDomainsChanged={onDomainsChanged}
+                  onProposalChanged={state.replaceProposal}
                 />
               )}
             </div>

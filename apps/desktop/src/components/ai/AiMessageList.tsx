@@ -1,8 +1,10 @@
-import type { AiChangedDomain, AiObjectType, ApiAiMessage } from "@todo/shared";
+import type { AiChangedDomain, AiObjectType, ApiAiMessage, ApiAiProposal } from "@todo/shared";
+import { AiProposalCard } from "./AiProposalCard";
 
 export interface AiMessageListProps {
   messages: ApiAiMessage[];
   onDomainsChanged(domains: AiChangedDomain[]): void | Promise<void>;
+  onProposalChanged(messageId: string, proposal: ApiAiProposal): void;
 }
 
 type QueryRecord = {
@@ -20,7 +22,11 @@ function recordTitle(record: QueryRecord) {
       : record.id;
 }
 
-export function AiMessageList({ messages }: AiMessageListProps) {
+export function AiMessageList({
+  messages,
+  onDomainsChanged,
+  onProposalChanged
+}: AiMessageListProps) {
   if (messages.length === 0) {
     return (
       <div className="ai-message-empty">
@@ -59,10 +65,11 @@ export function AiMessageList({ messages }: AiMessageListProps) {
             </ul>
           ) : null}
           {message.kind === "PROPOSAL" && message.metadata?.proposal ? (
-            <div className="ai-proposal-placeholder">
-              <strong>待确认操作</strong>
-              <span>{message.metadata.proposal.items.length} 项</span>
-            </div>
+            <AiProposalCard
+              proposal={message.metadata.proposal}
+              onChanged={(proposal) => onProposalChanged(message.id, proposal)}
+              onDomainsChanged={onDomainsChanged}
+            />
           ) : null}
         </article>
       ))}
