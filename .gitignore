@@ -18,3 +18,4 @@ apps/desktop/src/**/*.d.ts
 apps/api/.tmp/
 apps/api/public/avatar/
 apps/api/public/memo-assets/
+.worktrees/
