@@ -510,6 +510,18 @@ function createStore(): AiStore {
       if (!proposal) {
         throw new AiStoreConflictError("NOT_FOUND", "AI proposal not found");
       }
+      await execute(
+        `UPDATE \`AiMessage\` m
+         INNER JOIN \`AiSession\` s ON s.\`id\` = m.\`sessionId\`
+         SET m.\`metadataJson\` = ?
+         WHERE m.\`id\` = ? AND m.\`sessionId\` = ? AND s.\`userId\` = ?`,
+        [
+          JSON.stringify({ proposal }),
+          input.messageId,
+          input.sessionId,
+          input.userId
+        ]
+      );
       return proposal;
     },
 
