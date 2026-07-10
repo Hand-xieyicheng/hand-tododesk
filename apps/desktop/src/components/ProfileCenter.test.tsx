@@ -72,7 +72,8 @@ const appBootstrap: AppBootstrapResponse = {
     taskQuadrant: true,
     floatingCard: true,
     anniversaries: true,
-    habits: true
+    habits: true,
+    aiAssistant: true
   }
 };
 
