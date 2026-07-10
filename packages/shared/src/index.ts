@@ -403,6 +403,13 @@ export const updateTaskOrderRequestSchema = z.object({
   path: ["orderedIds"]
 });
 
+export const updateTagOrderRequestSchema = z.object({
+  orderedIds: z.array(z.string().min(1)).min(1).max(500)
+}).refine((value) => new Set(value.orderedIds).size === value.orderedIds.length, {
+  message: "Tag ids must be unique",
+  path: ["orderedIds"]
+});
+
 const noActionInputSchema = z.object({}).strict();
 
 const aiTaskCreateActionSchema = z.object({
@@ -728,6 +735,7 @@ export type HabitDetailQuery = z.infer<typeof habitDetailQuerySchema>;
 export type CreateTaskRequest = z.infer<typeof createTaskRequestSchema>;
 export type UpdateTaskRequest = z.infer<typeof updateTaskRequestSchema>;
 export type UpdateTaskOrderRequest = z.infer<typeof updateTaskOrderRequestSchema>;
+export type UpdateTagOrderRequest = z.infer<typeof updateTagOrderRequestSchema>;
 export type AiAction = z.infer<typeof aiActionSchema>;
 export type AiModelResult = z.infer<typeof aiModelResultSchema>;
 export type CreateAiSessionRequest = z.infer<typeof createAiSessionRequestSchema>;

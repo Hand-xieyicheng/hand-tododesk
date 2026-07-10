@@ -137,11 +137,13 @@ model Tag {
   id        String    @id @default(cuid())
   userId    String
   name      String
+  sortOrder Int       @default(0)
   createdAt DateTime  @default(now())
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   tasks     TaskTag[]
 
   @@unique([userId, name])
+  @@index([userId, sortOrder, createdAt, id])
 }
 
 model TaskTag {

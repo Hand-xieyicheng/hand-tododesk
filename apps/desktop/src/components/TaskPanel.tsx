@@ -1,10 +1,10 @@
 import { type CSSProperties, type FormEvent, type KeyboardEvent, type PointerEvent, type ReactNode, type WheelEvent, useEffect, useMemo, useRef, useState } from "react";
 import { closestCenter, DndContext, DragOverlay, KeyboardSensor, PointerSensor, type DragEndEvent, type DragStartEvent, useDroppable, useSensor, useSensors } from "@dnd-kit/core";
-import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { isTaskOverdue, sortTasksForDisplay, taskMatchesDateFilter, type ApiTag, type ApiTask, type CreateTaskRequest, type TaskCardDisplayMode, type TaskDateFilter, type TaskPriority, type TaskStatus, type TaskViewMode, type UpdateTaskRequest } from "@todo/shared";
 import { Button, Card, Divider, Input, Modal, Select } from "animal-island-ui";
-import { Check, Pencil, Plus, RotateCcw, Save, Trash2, X } from "lucide-react";
+import { Check, GripVertical, Pencil, Plus, RotateCcw, Save, Trash2, X } from "lucide-react";
 import { api } from "../api/client";
 import { emitDesktopSyncEvent } from "../lib/desktopSync";
 import { datetimeLocalToIso, formatTaskTimeRange, getTodayEndDatetimeLocal, isValidTaskTimeRange, toDatetimeLocal } from "../lib/datetime";
@@ -100,6 +100,11 @@ type TaskGroupDropData = {
   tagId?: string | null;
 };
 
+type TagSortDragData = {
+  type: "tag-sort";
+  tagId: string;
+};
+
 type KanbanDragState = {
   pointerId: number;
   startX: number;
@@ -179,6 +184,10 @@ function isTaskSortDragData(value: unknown): value is TaskSortDragData {
 
 function isTaskGroupDropData(value: unknown): value is TaskGroupDropData {
   return Boolean(value && typeof value === "object" && (value as TaskGroupDropData).type === "task-group-drop");
+}
+
+function isTagSortDragData(value: unknown): value is TagSortDragData {
+  return Boolean(value && typeof value === "object" && (value as TagSortDragData).type === "tag-sort" && typeof (value as TagSortDragData).tagId === "string");
 }
 
 function getKanbanTaskDragWidth(taskId: string) {
@@ -699,14 +708,79 @@ function TaskEditModal({ task, tags, onClose, onSave }: TaskEditModalProps) {
   );
 }
 
+interface SortableTagRowProps {
+  children: ReactNode;
+  disabled: boolean;
+  tag: ApiTag;
+}
+
+function SortableTagRow({ children, disabled, tag }: SortableTagRowProps) {
+  const {
+    attributes,
+    isDragging,
+    listeners,
+    setActivatorNodeRef,
+    setNodeRef,
+    transform,
+    transition
+  } = useSortable({
+    id: tag.id,
+    disabled,
+    data: {
+      type: "tag-sort",
+      tagId: tag.id
+    } satisfies TagSortDragData
+  });
+  const style: CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition
+  };
+
+  return (
+    <div
+      className={`tag-maintenance-row${isDragging ? " is-dragging" : ""}${disabled ? " is-sort-disabled" : ""}`}
+      ref={setNodeRef}
+      style={style}
+    >
+      <button
+        aria-label={`拖动排序${tag.name}`}
+        className="tag-maintenance-drag-handle"
+        disabled={disabled}
+        ref={setActivatorNodeRef}
+        title="拖动排序"
+        type="button"
+        {...attributes}
+        {...(listeners ?? {})}
+      >
+        <GripVertical size={15} />
+      </button>
+      {children}
+    </div>
+  );
+}
+
 function TagMaintenanceModal({ open, tags, onChanged, onClose }: TagMaintenanceModalProps) {
   const [name, setName] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
+  const [orderedTags, setOrderedTags] = useState(tags);
   const [deleteTarget, setDeleteTarget] = useState<ApiTag | null>(null);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [deleteBusy, setDeleteBusy] = useState(false);
+  const [sortBusy, setSortBusy] = useState(false);
+  const tagSortSensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5
+      }
+    }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  useEffect(() => {
+    setOrderedTags(tags);
+  }, [tags]);
 
   useEffect(() => {
     if (!open) {
@@ -715,6 +789,7 @@ function TagMaintenanceModal({ open, tags, onChanged, onClose }: TagMaintenanceM
       setEditingName("");
       setDeleteTarget(null);
       setMessage("");
+      setSortBusy(false);
     }
   }, [open]);
 
@@ -733,7 +808,7 @@ function TagMaintenanceModal({ open, tags, onChanged, onClose }: TagMaintenanceM
   async function createTag(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const nextName = name.trim();
-    if (!nextName || busy) {
+    if (!nextName || busy || sortBusy) {
       return;
     }
     setBusy(true);
@@ -790,6 +865,39 @@ function TagMaintenanceModal({ open, tags, onChanged, onClose }: TagMaintenanceM
     }
   }
 
+  async function handleTagSortDragEnd(event: DragEndEvent) {
+    if (busy || deleteBusy || sortBusy || editingId) {
+      return;
+    }
+    const activeData = event.active.data.current;
+    const overData = event.over?.data.current;
+    if (!isTagSortDragData(activeData) || !isTagSortDragData(overData) || activeData.tagId === overData.tagId) {
+      return;
+    }
+
+    const oldIndex = orderedTags.findIndex((tag) => tag.id === activeData.tagId);
+    const newIndex = orderedTags.findIndex((tag) => tag.id === overData.tagId);
+    if (oldIndex === -1 || newIndex === -1) {
+      return;
+    }
+
+    const previousTags = orderedTags;
+    const nextTags = arrayMove(orderedTags, oldIndex, newIndex);
+    setOrderedTags(nextTags);
+    setSortBusy(true);
+    setMessage("");
+    try {
+      await api.updateTagOrder({ orderedIds: nextTags.map((tag) => tag.id) });
+      void emitDesktopSyncEvent({ type: "task-board:reload-requested" });
+      await onChanged();
+    } catch (error) {
+      setOrderedTags(previousTags);
+      setMessage(error instanceof Error ? error.message : "标签排序保存失败");
+    } finally {
+      setSortBusy(false);
+    }
+  }
+
   return (
     <>
       <Modal
@@ -803,32 +911,39 @@ function TagMaintenanceModal({ open, tags, onChanged, onClose }: TagMaintenanceM
       >
         <div className="tag-maintenance-content">
           <form className="tag-maintenance-form" onSubmit={createTag}>
-            <Input value={name} onChange={(event) => setName(event.target.value)} placeholder="输入标签名称" maxLength={40} allowClear shadow />
-            <Button className="primary-button tag-maintenance-submit" htmlType="submit" icon={<Plus size={15} />} loading={busy} type="primary">
+            <Input value={name} onChange={(event) => setName(event.target.value)} placeholder="输入标签名称" maxLength={40} allowClear shadow disabled={sortBusy} />
+            <Button className="primary-button tag-maintenance-submit" htmlType="submit" icon={<Plus size={15} />} disabled={sortBusy} loading={busy} type="primary">
               新增
             </Button>
           </form>
           {message ? <div className="inline-alert">{message}</div> : null}
-          <div className="tag-maintenance-list">
-            {tags.length === 0 ? <Card className="empty-state" type="dashed">暂无标签</Card> : null}
-            {tags.map((tag) => (
-              <div className="tag-maintenance-row" key={tag.id}>
-                {editingId === tag.id ? (
-                  <>
-                    <Input value={editingName} onChange={(event) => setEditingName(event.target.value)} maxLength={40} allowClear shadow />
-                    <Button aria-label={`保存${tag.name}`} icon={<Save size={15} />} loading={busy} size="small" type="default" onClick={() => void saveEdit(tag)} />
-                    <Button aria-label={`取消编辑${tag.name}`} icon={<X size={15} />} disabled={busy} size="small" type="text" onClick={cancelEdit} />
-                  </>
-                ) : (
-                  <>
-                    <span className="tag-maintenance-name">#{tag.name}</span>
-                    <Button aria-label={`编辑${tag.name}`} icon={<Pencil size={15} />} size="small" type="default" onClick={() => beginEdit(tag)} />
-                    <Button aria-label={`删除${tag.name}`} danger icon={<Trash2 size={15} />} size="small" type="default" onClick={() => setDeleteTarget(tag)} />
-                  </>
-                )}
+          <DndContext collisionDetection={closestCenter} sensors={tagSortSensors} onDragEnd={handleTagSortDragEnd}>
+            <SortableContext items={orderedTags.map((tag) => tag.id)} strategy={verticalListSortingStrategy}>
+              <div className="tag-maintenance-list">
+                {orderedTags.length === 0 ? <Card className="empty-state" type="dashed">暂无标签</Card> : null}
+                {orderedTags.map((tag) => {
+                  const sortDisabled = busy || deleteBusy || sortBusy || Boolean(editingId);
+                  return (
+                    <SortableTagRow disabled={sortDisabled} key={tag.id} tag={tag}>
+                      {editingId === tag.id ? (
+                        <>
+                          <Input value={editingName} onChange={(event) => setEditingName(event.target.value)} maxLength={40} allowClear shadow />
+                          <Button aria-label={`保存${tag.name}`} icon={<Save size={15} />} loading={busy} size="small" type="default" onClick={() => void saveEdit(tag)} />
+                          <Button aria-label={`取消编辑${tag.name}`} icon={<X size={15} />} disabled={busy} size="small" type="text" onClick={cancelEdit} />
+                        </>
+                      ) : (
+                        <>
+                          <span className="tag-maintenance-name">#{tag.name}</span>
+                          <Button aria-label={`编辑${tag.name}`} icon={<Pencil size={15} />} disabled={sortBusy} size="small" type="default" onClick={() => beginEdit(tag)} />
+                          <Button aria-label={`删除${tag.name}`} danger icon={<Trash2 size={15} />} disabled={sortBusy} size="small" type="default" onClick={() => setDeleteTarget(tag)} />
+                        </>
+                      )}
+                    </SortableTagRow>
+                  );
+                })}
               </div>
-            ))}
-          </div>
+            </SortableContext>
+          </DndContext>
         </div>
       </Modal>
       <ConfirmDialog

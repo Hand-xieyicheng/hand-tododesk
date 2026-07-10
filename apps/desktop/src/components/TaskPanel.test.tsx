@@ -12,6 +12,7 @@ const apiMock = vi.hoisted(() => ({
   deleteTag: vi.fn(),
   deleteTask: vi.fn(),
   taskQuadrants: vi.fn(),
+  updateTagOrder: vi.fn(),
   updateTag: vi.fn(),
   updateTask: vi.fn(),
   updateTaskOrder: vi.fn()
@@ -21,6 +22,11 @@ const dndMock = vi.hoisted(() => ({
   draggables: new Map<string, { data: unknown; disabled?: boolean }>(),
   draggableTransform: { x: 24, y: 32, scaleX: 1.4, scaleY: 2 },
   droppables: new Map<string, { data: unknown }>(),
+  contexts: [] as Array<{
+    onDragCancel?: () => void;
+    onDragEnd?: (event: { active: { id: string; data: { current: unknown } }; over: { id: string; data: { current: unknown } } | null }) => void | Promise<void>;
+    onDragStart?: (event: { active: { id: string; data: { current: unknown } } }) => void;
+  }>,
   handlers: {} as {
     onDragCancel?: () => void;
     onDragEnd?: (event: { active: { id: string; data: { current: unknown } }; over: { id: string; data: { current: unknown } } | null }) => void | Promise<void>;
@@ -32,7 +38,9 @@ vi.mock("@dnd-kit/core", async () => {
   const React = await import("react");
   return {
     DndContext: ({ children, onDragCancel, onDragEnd, onDragStart }: any) => {
-      dndMock.handlers = { onDragCancel, onDragEnd, onDragStart };
+      const handlers = { onDragCancel, onDragEnd, onDragStart };
+      dndMock.handlers = handlers;
+      dndMock.contexts.push(handlers);
       return React.createElement("div", { "data-testid": "kanban-dnd-context" }, children);
     },
     DragOverlay: ({ children }: any) => (
@@ -224,14 +232,15 @@ function renderKanbanPanel(
   displayMode: "full" | "title" = "title",
   onChanged = vi.fn(async () => undefined),
   onPanelMessageChange = vi.fn(),
-  dateFilter: TaskDateFilter = "all"
+  dateFilter: TaskDateFilter = "all",
+  panelTags = tagOptions
 ) {
   return render(
     <TaskPanel
       createOpen={false}
       taskDateFilter={dateFilter}
       showCompletedTasks={showCompletedTasks}
-      tags={tagOptions}
+      tags={panelTags}
       taskCardDisplayMode={displayMode}
       tagMaintenanceOpen={false}
       taskTagFilter="tag-2"
@@ -291,13 +300,29 @@ async function startKanbanTaskDrag(taskId: string) {
   });
 }
 
+async function dropTagOnTag(activeId: string, overId: string) {
+  const tagContext = dndMock.contexts[0];
+  const draggable = dndMock.draggables.get(activeId);
+  const droppable = dndMock.draggables.get(overId);
+  const active = { id: activeId, data: { current: draggable?.data } };
+
+  await act(async () => {
+    await tagContext?.onDragEnd?.({
+      active,
+      over: droppable ? { id: overId, data: { current: droppable.data } } : null
+    });
+  });
+}
+
 describe("TaskPanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    dndMock.contexts = [];
     dndMock.draggables.clear();
     dndMock.droppables.clear();
     dndMock.handlers = {};
     apiMock.taskQuadrants.mockResolvedValue({ quadrants: emptyQuadrants() });
+    apiMock.updateTagOrder.mockResolvedValue({ ok: true });
     apiMock.updateTaskOrder.mockResolvedValue({ ok: true });
   });
 
@@ -759,6 +784,40 @@ describe("TaskPanel", () => {
     syncEvents.stop();
   });
 
+  it("persists dragged tag order from the maintenance modal", async () => {
+    const onChanged = vi.fn(async () => undefined);
+    const syncEvents = collectDesktopSyncEvents();
+    render(
+      <TaskPanel
+        createOpen={false}
+        showCompletedTasks
+        tags={tagOptions}
+        taskCardDisplayMode="full"
+        tagMaintenanceOpen
+        taskTagFilter="__all__"
+        tasks={[]}
+        viewMode="list"
+        onChanged={onChanged}
+        onCreateOpenChange={vi.fn()}
+        onTagMaintenanceOpenChange={vi.fn()}
+      />
+    );
+
+    await dropTagOnTag("tag-1", "tag-2");
+
+    await waitFor(() => expect(apiMock.updateTagOrder).toHaveBeenCalledWith({
+      orderedIds: ["tag-2", "tag-1"]
+    }));
+    await waitFor(() => expect(onChanged).toHaveBeenCalledTimes(1));
+    await waitFor(() => {
+      const reloadEvents = syncEvents.listener.mock.calls.filter(([event]) => (
+        (event as CustomEvent).detail?.type === "task-board:reload-requested"
+      ));
+      expect(reloadEvents).toHaveLength(1);
+    });
+    syncEvents.stop();
+  });
+
   it("sorts list tasks with completed items at the bottom", () => {
     const completedOld = taskWith({
       id: "done-old",
@@ -1107,10 +1166,10 @@ describe("TaskPanel", () => {
       createdAt: "2026-06-04T00:00:00.000Z"
     });
 
-    const { container } = renderKanbanPanel([workNew, untaggedTask, lifeTask, workOld]);
+    const { container } = renderKanbanPanel([workNew, untaggedTask, lifeTask, workOld], true, "title", vi.fn(async () => undefined), vi.fn(), "all", [tagOptions[1]!, tagOptions[0]!]);
 
     const columns = [...container.querySelectorAll<HTMLElement>(".kanban-column")];
-    expect(columns.map((column) => column.querySelector("header h3")?.textContent)).toEqual(["其它", "工作", "生活"]);
+    expect(columns.map((column) => column.querySelector("header h3")?.textContent)).toEqual(["其它", "生活", "工作"]);
 
     const otherColumn = screen.getByRole("region", { name: "其它看板列" });
     const workColumn = screen.getByRole("region", { name: "工作看板列" });

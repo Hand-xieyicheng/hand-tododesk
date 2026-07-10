@@ -50,7 +50,8 @@ import {
 	  updateAiProposalRequestSchema,
 	  updateAnniversaryOrderRequestSchema,
 	  updateAnniversaryRequestSchema,
-  updateHabitRequestSchema,
+	  updateHabitRequestSchema,
+  updateTagOrderRequestSchema,
   updateTaskOrderRequestSchema,
   updateMemoRequestSchema,
   updateTagRequestSchema,
@@ -686,6 +687,14 @@ describe("task display sorting", () => {
     });
     expect(updateTaskOrderRequestSchema.safeParse({ orderedIds: [] }).success).toBe(false);
     expect(updateTaskOrderRequestSchema.safeParse({ orderedIds: ["task-1", "task-1"] }).success).toBe(false);
+  });
+
+  it("accepts manual tag order requests", () => {
+    expect(updateTagOrderRequestSchema.parse({ orderedIds: ["tag-2", "tag-1"] })).toEqual({
+      orderedIds: ["tag-2", "tag-1"]
+    });
+    expect(updateTagOrderRequestSchema.safeParse({ orderedIds: [] }).success).toBe(false);
+    expect(updateTagOrderRequestSchema.safeParse({ orderedIds: ["tag-1", "tag-1"] }).success).toBe(false);
   });
 
   it("marks only unfinished tasks with past due dates as overdue", () => {

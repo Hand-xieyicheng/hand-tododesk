@@ -2157,13 +2157,26 @@ textarea:focus-visible,
 
 .tag-maintenance-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
   align-items: center;
   gap: calc(8px * var(--app-ui-scale));
   padding: calc(8px * var(--app-ui-scale));
   border: 1px solid color-mix(in srgb, var(--color-border) 68%, transparent);
   border-radius: 13px 12px 15px 12px;
   background: var(--color-surface);
+  transition: box-shadow 160ms ease, opacity 160ms ease, transform 160ms ease;
+}
+
+.tag-maintenance-row.is-dragging {
+  position: relative;
+  z-index: 2;
+  opacity: 0.82;
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--color-primary) 24%, transparent);
+}
+
+.tag-maintenance-row.is-sort-disabled .tag-maintenance-drag-handle {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 
 .print-share-dialog {
@@ -2482,6 +2495,25 @@ textarea:focus-visible,
   font-weight: 900;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.tag-maintenance-drag-handle {
+  appearance: none;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: color-mix(in srgb, var(--color-text) 70%, var(--color-muted));
+  cursor: grab;
+  touch-action: none;
+}
+
+.tag-maintenance-drag-handle:active {
+  cursor: grabbing;
+}
+
+.tag-maintenance-drag-handle svg {
+  stroke: currentColor !important;
 }
 
 .tag-maintenance-row button {
