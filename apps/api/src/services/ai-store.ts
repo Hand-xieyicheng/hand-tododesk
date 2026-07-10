@@ -253,6 +253,30 @@ function snapshotsForActions(
   observedRecords: ReadonlyMap<string, ObservedRecord>
 ) {
   return actions.map((action) => {
+    if (
+      action.objectType === "HABIT_CHECKIN" &&
+      action.actionType === "CANCEL_CHECK_IN"
+    ) {
+      const habit = observedRecords.get(observedKey("HABIT", action.targetId));
+      const checkInId = [action.targetId, action.input.date].join(":");
+      const checkIn = observedRecords.get(observedKey("HABIT_CHECKIN", checkInId));
+      if (!habit || !checkIn) {
+        throw new AiStoreConflictError(
+          "INVALID_STATE",
+          "Proposal target was not observed"
+        );
+      }
+      return {
+        objectType: "HABIT_CHECKIN",
+        id: checkInId,
+        updatedAt: checkIn.updatedAt,
+        date: action.input.date,
+        habitUpdatedAt: habit.updatedAt,
+        checkInUpdatedAt: checkIn.updatedAt,
+        habitSnapshot: habit.snapshot,
+        checkInSnapshot: checkIn.snapshot
+      };
+    }
     const key = targetObservedKey(action);
     if (!key) {
       return null;
@@ -555,6 +579,39 @@ function createStore(): AiStore {
       const observed = new Map<string, ObservedRecord>();
       for (const item of current.items) {
         const snapshot = item.targetSnapshot;
+        if (
+          item.objectType === "HABIT_CHECKIN" &&
+          item.actionType === "CANCEL_CHECK_IN" &&
+          snapshot
+        ) {
+          const habitSnapshot = snapshot.habitSnapshot;
+          const checkInSnapshot = snapshot.checkInSnapshot;
+          if (
+            typeof habitSnapshot === "object" &&
+            habitSnapshot !== null &&
+            typeof checkInSnapshot === "object" &&
+            checkInSnapshot !== null &&
+            typeof snapshot.habitUpdatedAt === "string" &&
+            typeof snapshot.checkInUpdatedAt === "string" &&
+            item.targetId &&
+            typeof snapshot.date === "string"
+          ) {
+            observed.set(observedKey("HABIT", item.targetId), {
+              objectType: "HABIT",
+              id: item.targetId,
+              updatedAt: snapshot.habitUpdatedAt,
+              snapshot: habitSnapshot as Record<string, unknown>
+            });
+            const checkInId = [item.targetId, snapshot.date].join(":");
+            observed.set(observedKey("HABIT_CHECKIN", checkInId), {
+              objectType: "HABIT_CHECKIN",
+              id: checkInId,
+              updatedAt: snapshot.checkInUpdatedAt,
+              snapshot: checkInSnapshot as Record<string, unknown>
+            });
+            continue;
+          }
+        }
         const objectType = snapshot?.objectType;
         const recordId = snapshot?.id;
         if (
