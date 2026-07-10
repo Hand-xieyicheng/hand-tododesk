@@ -19,3 +19,4 @@ apps/api/.tmp/
 apps/api/public/avatar/
 apps/api/public/memo-assets/
 .worktrees/
+.superpowers
