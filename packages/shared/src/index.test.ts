@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  aiActionSchema,
+  aiModelResultSchema,
   anniversaryCardStyleValues,
   anniversaryCategoryValues,
   anniversaryDirectionValues,
@@ -9,6 +11,7 @@ import {
   calculateAnniversaryDisplay,
   changeEmailRequestSchema,
   changePasswordRequestSchema,
+  confirmAiProposalRequestSchema,
   createAnniversaryRequestSchema,
   createHabitRequestSchema,
 	  createMemoRequestSchema,
@@ -40,13 +43,14 @@ import {
   taskMatchesDateFilter,
   solarDateToLunarParts,
 	  taskCardDisplayModeValues,
-	  taskViewModeValues,
+  taskViewModeValues,
 	  themeIdValues,
 	  titleColorValues,
   resolveBuiltInAnniversaryTemplate,
+	  updateAiProposalRequestSchema,
 	  updateAnniversaryOrderRequestSchema,
 	  updateAnniversaryRequestSchema,
-	  updateHabitRequestSchema,
+  updateHabitRequestSchema,
   updateTaskOrderRequestSchema,
   updateMemoRequestSchema,
   updateTagRequestSchema,
@@ -259,6 +263,95 @@ describe("print share schemas", () => {
   });
 });
 
+describe("AI assistant contracts", () => {
+  it("parses answers, clarifications, batch proposals, edits, and confirmations", () => {
+    expect(aiModelResultSchema.parse({
+      type: "answer",
+      text: "你今天有一个待办",
+      records: [{ objectType: "TASK", id: "task-1" }]
+    })).toMatchObject({ type: "answer", records: [{ id: "task-1" }] });
+
+    expect(aiModelResultSchema.parse({
+      type: "clarification",
+      prompt: "你指的是哪一个阅读习惯？",
+      candidates: [
+        { objectType: "HABIT", id: "habit-1", label: "阅读" },
+        { objectType: "HABIT", id: "habit-2", label: "英文阅读" }
+      ]
+    }).candidates).toHaveLength(2);
+
+    const proposal = aiModelResultSchema.parse({
+      type: "proposal",
+      summary: "创建两个待办",
+      actions: [
+        {
+          clientId: "action-1",
+          objectType: "TASK",
+          actionType: "CREATE",
+          targetId: null,
+          input: {
+            title: "买咖啡豆",
+            startAt: null,
+            dueAt: "2026-07-11T06:00:00.000Z",
+            priority: "IMPORTANT_NOT_URGENT",
+            status: "TODO",
+            recurrenceRule: null,
+            tagId: null
+          }
+        },
+        {
+          clientId: "action-2",
+          objectType: "HABIT_CHECKIN",
+          actionType: "CHECK_IN",
+          targetId: "habit-1",
+          input: { date: "2026-07-10", note: "今天喝咖啡了" }
+        }
+      ]
+    });
+    expect(proposal.type).toBe("proposal");
+    if (proposal.type === "proposal") {
+      expect(proposal.actions).toHaveLength(2);
+    }
+
+    expect(updateAiProposalRequestSchema.parse({
+      version: 2,
+      actions: [{
+        clientId: "action-1",
+        objectType: "TASK",
+        actionType: "UPDATE",
+        targetId: "task-1",
+        input: { title: "买两包咖啡豆" }
+      }]
+    }).version).toBe(2);
+
+    expect(confirmAiProposalRequestSchema.parse({
+      version: 3,
+      idempotencyKey: "86b5957a-3d25-4d74-8b4f-cd49566baf2f"
+    })).toEqual({
+      version: 3,
+      idempotencyKey: "86b5957a-3d25-4d74-8b4f-cd49566baf2f"
+    });
+  });
+
+  it("requires targets for updates and forbids targets for creates", () => {
+    expect(aiActionSchema.safeParse({
+      clientId: "bad-update",
+      objectType: "TASK",
+      actionType: "UPDATE",
+      targetId: null,
+      input: { title: "缺少目标" }
+    }).success).toBe(false);
+
+    expect(aiActionSchema.safeParse({
+      clientId: "bad-create",
+      objectType: "TASK",
+      actionType: "CREATE",
+      targetId: "task-1",
+      input: { title: "不应有目标" }
+    }).success).toBe(false);
+  });
+});
+
 describe("app bootstrap schema", () => {
   it("accepts stable desktop version metadata and feature flags", () => {
     expect(releaseChannelValues).toEqual(["stable"]);
@@ -268,7 +361,8 @@ describe("app bootstrap schema", () => {
       taskQuadrant: true,
       floatingCard: true,
       anniversaries: true,
-      habits: true
+      habits: true,
+      aiAssistant: true
     });
 
     expect(appBootstrapResponseSchema.parse({
@@ -285,7 +379,8 @@ describe("app bootstrap schema", () => {
         taskQuadrant: true,
         floatingCard: true,
         anniversaries: true,
-        habits: true
+        habits: true,
+        aiAssistant: true
       }
     }).featureFlags.pomodoro).toBe(false);
   });
