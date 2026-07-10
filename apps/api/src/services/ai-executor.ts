@@ -26,7 +26,7 @@ import {
   getHabitDetail,
   updateHabit
 } from "./habit-domain.js";
-import { aiStore, type AiStore } from "./ai-store.js";
+import { AiStoreConflictError, aiStore, type AiStore } from "./ai-store.js";
 import {
   createTask,
   deleteTask,
@@ -76,6 +76,7 @@ export interface ConfirmAiActionsInput {
 export interface RetryFailedAiActionsInput {
   userId: string;
   proposalId: string;
+  expectedVersion?: number;
   idempotencyKey: string;
   now: Date;
 }
@@ -403,12 +404,30 @@ export class AiActionExecutor {
   async retryFailed(
     input: RetryFailedAiActionsInput
   ): Promise<AiActionExecutionResult> {
+    if (input.expectedVersion !== undefined) {
+      const current = await this.options.store.getProposal(
+        input.userId,
+        input.proposalId
+      );
+      if (!current) {
+        throw new AiStoreConflictError("NOT_FOUND", "AI proposal not found");
+      }
+      if (current.version !== input.expectedVersion) {
+        throw new AiStoreConflictError(
+          "VERSION_CONFLICT",
+          "AI proposal version changed"
+        );
+      }
+    }
     const reset = await this.options.store.resetFailedItemsForRetry(
       input.userId,
       input.proposalId
     );
     return this.confirm({
-      ...input,
+      userId: input.userId,
+      proposalId: input.proposalId,
+      idempotencyKey: input.idempotencyKey,
+      now: input.now,
       expectedVersion: reset.version
     });
   }
