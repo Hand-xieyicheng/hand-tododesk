@@ -169,4 +169,28 @@ describe("AiProposalCard", () => {
     expect(screen.queryByRole("button", { name: "保存修改" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "确认执行" })).not.toBeInTheDocument();
   });
+
+  it("preserves local edits when the parent rerenders the same proposal revision", () => {
+    const onChanged = vi.fn();
+    const onDomainsChanged = vi.fn();
+    const { rerender } = render(
+      <AiProposalCard
+        proposal={proposal()}
+        onChanged={onChanged}
+        onDomainsChanged={onDomainsChanged}
+      />
+    );
+    const title = screen.getByLabelText("待办标题");
+    fireEvent.change(title, { target: { value: "买两包咖啡豆" } });
+
+    rerender(
+      <AiProposalCard
+        proposal={proposal()}
+        onChanged={onChanged}
+        onDomainsChanged={onDomainsChanged}
+      />
+    );
+
+    expect(title).toHaveValue("买两包咖啡豆");
+  });
 });

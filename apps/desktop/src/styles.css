@@ -74,6 +74,7 @@
   --app-scrollbar-thumb-hover: color-mix(in srgb, var(--color-primary) 68%, var(--color-accent));
   --app-scrollbar-thumb-ring: color-mix(in srgb, var(--color-surface) 48%, transparent);
   --app-modal-z-index: 5000;
+  --app-ai-assistant-z-index: calc(var(--app-modal-z-index) + 100);
   --app-ui-scale: 0.84;
   --app-sidebar-width: calc(250px * var(--app-ui-scale));
   --app-sidebar-collapsed-width: calc(72px * var(--app-ui-scale));
@@ -233,6 +234,11 @@ textarea:focus-visible,
 
 [class*="animal-mask"] {
   z-index: var(--app-modal-z-index) !important;
+}
+
+[class*="animal-mask"]:has(.ai-session-rename-dialog),
+[class*="animal-mask"]:has(.ai-session-delete-dialog) {
+  z-index: calc(var(--app-ai-assistant-z-index) + 10) !important;
 }
 
 .public-print-page {
@@ -2061,6 +2067,7 @@ textarea:focus-visible,
 .tag-maintenance-modal [class*="animal-modalClipped"],
 .print-share-modal [class*="animal-modalClipped"],
 .profile-security-dialog [class*="animal-modalClipped"],
+.ai-session-rename-dialog [class*="animal-modalClipped"],
 .confirm-dialog [class*="animal-modalClipped"] {
   position: relative;
   overflow: visible;
@@ -2076,6 +2083,7 @@ textarea:focus-visible,
 .tag-maintenance-modal [class*="animal-modalClipped"]::before,
 .print-share-modal [class*="animal-modalClipped"]::before,
 .profile-security-dialog [class*="animal-modalClipped"]::before,
+.ai-session-rename-dialog [class*="animal-modalClipped"]::before,
 .confirm-dialog [class*="animal-modalClipped"]::before {
   position: absolute;
   inset: 0;
@@ -2093,6 +2101,7 @@ textarea:focus-visible,
 .tag-maintenance-modal [class*="animal-body"],
 .print-share-modal [class*="animal-body"],
 .profile-security-dialog [class*="animal-body"],
+.ai-session-rename-dialog [class*="animal-body"],
 .confirm-dialog [class*="animal-body"] {
   width: 100%;
   overflow: visible;
@@ -9634,7 +9643,7 @@ body .primary-button[class*="animal-btn"] {
   position: fixed;
   right: 24px;
   bottom: 24px;
-  z-index: 80;
+  z-index: var(--app-ai-assistant-z-index);
 }
 
 .ai-assistant button,
@@ -9649,6 +9658,9 @@ body .primary-button[class*="animal-btn"] {
 }
 
 .ai-assistant-trigger {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
   display: grid;
   width: 48px;
   height: 48px;
@@ -9660,7 +9672,20 @@ body .primary-button[class*="animal-btn"] {
   color: var(--color-on-primary) !important;
   box-shadow: 0 5px 0 var(--color-active-nav-shadow), 0 14px 30px color-mix(in srgb, var(--color-shadow) 82%, transparent);
   cursor: pointer;
+  touch-action: none;
+  user-select: none;
   transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.ai-assistant-trigger.is-positioned {
+  right: auto;
+  bottom: auto;
+  transition: left 180ms ease-out, top 180ms ease-out, transform 160ms ease, box-shadow 160ms ease;
+}
+
+.ai-assistant-trigger.is-dragging {
+  cursor: grabbing;
+  transition: none;
 }
 
 .ai-assistant-trigger:hover {
@@ -9671,6 +9696,11 @@ body .primary-button[class*="animal-btn"] {
 .ai-assistant-trigger:active {
   transform: translateY(2px);
   box-shadow: 0 2px 0 var(--color-active-nav-shadow), 0 8px 20px var(--color-shadow);
+}
+
+.ai-assistant-trigger.is-dragging:hover,
+.ai-assistant-trigger.is-dragging:active {
+  transform: none;
 }
 
 .ai-assistant-panel {
@@ -9687,6 +9717,12 @@ body .primary-button[class*="animal-btn"] {
   background: color-mix(in srgb, var(--color-surface) 97%, var(--color-background));
   box-shadow: 0 24px 64px color-mix(in srgb, var(--color-shadow) 92%, transparent), 0 6px 18px var(--color-soft-shadow);
   animation: ai-assistant-enter 180ms ease-out both;
+}
+
+.ai-assistant-panel.is-positioned {
+  position: fixed;
+  right: auto;
+  bottom: auto;
 }
 
 .ai-assistant-panel:has(.ai-session-rail.is-expanded) {
@@ -9808,16 +9844,40 @@ body .primary-button[class*="animal-btn"] {
 .ai-assistant-header {
   display: flex;
   grid-row: 1;
-  min-height: 50px;
   align-items: center;
   justify-content: space-between;
   padding: 8px 16px;
   border-bottom: 1px solid color-mix(in srgb, var(--color-border) 44%, transparent);
+  cursor: move;
+  touch-action: none;
+  user-select: none;
+}
+
+.ai-assistant-panel.is-dragging .ai-assistant-header {
+  cursor: grabbing;
 }
 
 .ai-assistant-header > div {
   display: grid;
   gap: 1px;
+}
+
+.ai-assistant-close {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--color-muted) !important;
+  cursor: pointer;
+}
+
+.ai-assistant-close:hover {
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+  color: var(--color-text) !important;
 }
 
 .ai-assistant-header span,
@@ -9978,10 +10038,55 @@ body .primary-button[class*="animal-btn"] {
 }
 
 .ai-composer textarea {
-  min-height: 52px;
-  max-height: 110px;
+  min-height: 78px;
+  max-height: 140px;
   resize: vertical;
   padding: 8px 10px;
+}
+
+.ai-session-rename-content {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 18px;
+}
+
+.ai-session-rename-content label {
+  display: grid;
+  gap: 8px;
+  color: var(--color-muted);
+  font-size: 13px;
+}
+
+.ai-session-rename-content input {
+  width: 100%;
+  min-height: 42px;
+  padding: 8px 11px;
+  border: 1px solid color-mix(in srgb, var(--color-border) 72%, transparent);
+  border-radius: 10px;
+  outline: none;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+}
+
+.ai-session-rename-content input:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 16%, transparent);
+}
+
+.ai-session-rename-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.ai-session-rename-actions button {
+  min-height: calc(36px * var(--app-ui-scale)) !important;
+  padding: 0 calc(18px * var(--app-ui-scale)) !important;
+  border-radius: 999px !important;
+  font-size: calc(13px * var(--app-ui-scale)) !important;
+  font-weight: 900 !important;
 }
 
 .ai-composer textarea:focus,
@@ -10166,6 +10271,11 @@ body .primary-button[class*="animal-btn"] {
 
   .ai-assistant-panel:has(.ai-session-rail.is-expanded) {
     grid-template-columns: 150px minmax(0, 1fr);
+  }
+
+  .ai-assistant-trigger {
+    right: 12px;
+    bottom: 12px;
   }
 }
 

@@ -3,6 +3,7 @@ import type { ApiAiProposal } from "@todo/shared";
 import {
   removeAction,
   replaceAction,
+  toEditableProposal,
   toUpdateAiProposalRequest
 } from "./proposalDraft";
 
@@ -70,6 +71,53 @@ describe("proposal draft helpers", () => {
         actionType: "CREATE",
         targetId: null,
         input: expect.objectContaining({ title: "原始标题" })
+    });
+  });
+
+  it("fills every editable task field from the target snapshot before applying update overrides", () => {
+    const editable = toEditableProposal({
+      ...proposal,
+      items: [{
+        ...proposal.items[0]!,
+        actionType: "UPDATE",
+        targetId: "task-1",
+        input: { status: "COMPLETED" },
+        targetSnapshot: {
+          id: "task-1",
+          title: "修复执行日志乱码",
+          notes: "需要兼容历史日志",
+          startAt: "2026-07-10T01:00:00.000Z",
+          dueAt: "2026-07-11T09:00:00.000Z",
+          priority: "IMPORTANT_URGENT",
+          status: "TODO",
+          tags: [{ id: "tag-1", name: "工作" }],
+          recurrenceRule: {
+            frequency: "WEEKLY",
+            interval: 1,
+            until: null,
+            count: null,
+            byWeekday: ["FR"]
+          },
+          updatedAt: "2026-07-10T00:00:00.000Z"
+        }
+      }]
+    });
+
+    expect(editable.items[0]?.input).toEqual({
+      title: "修复执行日志乱码",
+      notes: "需要兼容历史日志",
+      startAt: "2026-07-10T01:00:00.000Z",
+      dueAt: "2026-07-11T09:00:00.000Z",
+      priority: "IMPORTANT_URGENT",
+      status: "COMPLETED",
+      tagId: "tag-1",
+      recurrenceRule: {
+        frequency: "WEEKLY",
+        interval: 1,
+        until: null,
+        count: null,
+        byWeekday: ["FR"]
+      }
     });
   });
 });

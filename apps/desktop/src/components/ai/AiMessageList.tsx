@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import type { AiChangedDomain, AiObjectType, ApiAiMessage, ApiAiProposal } from "@todo/shared";
 import { AiProposalCard } from "./AiProposalCard";
 
@@ -23,12 +24,42 @@ function recordTitle(record: QueryRecord) {
       : record.id;
 }
 
+function useElapsedSeconds(active: boolean) {
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+
+  useEffect(() => {
+    if (!active) {
+      setElapsedSeconds(0);
+      return;
+    }
+    const startedAt = Date.now();
+    setElapsedSeconds(0);
+    const interval = window.setInterval(() => {
+      setElapsedSeconds(Math.floor((Date.now() - startedAt) / 1000));
+    }, 1_000);
+    return () => window.clearInterval(interval);
+  }, [active]);
+
+  return elapsedSeconds;
+}
+
+function thinkingLabel(elapsedSeconds: number) {
+  const minutes = Math.floor(elapsedSeconds / 60);
+  const seconds = elapsedSeconds % 60;
+  const duration = minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+  return `思考中(${duration})...`;
+}
+
 export function AiMessageList({
   messages,
   thinking = false,
   onDomainsChanged,
   onProposalChanged
 }: AiMessageListProps) {
+  const lastMessage = messages[messages.length - 1];
+  const thinkingForLastUser = thinking && lastMessage?.role === "USER";
+  const elapsedSeconds = useElapsedSeconds(thinkingForLastUser);
+
   if (messages.length === 0) {
     return (
       <div className="ai-message-empty">
@@ -46,8 +77,8 @@ export function AiMessageList({
           key={message.id}
         >
           <p>{message.content}</p>
-          {thinking && index === messages.length - 1 && message.role === "USER" ? (
-            <small className="ai-message-thinking" role="status">思考中…</small>
+          {thinkingForLastUser && index === messages.length - 1 ? (
+            <small className="ai-message-thinking" role="status">{thinkingLabel(elapsedSeconds)}</small>
           ) : null}
           {message.kind === "QUERY_RESULT" && message.metadata?.records ? (
             <div className="ai-query-records">

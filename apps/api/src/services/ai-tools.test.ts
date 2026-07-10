@@ -137,7 +137,12 @@ describe("read-only AI tools", () => {
 
     expect(context.taskDomain.listTasks).toHaveBeenCalledWith("user-1");
     expect(result.records).toEqual([
-      expect.objectContaining({ objectType: "TASK", id: "task-1", title: "交周报" })
+      expect.objectContaining({
+        objectType: "TASK",
+        id: "task-1",
+        title: "交周报",
+        tagId: null
+      })
     ]);
     expect(context.observed.get("TASK", "task-1")?.updatedAt).toBe(task.updatedAt);
   });
@@ -183,7 +188,11 @@ describe("read-only AI tools", () => {
 
     expect(context.anniversaryDomain.listAnniversaries).toHaveBeenCalledWith("user-1");
     expect(anniversaryResult.records).toEqual([
-      expect.objectContaining({ objectType: "ANNIVERSARY", id: "anniversary-1" })
+      expect.objectContaining({
+        objectType: "ANNIVERSARY",
+        id: "anniversary-1",
+        cardStyle: "lavender"
+      })
     ]);
     expect(context.habitDomain.listHabits).toHaveBeenCalledWith("user-1", false);
     expect(habitResult.records).toHaveLength(50);

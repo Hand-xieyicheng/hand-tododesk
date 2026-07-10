@@ -9,12 +9,14 @@ const suggestions = [
 
 export interface AiComposerProps {
   disabled: boolean;
+  sendDisabled?: boolean;
   showSuggestions?: boolean;
   onSend(content: string): Promise<void> | void;
 }
 
 export function AiComposer({
   disabled,
+  sendDisabled = false,
   showSuggestions = false,
   onSend
 }: AiComposerProps) {
@@ -22,7 +24,7 @@ export function AiComposer({
 
   function submit() {
     const content = draft.trim();
-    if (!content || disabled) {
+    if (!content || disabled || sendDisabled) {
       return;
     }
     setDraft("");
@@ -57,22 +59,21 @@ export function AiComposer({
           aria-label="给 AI 助手发送消息"
           disabled={disabled}
           maxLength={4000}
-          placeholder="输入待办、纪念日或打卡记录…"
-          rows={2}
+          placeholder={"输入待办、纪念日或打卡记录…\nEnter 发送 · Shift+Enter 换行"}
+          rows={3}
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
           onKeyDown={handleKeyDown}
         />
         <button
           aria-label="发送消息"
-          disabled={disabled || !draft.trim()}
+          disabled={disabled || sendDisabled || !draft.trim()}
           type="button"
           onClick={submit}
         >
           <Send aria-hidden="true" size={17} />
         </button>
       </div>
-      <small>Enter 发送 · Shift+Enter 换行</small>
     </div>
   );
 }

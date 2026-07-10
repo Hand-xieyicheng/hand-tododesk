@@ -3,6 +3,7 @@ import { Button, Modal } from "animal-island-ui";
 
 interface ConfirmDialogProps {
   cancelText?: string;
+  className?: string;
   confirmText?: string;
   danger?: boolean;
   description?: ReactNode;
@@ -15,6 +16,7 @@ interface ConfirmDialogProps {
 
 export function ConfirmDialog({
   cancelText = "取消",
+  className,
   confirmText = "确认",
   danger = false,
   description,
@@ -32,7 +34,7 @@ export function ConfirmDialog({
 
   return (
     <Modal
-      className="confirm-dialog"
+      className={["confirm-dialog", className].filter(Boolean).join(" ")}
       open={open}
       title={title}
       width={420}

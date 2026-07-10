@@ -9,6 +9,7 @@ import { AiActionEditor } from "./AiActionEditor";
 import {
   removeAction,
   replaceAction,
+  toEditableProposal,
   toUpdateAiProposalRequest
 } from "./proposalDraft";
 
@@ -47,15 +48,26 @@ export function AiProposalCard({
   onChanged,
   onDomainsChanged
 }: AiProposalCardProps) {
-  const [draft, setDraft] = useState(proposal);
+  const [draft, setDraft] = useState(() => toEditableProposal(proposal));
+  const proposalRevision = [
+    proposal.id,
+    proposal.version,
+    proposal.status,
+    proposal.updatedAt
+  ].join(":");
+  const proposalRevisionRef = useRef(proposalRevision);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const busyRef = useRef(false);
   const idempotencyKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
-    setDraft(proposal);
-  }, [proposal]);
+    if (proposalRevisionRef.current === proposalRevision) {
+      return;
+    }
+    proposalRevisionRef.current = proposalRevision;
+    setDraft(toEditableProposal(proposal));
+  }, [proposal, proposalRevision]);
 
   async function runBusy(name: string, operation: () => Promise<void>) {
     if (busyRef.current) return;

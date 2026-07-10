@@ -332,6 +332,7 @@ async function searchTasks(
       priority: task.priority,
       status: task.status,
       tags: task.tags,
+      tagId: task.tags[0]?.id ?? null,
       recurrenceRule: task.recurrenceRule,
       updatedAt: task.updatedAt
     }));
@@ -365,6 +366,7 @@ async function searchAnniversaries(
       date: event.date,
       repeat: event.repeat,
       direction: event.direction,
+      cardStyle: event.cardStyle,
       calendarType: event.calendarType,
       lunarMonth: event.lunarMonth,
       lunarDay: event.lunarDay,
