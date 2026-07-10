@@ -9900,6 +9900,14 @@ body .primary-button[class*="animal-btn"] {
   background: color-mix(in srgb, var(--color-primary) 18%, var(--color-surface));
 }
 
+.ai-message-thinking {
+  display: block;
+  margin: 5px 8px 0;
+  color: var(--color-muted);
+  font-size: 11px;
+  text-align: right;
+}
+
 .ai-query-records,
 .ai-clarification-candidates {
   display: grid;

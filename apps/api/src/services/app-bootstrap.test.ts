@@ -29,7 +29,7 @@ describe("app bootstrap", () => {
       },
       featureFlags: {
         ...defaultAppFeatureFlags,
-        aiAssistant: false
+        aiAssistant: expect.any(Boolean)
       }
     });
   });

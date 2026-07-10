@@ -18,7 +18,10 @@ import type {
   DeepSeekClient,
   DeepSeekCompletionRequest
 } from "./deepseek-client.js";
-import { buildAiSystemPrompt } from "./ai-prompt.js";
+import {
+  AI_STRUCTURED_OUTPUT_CONTRACT,
+  buildAiSystemPrompt
+} from "./ai-prompt.js";
 
 export interface ProcessAiMessageResult {
   userMessage: ApiAiMessage;
@@ -122,7 +125,11 @@ async function parseModelResultWithOneRepair(
       messages: [
         {
           role: "system",
-          content: "Repair the invalid todoDesk assistant output. Return only one JSON object matching answer, clarification, or proposal. Do not call tools."
+          content: [
+            "Repair the invalid todoDesk assistant output.",
+            AI_STRUCTURED_OUTPUT_CONTRACT,
+            "Use the validation error to correct the output. Return only the corrected JSON object. Do not call tools."
+          ].join("\n")
         },
         {
           role: "user",

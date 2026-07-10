@@ -117,6 +117,14 @@ describe("read-only AI tools", () => {
     expect(JSON.stringify(AI_READ_TOOL_DEFINITIONS)).not.toContain("userId");
   });
 
+  it("advertises task search bounds as date or date-time strings", () => {
+    const taskTool = AI_READ_TOOL_DEFINITIONS.find((tool) => tool.function.name === "search_tasks");
+    const serialized = JSON.stringify(taskTool);
+
+    expect(serialized).toContain('"format":"date"');
+    expect(serialized).toContain('"format":"date-time"');
+  });
+
   it("searches tasks through the authenticated context and observes results", async () => {
     const context = createContext();
     const result = await executeAiReadTool("search_tasks", JSON.stringify({
@@ -132,6 +140,22 @@ describe("read-only AI tools", () => {
       expect.objectContaining({ objectType: "TASK", id: "task-1", title: "交周报" })
     ]);
     expect(context.observed.get("TASK", "task-1")?.updatedAt).toBe(task.updatedAt);
+  });
+
+  it("treats date-only task search bounds as a full Beijing calendar day", async () => {
+    const context = createContext();
+
+    const result = await executeAiReadTool("search_tasks", JSON.stringify({
+      query: "",
+      statuses: ["TODO"],
+      from: "2026-07-10",
+      to: "2026-07-10",
+      limit: 10
+    }), context);
+
+    expect(result.records).toEqual([
+      expect.objectContaining({ objectType: "TASK", id: "task-1" })
+    ]);
   });
 
   it("filters anniversaries and habits and caps returned records at 50", async () => {
@@ -201,6 +225,18 @@ describe("read-only AI tools", () => {
 
   it("rejects invalid JSON arguments", async () => {
     await expect(executeAiReadTool("search_tasks", "{invalid", createContext())).rejects.toMatchObject({
+      code: "INVALID_ARGUMENTS"
+    });
+  });
+
+  it("rejects invalid task search calendar dates as invalid arguments", async () => {
+    await expect(executeAiReadTool("search_tasks", JSON.stringify({
+      query: "",
+      statuses: [],
+      from: "2026-13-40",
+      to: null,
+      limit: 10
+    }), createContext())).rejects.toMatchObject({
       code: "INVALID_ARGUMENTS"
     });
   });

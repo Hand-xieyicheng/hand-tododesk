@@ -3,6 +3,7 @@ import { AiProposalCard } from "./AiProposalCard";
 
 export interface AiMessageListProps {
   messages: ApiAiMessage[];
+  thinking?: boolean;
   onDomainsChanged(domains: AiChangedDomain[]): void | Promise<void>;
   onProposalChanged(messageId: string, proposal: ApiAiProposal): void;
 }
@@ -24,6 +25,7 @@ function recordTitle(record: QueryRecord) {
 
 export function AiMessageList({
   messages,
+  thinking = false,
   onDomainsChanged,
   onProposalChanged
 }: AiMessageListProps) {
@@ -38,12 +40,15 @@ export function AiMessageList({
 
   return (
     <div aria-live="polite" className="ai-message-list">
-      {messages.map((message) => (
+      {messages.map((message, index) => (
         <article
           className={`ai-message is-${message.role.toLowerCase()}`}
           key={message.id}
         >
           <p>{message.content}</p>
+          {thinking && index === messages.length - 1 && message.role === "USER" ? (
+            <small className="ai-message-thinking" role="status">思考中…</small>
+          ) : null}
           {message.kind === "QUERY_RESULT" && message.metadata?.records ? (
             <div className="ai-query-records">
               {message.metadata.records.map((record) => (

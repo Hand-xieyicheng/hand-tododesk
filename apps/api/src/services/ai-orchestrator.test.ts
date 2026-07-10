@@ -137,6 +137,35 @@ describe("AI prompt", () => {
     expect(prompt).toContain("return type=proposal");
     expect(prompt).toContain("confirm");
   });
+
+  it("includes canonical examples for every supported action kind", () => {
+    const prompt = buildAiSystemPrompt(now);
+    const actionKinds = [
+      "TASK CREATE",
+      "TASK UPDATE",
+      "TASK DELETE",
+      "ANNIVERSARY CREATE",
+      "ANNIVERSARY UPDATE",
+      "ANNIVERSARY DELETE",
+      "HABIT CREATE",
+      "HABIT UPDATE",
+      "HABIT DELETE",
+      "HABIT ARCHIVE",
+      "HABIT RESTORE",
+      "HABIT_CHECKIN CHECK_IN",
+      "HABIT_CHECKIN CANCEL_CHECK_IN"
+    ];
+
+    for (const actionKind of actionKinds) {
+      expect(prompt).toContain(`${actionKind}: {`);
+    }
+    expect(prompt).toContain('"clientId"');
+    expect(prompt).toContain('"objectType"');
+    expect(prompt).toContain('"actionType"');
+    expect(prompt).toContain('"targetId"');
+    expect(prompt).toContain('"input"');
+    expect(prompt).toContain("Never use action/taskId/data");
+  });
 });
 
 describe("AI orchestrator", () => {
@@ -332,6 +361,70 @@ describe("AI orchestrator", () => {
       assistantMessage: { content: "已修复" }
     });
     expect(harness.deepSeek.complete).toHaveBeenCalledTimes(2);
+  });
+
+  it("repairs generic action/taskId/data proposals using the canonical action contract", async () => {
+    const harness = createHarness();
+    harness.deepSeek.complete
+      .mockResolvedValueOnce({
+        role: "assistant",
+        content: null,
+        toolCalls: [{
+          id: "tool-1",
+          type: "function",
+          function: {
+            name: "search_tasks",
+            arguments: JSON.stringify({
+              query: "周报",
+              statuses: ["TODO"],
+              from: null,
+              to: null,
+              limit: 5
+            })
+          }
+        }]
+      })
+      .mockResolvedValueOnce({
+        role: "assistant",
+        content: JSON.stringify({
+          type: "proposal",
+          summary: "将周报标记为已完成",
+          actions: [{
+            action: "update",
+            taskId: "task-1",
+            data: { status: "COMPLETED" }
+          }]
+        }),
+        toolCalls: []
+      })
+      .mockResolvedValueOnce({
+        role: "assistant",
+        content: JSON.stringify({
+          type: "proposal",
+          summary: "将周报标记为已完成",
+          actions: [{
+            clientId: "task-update-1",
+            objectType: "TASK",
+            actionType: "UPDATE",
+            targetId: "task-1",
+            input: { status: "COMPLETED" }
+          }]
+        }),
+        toolCalls: []
+      });
+
+    const result = await harness.orchestrator.processUserMessage(
+      "user-1",
+      "session-1",
+      "这个我已经完成了"
+    );
+
+    const repairRequest = harness.deepSeek.complete.mock.calls[2]?.[0];
+    expect(repairRequest?.messages[0]?.content).toContain("TASK UPDATE: {");
+    expect(repairRequest?.messages[0]?.content).toContain("HABIT_CHECKIN CANCEL_CHECK_IN: {");
+    expect(repairRequest?.messages[0]?.content).toContain("Never use action/taskId/data");
+    expect(result.assistantMessage.kind).toBe("PROPOSAL");
+    expect(harness.store.createProposal).toHaveBeenCalledOnce();
   });
 
   it("stops after four tool rounds", async () => {

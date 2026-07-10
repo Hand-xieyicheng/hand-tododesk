@@ -17,6 +17,7 @@ import {
   AiOrchestrator,
   AiOrchestratorError
 } from "../services/ai-orchestrator.js";
+import { AiToolError } from "../services/ai-tools.js";
 import {
   AiStoreConflictError,
   aiStore,
@@ -64,6 +65,9 @@ function statusForAiError(error: unknown) {
   if (error instanceof AiOrchestratorError) {
     return error.code === "TOOL_LIMIT" ? 502 : 422;
   }
+  if (error instanceof AiToolError) {
+    return 422;
+  }
   return null;
 }
 
@@ -71,7 +75,8 @@ function safeAiErrorMessage(error: unknown) {
   if (
     error instanceof AiStoreConflictError ||
     error instanceof DeepSeekClientError ||
-    error instanceof AiOrchestratorError
+    error instanceof AiOrchestratorError ||
+    error instanceof AiToolError
   ) {
     return error.message;
   }

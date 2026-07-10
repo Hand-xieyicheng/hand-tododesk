@@ -13,14 +13,40 @@ import { getHabitDetail, listHabits } from "./habit-domain.js";
 import { listTasks } from "./task-domain.js";
 
 const dateKeySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+const taskSearchDateKeySchema = dateKeySchema.refine((value) => {
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+});
+const taskSearchBoundarySchema = z.union([
+  taskSearchDateKeySchema,
+  z.string().datetime({ offset: true })
+]);
+
+function normalizeTaskSearchBoundary(
+  value: string | null,
+  edge: "start" | "end"
+) {
+  if (!value) {
+    return null;
+  }
+  if (dateKeySchema.safeParse(value).success) {
+    const time = edge === "start" ? "00:00:00.000" : "23:59:59.999";
+    return new Date(`${value}T${time}+08:00`).toISOString();
+  }
+  return new Date(value).toISOString();
+}
 
 const searchTasksArgsSchema = z.object({
   query: z.string().trim().max(160),
   statuses: z.array(z.enum(taskStatusValues)).max(taskStatusValues.length),
-  from: z.string().datetime().nullable(),
-  to: z.string().datetime().nullable(),
+  from: taskSearchBoundarySchema.nullable(),
+  to: taskSearchBoundarySchema.nullable(),
   limit: z.number().int().min(1).max(50)
-}).strict().refine((value) => !value.from || !value.to || value.from <= value.to, {
+}).strict().transform((value) => ({
+  ...value,
+  from: normalizeTaskSearchBoundary(value.from, "start"),
+  to: normalizeTaskSearchBoundary(value.to, "end")
+})).refine((value) => !value.from || !value.to || value.from <= value.to, {
   message: "from must not be after to"
 });
 
@@ -63,8 +89,8 @@ export const AI_READ_TOOL_DEFINITIONS = [
             type: "array",
             items: { type: "string", enum: taskStatusValues }
           },
-          from: { anyOf: [{ type: "string" }, { type: "null" }] },
-          to: { anyOf: [{ type: "string" }, { type: "null" }] },
+          from: { anyOf: [{ type: "string", format: "date" }, { type: "string", format: "date-time" }, { type: "null" }] },
+          to: { anyOf: [{ type: "string", format: "date" }, { type: "string", format: "date-time" }, { type: "null" }] },
           limit: { type: "integer", minimum: 1, maximum: 50 }
         },
         required: ["query", "statuses", "from", "to", "limit"],

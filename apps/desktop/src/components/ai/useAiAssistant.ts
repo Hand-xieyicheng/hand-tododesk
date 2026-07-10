@@ -136,16 +136,29 @@ export function useAiAssistant(active = true) {
     if (!activeSessionId || sendingRef.current || !trimmed) {
       return;
     }
+    const sessionId = activeSessionId;
+    const optimisticId = `pending-${crypto.randomUUID()}`;
+    const optimisticMessage: ApiAiMessage = {
+      id: optimisticId,
+      sessionId,
+      role: "USER",
+      kind: "TEXT",
+      content: trimmed,
+      metadata: null,
+      createdAt: new Date().toISOString()
+    };
     sendingRef.current = true;
     setSending(true);
     setError("");
+    setMessages((current) => [...current, optimisticMessage]);
     try {
-      const result = await api.sendAiMessage(activeSessionId, {
+      const result = await api.sendAiMessage(sessionId, {
         content: trimmed
       });
       setMessages((current) => [
-        ...current,
-        result.userMessage,
+        ...current.map((message) => (
+          message.id === optimisticId ? result.userMessage : message
+        )),
         result.assistantMessage
       ]);
       await reloadSessions();
