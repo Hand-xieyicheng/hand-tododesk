@@ -1,7 +1,9 @@
-import type { ApiMemo, ApiTask, ApiThemePreference } from "@todo/shared";
+import type { AiChangedDomain, ApiMemo, ApiTask, ApiThemePreference } from "@todo/shared";
 
 export const desktopSyncTauriEventName = "tododesk:desktop-sync";
 export const desktopSyncBrowserEventName = "tododesk:desktop-sync:fallback";
+
+export type DesktopDataDomain = AiChangedDomain;
 
 export type DesktopSyncEvent =
   | {
@@ -36,6 +38,11 @@ export type DesktopSyncEvent =
   | {
     sourceId: string;
     type: "habit-board:reload-requested";
+  }
+  | {
+    domains: DesktopDataDomain[];
+    sourceId: string;
+    type: "domain-data:reload-requested";
   };
 
 type WithoutSource<T> = T extends { sourceId: string } ? Omit<T, "sourceId"> : never;
@@ -94,6 +101,12 @@ function isDesktopSyncEvent(value: unknown): value is DesktopSyncEvent {
   }
   if (value.type === "habit-board:reload-requested") {
     return true;
+  }
+  if (value.type === "domain-data:reload-requested") {
+    const domains = value.domains;
+    return Array.isArray(domains) && domains.length > 0 && domains.every((domain) => (
+      domain === "tasks" || domain === "anniversaries" || domain === "habits"
+    ));
   }
   return false;
 }

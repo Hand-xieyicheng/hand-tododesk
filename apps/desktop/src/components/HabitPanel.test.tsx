@@ -425,6 +425,20 @@ describe("HabitPanel", () => {
     expect(getHabitListTitle(container, "刷新后的习惯")).toBeInTheDocument();
   });
 
+  it("reloads the habit list when the refresh signal changes", async () => {
+    const { container, rerender } = render(
+      <HabitPanel createOpen={false} refreshSignal={0} showArchived={false} onCreateOpenChange={vi.fn()} />
+    );
+
+    await waitFor(() => expect(getHabitListTitle(container, "学习日语")).toBeInTheDocument());
+    apiMock.habits.mockResolvedValueOnce({ habits: [{ ...habit, title: "AI 新建习惯" }] });
+
+    rerender(<HabitPanel createOpen={false} refreshSignal={1} showArchived={false} onCreateOpenChange={vi.fn()} />);
+
+    await waitFor(() => expect(apiMock.habits).toHaveBeenCalledTimes(2));
+    expect(getHabitListTitle(container, "AI 新建习惯")).toBeInTheDocument();
+  });
+
   it("keeps habit detail content in place while detail refresh is pending", async () => {
     const { container } = render(<HabitPanel createOpen={false} showArchived={false} onCreateOpenChange={vi.fn()} />);
 

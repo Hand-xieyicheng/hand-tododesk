@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, PointerEvent } from "react";
-import { defaultAppFeatureFlags, defaultThemeId, defaultVisibleSidebarModules, normalizeThemeId, sortTasksForDisplay, taskDateFilterOptions, type ApiTask, type ApiThemePreference, type ApiUser, type AppBootstrapResponse, type AppCloseBehavior, type AppFeatureFlags, type DisplaySize, type FloatingCardThemeId, type FontFamily, type FooterType as AppFooterType, type SidebarModule, type TaskCardDisplayMode, type TaskDateFilter, type TaskViewMode, type ThemeId, type TitleColor } from "@todo/shared";
+import { defaultAppFeatureFlags, defaultThemeId, defaultVisibleSidebarModules, normalizeThemeId, sortTasksForDisplay, taskDateFilterOptions, type AiChangedDomain, type ApiTask, type ApiThemePreference, type ApiUser, type AppBootstrapResponse, type AppCloseBehavior, type AppFeatureFlags, type DisplaySize, type FloatingCardThemeId, type FontFamily, type FooterType as AppFooterType, type SidebarModule, type TaskCardDisplayMode, type TaskDateFilter, type TaskViewMode, type ThemeId, type TitleColor } from "@todo/shared";
 import { Button, Footer, Loading, Select, Title, Tooltip } from "animal-island-ui";
 import { Bell, CalendarDays, CheckSquare2, Clock3, Eye, EyeOff, Flame, Hourglass, Kanban, LayoutGrid, List, ListTodo, LogOut, NotebookPen, Pin, Plus, Printer, RefreshCw, Tags, UserRound } from "lucide-react";
 import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { api, ApiError, authSessionExpiredEvent } from "./api/client";
 import { AuthView } from "./components/AuthView";
 import { AnniversaryPanel } from "./components/AnniversaryPanel";
+import { AiAssistant } from "./components/ai/AiAssistant";
 import { CalendarView } from "./components/CalendarView";
 import { HabitPanel } from "./components/HabitPanel";
 import { LandingPage } from "./components/LandingPage";
@@ -18,7 +19,7 @@ import { ResetPasswordView } from "./components/ResetPasswordView";
 import { SidebarLogo } from "./components/SidebarLogo";
 import { TaskPanel } from "./components/TaskPanel";
 import { applyDisplaySize, normalizeDisplaySize } from "./lib/displaySize";
-import { emitDesktopSyncEvent, listenDesktopSyncEvents } from "./lib/desktopSync";
+import { emitDesktopSyncEvent, listenDesktopSyncEvents, type DesktopDataDomain } from "./lib/desktopSync";
 import { defaultFloatingCardThemeId } from "./lib/floatingCardThemes";
 import { applyFontFamily, normalizeFontFamily } from "./lib/fonts";
 import { applyTheme } from "./lib/themes";
@@ -177,9 +178,11 @@ export function App() {
   const [taskViewMode, setTaskViewMode] = useState<TaskViewMode>("list");
   const [taskCreateOpen, setTaskCreateOpen] = useState(false);
   const [anniversaryCreateOpen, setAnniversaryCreateOpen] = useState(false);
+  const [anniversaryRefreshSignal, setAnniversaryRefreshSignal] = useState(0);
   const [habitCreateOpen, setHabitCreateOpen] = useState(false);
   const [habitDetailOpen, setHabitDetailOpen] = useState(false);
   const [habitReturnToListSignal, setHabitReturnToListSignal] = useState(0);
+  const [habitRefreshSignal, setHabitRefreshSignal] = useState(0);
   const [habitShowArchived, setHabitShowArchived] = useState(false);
   const [themeId, setThemeId] = useState<ThemeId>(() => normalizeThemeId(localStorage.getItem("tododesk.theme")));
   const [titleColor, setTitleColor] = useState<TitleColor>("app-teal");
@@ -214,7 +217,10 @@ export function App() {
   }, []);
 
   const activeView = viewFromPathname(location.pathname);
-  const featureFlags: AppFeatureFlags = appBootstrap?.featureFlags ?? defaultAppFeatureFlags;
+  const featureFlags: AppFeatureFlags = appBootstrap?.featureFlags ?? {
+    ...defaultAppFeatureFlags,
+    aiAssistant: false
+  };
   const availableNavItems = useMemo(() => navItems.filter((item) => (
     (item.id !== "calendar" || featureFlags.calendar) &&
     (item.id !== "anniversaries" || featureFlags.anniversaries) &&
@@ -462,6 +468,10 @@ export function App() {
       }
       if (event.type === "task-board:reload-requested") {
         void loadAppData();
+        return;
+      }
+      if (event.type === "domain-data:reload-requested") {
+        refreshChangedDomains(event.domains);
       }
     });
   }, [user?.id]);
@@ -523,6 +533,29 @@ export function App() {
     resetTaskBoard();
     setTaskTagFilter(allTagsFilterValue);
     navigateToUnauthenticatedEntry(true);
+  }
+
+  function refreshChangedDomains(domains: readonly DesktopDataDomain[]) {
+    if (domains.includes("tasks")) {
+      void loadAppData();
+    }
+    if (domains.includes("anniversaries")) {
+      setAnniversaryRefreshSignal((signal) => signal + 1);
+    }
+    if (domains.includes("habits")) {
+      setHabitRefreshSignal((signal) => signal + 1);
+    }
+  }
+
+  async function handleAiDomainsChanged(domains: AiChangedDomain[]) {
+    if (domains.length === 0) {
+      return;
+    }
+    refreshChangedDomains(domains);
+    await emitDesktopSyncEvent({
+      domains,
+      type: "domain-data:reload-requested"
+    });
   }
 
   function handlePasswordResetCompleted() {
@@ -1022,7 +1055,7 @@ export function App() {
           <Route path={viewRoutes.memos} element={<MemoPanel printButtonEnabled={printButtonEnabled} />} />
           <Route
             path={viewRoutes.anniversaries}
-            element={featureFlags.anniversaries ? <AnniversaryPanel createOpen={anniversaryCreateOpen} pageAnimationEnabled={pageAnimationEnabled} onCreateOpenChange={setAnniversaryCreateOpen} /> : <Navigate to={viewRoutes.tasks} replace />}
+            element={featureFlags.anniversaries ? <AnniversaryPanel createOpen={anniversaryCreateOpen} pageAnimationEnabled={pageAnimationEnabled} refreshSignal={anniversaryRefreshSignal} onCreateOpenChange={setAnniversaryCreateOpen} /> : <Navigate to={viewRoutes.tasks} replace />}
           />
           <Route
             path={viewRoutes.habits}
@@ -1030,6 +1063,7 @@ export function App() {
               <HabitPanel
                 createOpen={habitCreateOpen}
                 pageAnimationEnabled={pageAnimationEnabled}
+                refreshSignal={habitRefreshSignal}
                 returnToListSignal={habitReturnToListSignal}
                 showArchived={habitShowArchived}
                 onCreateOpenChange={setHabitCreateOpen}
@@ -1108,6 +1142,7 @@ export function App() {
           </div>
         ) : null}
       </main>
+      <AiAssistant enabled={featureFlags.aiAssistant} onDomainsChanged={handleAiDomainsChanged} />
     </div>
   );
 }

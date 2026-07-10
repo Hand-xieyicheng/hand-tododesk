@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import type { ApiTask, ApiThemePreference } from "@todo/shared";
+import { defaultAppFeatureFlags, type ApiTask, type ApiThemePreference } from "@todo/shared";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
@@ -61,7 +61,15 @@ vi.mock("./api/client", async () => {
 });
 
 vi.mock("./components/AnniversaryPanel", () => ({
-  AnniversaryPanel: () => <div />
+  AnniversaryPanel: ({ refreshSignal }: any) => <div data-testid="anniversary-panel" data-refresh-signal={refreshSignal ?? 0} />
+}));
+
+vi.mock("./components/ai/AiAssistant", () => ({
+  AiAssistant: ({ enabled, onDomainsChanged }: any) => enabled ? (
+    <button aria-label="模拟 AI 助手写入" type="button" onClick={() => onDomainsChanged(["tasks", "anniversaries", "habits"])}>
+      AI
+    </button>
+  ) : null
 }));
 
 vi.mock("./components/CalendarView", () => ({
@@ -71,7 +79,7 @@ vi.mock("./components/CalendarView", () => ({
 vi.mock("./components/HabitPanel", async () => {
   const React = await import("react");
   return {
-    HabitPanel: ({ onDetailModeChange, returnToListSignal }: any) => {
+    HabitPanel: ({ onDetailModeChange, refreshSignal, returnToListSignal }: any) => {
       React.useEffect(() => {
         if (returnToListSignal > 0) {
           onDetailModeChange?.(false);
@@ -79,7 +87,7 @@ vi.mock("./components/HabitPanel", async () => {
       }, [onDetailModeChange, returnToListSignal]);
 
       return (
-        <div data-testid="habit-panel" data-return-signal={returnToListSignal ?? 0}>
+        <div data-testid="habit-panel" data-refresh-signal={refreshSignal ?? 0} data-return-signal={returnToListSignal ?? 0}>
           <button type="button" onClick={() => onDetailModeChange?.(true)}>模拟进入习惯详情</button>
         </div>
       );
@@ -189,6 +197,68 @@ describe("App sidebar", () => {
     }));
     vi.mocked(api.tags).mockResolvedValue({ tags: [] });
     vi.mocked(api.tasks).mockResolvedValue({ tasks: [] });
+  });
+
+  it("keeps the AI assistant hidden when bootstrap is unavailable", async () => {
+    render(
+      <MemoryRouter initialEntries={["/tasks"]}>
+        <App />
+      </MemoryRouter>
+    );
+
+    await screen.findByRole("button", { name: "收起侧边栏" });
+    expect(screen.queryByRole("button", { name: "模拟 AI 助手写入" })).not.toBeInTheDocument();
+  });
+
+  it("shows the enabled AI assistant and refreshes changed task and anniversary domains", async () => {
+    vi.mocked(api.appBootstrap).mockResolvedValue({
+      apiVersion: "1.0.0",
+      releaseChannel: "stable",
+      desktop: {
+        minimumVersion: "0.1.0",
+        latestVersion: "1.0.0",
+        updateEndpoint: "https://example.com/latest.json"
+      },
+      featureFlags: { ...defaultAppFeatureFlags, aiAssistant: true }
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/anniversaries"]}>
+        <App />
+      </MemoryRouter>
+    );
+
+    const assistant = await screen.findByRole("button", { name: "模拟 AI 助手写入" });
+    await waitFor(() => expect(screen.getByTestId("anniversary-panel")).toHaveAttribute("data-refresh-signal", "0"));
+    const taskCallsBeforeWrite = vi.mocked(api.tasks).mock.calls.length;
+
+    fireEvent.click(assistant);
+
+    await waitFor(() => expect(vi.mocked(api.tasks).mock.calls.length).toBeGreaterThan(taskCallsBeforeWrite));
+    expect(screen.getByTestId("anniversary-panel")).toHaveAttribute("data-refresh-signal", "1");
+  });
+
+  it("refreshes the habit domain after an AI write", async () => {
+    vi.mocked(api.appBootstrap).mockResolvedValue({
+      apiVersion: "1.0.0",
+      releaseChannel: "stable",
+      desktop: {
+        minimumVersion: "0.1.0",
+        latestVersion: "1.0.0",
+        updateEndpoint: "https://example.com/latest.json"
+      },
+      featureFlags: { ...defaultAppFeatureFlags, aiAssistant: true }
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/habits"]}>
+        <App />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: "模拟 AI 助手写入" }));
+
+    await waitFor(() => expect(screen.getByTestId("habit-panel")).toHaveAttribute("data-refresh-signal", "1"));
   });
 
   it("opens the login screen instead of the landing page for unauthenticated desktop windows", async () => {

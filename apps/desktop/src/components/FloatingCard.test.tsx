@@ -961,6 +961,26 @@ describe("FloatingCard", () => {
     expect(apiMock.tasks).toHaveBeenCalledTimes(2);
   });
 
+  it("reloads changed domains when an external AI domain event is received", async () => {
+    render(<FloatingCard />);
+
+    await waitFor(() => expect(apiMock.tasks).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(apiMock.habits).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent(desktopSyncBrowserEventName, {
+        detail: {
+          domains: ["tasks", "habits"],
+          sourceId: "main-window",
+          type: "domain-data:reload-requested"
+        }
+      }));
+    });
+
+    await waitFor(() => expect(apiMock.tasks).toHaveBeenCalledTimes(2));
+    expect(apiMock.habits).toHaveBeenCalledTimes(2);
+  });
+
   it("emits task upsert events after changing task status from the floating card", async () => {
     apiMock.updateTask.mockResolvedValue({
       task: taskWith({
