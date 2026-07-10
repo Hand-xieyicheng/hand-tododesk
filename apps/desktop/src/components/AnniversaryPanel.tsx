@@ -30,6 +30,7 @@ import { NoDataPlaceholder } from "./NoDataPlaceholder";
 interface AnniversaryPanelProps {
   createOpen: boolean;
   pageAnimationEnabled?: boolean;
+  refreshSignal?: number;
   onCreateOpenChange(open: boolean): void;
 }
 
@@ -319,7 +320,7 @@ function SortableAnniversaryCard({ animationIndex = 0, event, pageAnimationEnabl
   );
 }
 
-export function AnniversaryPanel({ createOpen, pageAnimationEnabled = true, onCreateOpenChange }: AnniversaryPanelProps) {
+export function AnniversaryPanel({ createOpen, pageAnimationEnabled = true, refreshSignal = 0, onCreateOpenChange }: AnniversaryPanelProps) {
   const [anniversaries, setAnniversaries] = useState<ApiAnniversaryEvent[]>([]);
   const [activeCategory, setActiveCategory] = useState<CategoryFilter>("ALL");
   const [draft, setDraft] = useState<AnniversaryDraft>(() => emptyDraft());
@@ -358,6 +359,12 @@ export function AnniversaryPanel({ createOpen, pageAnimationEnabled = true, onCr
   useEffect(() => {
     void load();
   }, []);
+
+  useEffect(() => {
+    if (refreshSignal > 0) {
+      void load();
+    }
+  }, [refreshSignal]);
 
   useEffect(() => {
     if (createOpen && !editingEvent) {

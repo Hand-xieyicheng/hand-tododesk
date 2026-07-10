@@ -40,6 +40,7 @@ import { NoDataPlaceholder } from "./NoDataPlaceholder";
 interface HabitPanelProps {
   createOpen: boolean;
   pageAnimationEnabled?: boolean;
+  refreshSignal?: number;
   returnToListSignal?: number;
   showArchived: boolean;
   onCreateOpenChange(open: boolean): void;
@@ -359,7 +360,7 @@ function SortableHabitCard({ animationIndex = 0, habit, pageAnimationEnabled = t
   );
 }
 
-export function HabitPanel({ createOpen, pageAnimationEnabled = true, returnToListSignal = 0, showArchived, onCreateOpenChange, onDetailModeChange }: HabitPanelProps) {
+export function HabitPanel({ createOpen, pageAnimationEnabled = true, refreshSignal = 0, returnToListSignal = 0, showArchived, onCreateOpenChange, onDetailModeChange }: HabitPanelProps) {
   const [habits, setHabits] = useState<ApiHabit[]>([]);
   const [selectedId, setSelectedId] = useState<string>("");
   const [detail, setDetail] = useState<ApiHabitDetail | null>(null);
@@ -459,6 +460,20 @@ export function HabitPanel({ createOpen, pageAnimationEnabled = true, returnToLi
   useEffect(() => {
     void loadDetail();
   }, [selectedId, detailMonth]);
+
+  useEffect(() => {
+    if (refreshSignal <= 0) {
+      return;
+    }
+    void (async () => {
+      const refreshedId = await loadHabits(selectedId);
+      if (refreshedId) {
+        await loadDetail(refreshedId, detailMonth);
+      } else {
+        setDetail(null);
+      }
+    })();
+  }, [refreshSignal]);
 
   useEffect(() => {
     return listenDesktopSyncEvents((event) => {

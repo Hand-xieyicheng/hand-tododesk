@@ -1,4 +1,4 @@
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyReply } from "fastify";
 import type {
   AnniversaryCalendarType,
   AnniversaryCardStyle,
@@ -7,14 +7,13 @@ import type {
   AnniversaryRepeat,
   AnniversarySolarTerm,
   AnniversaryTimingInput,
-  ApiTag,
   ApiTask,
   CalendarAnniversary,
   CalendarHabitCheckIn,
+  CreateTaskRequest,
   HabitColor,
-  RecurrenceRuleInput,
   TaskPriority,
-  TaskStatus
+  UpdateTaskRequest
 } from "@todo/shared";
 import {
   anniversaryCalendarTypeValues,
@@ -25,42 +24,26 @@ import {
   anniversarySolarTermValues,
   calculateAnniversaryOccurrenceDisplay,
   calendarQuerySchema,
-  createTaskRequestSchema,
   expandAnniversaryOccurrenceDates,
   habitColorValues,
-  sortTasksForDisplay,
   taskPriorityValues,
   toLocalDateKey,
-  updateTaskOrderRequestSchema,
-  updateTaskRequestSchema
+  updateTaskOrderRequestSchema
 } from "@todo/shared";
 import { asDate, execute, id, queryOne, queryRows, toMysqlDate, transaction, type DbRow } from "../db.js";
 import { buildOccurrences, type ExpandableTask } from "../services/calendar.js";
 import { normalizeTaskPriority } from "../services/task-priority.js";
-
-type TaskRow = DbRow & {
-  id: string;
-  userId: string;
-  title: string;
-  notes: string | null;
-  startAt: Date | string | null;
-  dueAt: Date | string | null;
-  priority: string;
-  status: TaskStatus;
-  sortOrder: number | string | null;
-  completedAt: Date | string | null;
-  createdAt: Date | string;
-  updatedAt: Date | string;
-};
-
-type RecurrenceRow = DbRow & {
-  taskId: string;
-  frequency: RecurrenceRuleInput["frequency"];
-  interval: number;
-  until: Date | string | null;
-  count: number | null;
-  byWeekday: string | string[] | null;
-};
+import {
+  createTask,
+  deleteTask,
+  getTaskRecurrence,
+  listTasks,
+  serializeTaskRecurrence,
+  serializeTaskRow,
+  TaskDomainError,
+  updateTask,
+  type TaskRow
+} from "../services/task-domain.js";
 
 type ExceptionRow = DbRow & {
   occurrenceDate: Date | string;
@@ -99,8 +82,6 @@ type NormalizedCalendarAnniversary = {
   cardStyle: AnniversaryCardStyle;
   timing: AnniversaryTimingInput;
 };
-
-const taskDisplayOrderSql = "CASE WHEN `status` = 'COMPLETED' THEN 1 ELSE 0 END ASC, CASE WHEN `sortOrder` IS NULL THEN 1 ELSE 0 END ASC, `sortOrder` ASC, `createdAt` ASC, `id` ASC";
 
 function enumFromDb<TValue extends string>(values: readonly TValue[], value: string | null | undefined, fallback: TValue) {
   return values.includes(value as TValue) ? value as TValue : fallback;
@@ -176,144 +157,21 @@ function sortCalendarAnniversaries(events: CalendarAnniversary[]) {
   });
 }
 
-function parseWeekdays(value: RecurrenceRow["byWeekday"]) {
-  if (!value) {
-    return null;
+function sendTaskDomainError(reply: FastifyReply, error: unknown) {
+  if (!(error instanceof TaskDomainError)) {
+    throw error;
   }
-  if (Array.isArray(value)) {
-    return value as RecurrenceRuleInput["byWeekday"];
-  }
-  try {
-    const parsed = JSON.parse(value);
-    return Array.isArray(parsed) ? parsed as RecurrenceRuleInput["byWeekday"] : null;
-  } catch {
-    return null;
-  }
-}
-
-function serializeRecurrence(rule: RecurrenceRow | null): RecurrenceRuleInput | null {
-  if (!rule) {
-    return null;
-  }
-
-  return {
-    frequency: rule.frequency,
-    interval: rule.interval,
-    until: asDate(rule.until)?.toISOString() ?? null,
-    count: rule.count,
-    byWeekday: parseWeekdays(rule.byWeekday)
-  };
-}
-
-async function getTags(taskId: string): Promise<ApiTag[]> {
-  const rows = await queryRows<DbRow & { id: string; name: string }>(
-    "SELECT t.id, t.name FROM `TaskTag` tt INNER JOIN `Tag` t ON t.id = tt.tagId WHERE tt.taskId = ? ORDER BY t.name",
-    [taskId]
-  );
-  return rows.map((tag) => ({ id: tag.id, name: tag.name }));
-}
-
-async function getRecurrence(taskId: string) {
-  return queryOne<RecurrenceRow>("SELECT * FROM `RecurrenceRule` WHERE `taskId` = ?", [taskId]);
-}
-
-async function getPomodoroTotals(taskId: string) {
-  const row = await queryOne<DbRow & { completedCount: number; completedMinutes: number }>(
-    "SELECT COUNT(*) AS completedCount, COALESCE(SUM(COALESCE(`actualMinutes`, `durationMinutes`)), 0) AS completedMinutes FROM `PomodoroSession` WHERE `taskId` = ? AND `status` = 'COMPLETED'",
-    [taskId]
-  );
-  return {
-    count: Number(row?.completedCount ?? 0),
-    minutes: Number(row?.completedMinutes ?? 0)
-  };
-}
-
-async function serializeTask(row: TaskRow): Promise<ApiTask> {
-  const [tags, recurrenceRule, pomodoro] = await Promise.all([
-    getTags(row.id),
-    getRecurrence(row.id),
-    getPomodoroTotals(row.id)
-  ]);
-
-  return {
-    id: row.id,
-    title: row.title,
-    notes: row.notes,
-    startAt: asDate(row.startAt)?.toISOString() ?? null,
-    dueAt: asDate(row.dueAt)?.toISOString() ?? null,
-    priority: normalizeTaskPriority(row.priority),
-    status: row.status,
-    sortOrder: row.sortOrder === null || row.sortOrder === undefined ? null : Number(row.sortOrder),
-    createdAt: asDate(row.createdAt)?.toISOString() ?? new Date().toISOString(),
-    updatedAt: asDate(row.updatedAt)?.toISOString() ?? new Date().toISOString(),
-    completedAt: asDate(row.completedAt)?.toISOString() ?? null,
-    recurrenceRule: serializeRecurrence(recurrenceRule),
-    tags,
-    pomodoroCompletedCount: pomodoro.count,
-    pomodoroCompletedMinutes: pomodoro.minutes
-  };
-}
-
-async function tagBelongsToUser(tagId: string, userId: string) {
-  const tag = await queryOne<DbRow & { id: string }>("SELECT `id` FROM `Tag` WHERE `id` = ? AND `userId` = ?", [tagId, userId]);
-  return Boolean(tag);
-}
-
-async function upsertRecurrence(taskId: string, recurrenceRule: RecurrenceRuleInput | null) {
-  if (!recurrenceRule) {
-    await execute("DELETE FROM `RecurrenceRule` WHERE `taskId` = ?", [taskId]);
-    return;
-  }
-
-  await execute(
-    `INSERT INTO \`RecurrenceRule\`
-      (\`id\`, \`taskId\`, \`frequency\`, \`interval\`, \`until\`, \`count\`, \`byWeekday\`, \`updatedAt\`)
-     VALUES (?, ?, ?, ?, ?, ?, ?, NOW(3))
-     ON DUPLICATE KEY UPDATE
-      \`frequency\` = VALUES(\`frequency\`),
-      \`interval\` = VALUES(\`interval\`),
-      \`until\` = VALUES(\`until\`),
-      \`count\` = VALUES(\`count\`),
-      \`byWeekday\` = VALUES(\`byWeekday\`),
-      \`updatedAt\` = NOW(3)`,
-    [
-      id(),
-      taskId,
-      recurrenceRule.frequency,
-      recurrenceRule.interval,
-      toMysqlDate(recurrenceRule.until ? new Date(recurrenceRule.until) : null),
-      recurrenceRule.count,
-      recurrenceRule.byWeekday ? JSON.stringify(recurrenceRule.byWeekday) : null
-    ]
-  );
-}
-
-function selectedTaskDate(input: string | null | undefined, existing: Date | string | null) {
-  if (input === undefined) {
-    return asDate(existing);
-  }
-  return input ? new Date(input) : null;
-}
-
-function taskTimeRangeIsValid(startAt: Date | null, dueAt: Date | null) {
-  return !startAt || !dueAt || startAt.getTime() <= dueAt.getTime();
+  const statusCode = error.code === "NOT_FOUND" ? 404 : 400;
+  return reply.code(statusCode).send({ error: error.message });
 }
 
 export async function taskRoutes(app: FastifyInstance) {
   app.get("/tasks", { preHandler: app.authenticate }, async (request) => {
-    const rows = await queryRows<TaskRow>(
-      `SELECT * FROM \`Task\` WHERE \`userId\` = ? AND \`status\` <> 'ARCHIVED' ORDER BY ${taskDisplayOrderSql}`,
-      [request.user.id]
-    );
-    return { tasks: sortTasksForDisplay(await Promise.all(rows.map(serializeTask))) };
+    return { tasks: await listTasks(request.user.id) };
   });
 
   app.get("/tasks/quadrants", { preHandler: app.authenticate }, async (request) => {
-    const rows = await queryRows<TaskRow>(
-      `SELECT * FROM \`Task\` WHERE \`userId\` = ? AND \`status\` <> 'ARCHIVED' ORDER BY ${taskDisplayOrderSql}`,
-      [request.user.id]
-    );
-    const tasks = sortTasksForDisplay(await Promise.all(rows.map(serializeTask)));
+    const tasks = await listTasks(request.user.id);
     const quadrants = Object.fromEntries(taskPriorityValues.map((priority) => [priority, [] as ApiTask[]])) as Record<TaskPriority, ApiTask[]>;
 
     for (const task of tasks) {
@@ -324,38 +182,12 @@ export async function taskRoutes(app: FastifyInstance) {
   });
 
   app.post("/tasks", { preHandler: app.authenticate }, async (request, reply) => {
-    const body = createTaskRequestSchema.parse(request.body);
-    const taskId = id();
-    const tagId = body.tagId ?? null;
-    if (tagId && !(await tagBelongsToUser(tagId, request.user.id))) {
-      return reply.code(400).send({ error: "Tag not found" });
+    try {
+      const task = await createTask(request.user.id, request.body as CreateTaskRequest);
+      return reply.code(201).send({ task });
+    } catch (error) {
+      return sendTaskDomainError(reply, error);
     }
-
-    await transaction(async (connection) => {
-      await connection.execute(
-        `INSERT INTO \`Task\`
-          (\`id\`, \`userId\`, \`title\`, \`notes\`, \`startAt\`, \`dueAt\`, \`priority\`, \`status\`, \`completedAt\`, \`updatedAt\`)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(3))`,
-        [
-          taskId,
-          request.user.id,
-          body.title,
-          body.notes ?? null,
-          toMysqlDate(body.startAt ? new Date(body.startAt) : null),
-          toMysqlDate(body.dueAt ? new Date(body.dueAt) : null),
-          body.priority,
-          body.status,
-          body.status === "COMPLETED" ? toMysqlDate(new Date()) : null
-        ]
-      );
-      if (tagId) {
-        await connection.execute("INSERT INTO `TaskTag` (`taskId`, `tagId`) VALUES (?, ?)", [taskId, tagId]);
-      }
-    });
-
-    await upsertRecurrence(taskId, body.recurrenceRule ?? null);
-    const task = await queryOne<TaskRow>("SELECT * FROM `Task` WHERE `id` = ?", [taskId]);
-    return reply.code(201).send({ task: task ? await serializeTask(task) : null });
   });
 
   app.put("/tasks/order", { preHandler: app.authenticate }, async (request, reply) => {
@@ -383,69 +215,26 @@ export async function taskRoutes(app: FastifyInstance) {
 
   app.patch("/tasks/:id", { preHandler: app.authenticate }, async (request, reply) => {
     const taskId = (request.params as { id: string }).id;
-    const body = updateTaskRequestSchema.parse(request.body);
-    const existing = await queryOne<TaskRow>("SELECT * FROM `Task` WHERE `id` = ? AND `userId` = ?", [taskId, request.user.id]);
-    if (!existing) {
-      return reply.code(404).send({ error: "Task not found" });
-    }
-    const tagId = body.tagId ?? null;
-    if (body.tagId !== undefined && tagId && !(await tagBelongsToUser(tagId, request.user.id))) {
-      return reply.code(400).send({ error: "Tag not found" });
-    }
-    const nextStartAt = selectedTaskDate(body.startAt, existing.startAt);
-    const nextDueAt = selectedTaskDate(body.dueAt, existing.dueAt);
-    if (!taskTimeRangeIsValid(nextStartAt, nextDueAt)) {
-      return reply.code(400).send({ error: "Start time must not be later than due time" });
-    }
-
-    await transaction(async (connection) => {
-      await connection.execute(
-        `UPDATE \`Task\` SET
-          \`title\` = COALESCE(?, \`title\`),
-          \`notes\` = ?,
-          \`startAt\` = ?,
-          \`dueAt\` = ?,
-          \`priority\` = COALESCE(?, \`priority\`),
-          \`status\` = COALESCE(?, \`status\`),
-          \`completedAt\` = ?,
-          \`updatedAt\` = NOW(3)
-         WHERE \`id\` = ? AND \`userId\` = ?`,
-        [
-          body.title ?? null,
-          body.notes === undefined ? existing.notes : body.notes,
-          body.startAt === undefined ? existing.startAt : toMysqlDate(body.startAt ? new Date(body.startAt) : null),
-          body.dueAt === undefined ? existing.dueAt : toMysqlDate(body.dueAt ? new Date(body.dueAt) : null),
-          body.priority ?? null,
-          body.status ?? null,
-          body.status === undefined ? existing.completedAt : body.status === "COMPLETED" ? toMysqlDate(new Date()) : null,
-          taskId,
-          request.user.id
-        ]
+    try {
+      const task = await updateTask(
+        request.user.id,
+        taskId,
+        request.body as UpdateTaskRequest
       );
-
-      if (body.tagId !== undefined) {
-        await connection.execute("DELETE FROM `TaskTag` WHERE `taskId` = ?", [taskId]);
-        if (tagId) {
-          await connection.execute("INSERT INTO `TaskTag` (`taskId`, `tagId`) VALUES (?, ?)", [taskId, tagId]);
-        }
-      }
-    });
-
-    if (body.recurrenceRule !== undefined) {
-      await upsertRecurrence(taskId, body.recurrenceRule);
+      return { task };
+    } catch (error) {
+      return sendTaskDomainError(reply, error);
     }
-
-    const task = await queryOne<TaskRow>("SELECT * FROM `Task` WHERE `id` = ?", [taskId]);
-    return { task: task ? await serializeTask(task) : null };
   });
 
   app.delete("/tasks/:id", { preHandler: app.authenticate }, async (request, reply) => {
     const taskId = (request.params as { id: string }).id;
-    const result = await execute("DELETE FROM `Task` WHERE `id` = ? AND `userId` = ?", [taskId, request.user.id]);
-    if (!result.affectedRows) {
-      return reply.code(404).send({ error: "Task not found" });
+    try {
+      await deleteTask(request.user.id, taskId);
+      return reply.code(204).send();
+    } catch (error) {
+      return sendTaskDomainError(reply, error);
     }
-    return reply.code(204).send();
   });
 
   app.get("/calendar", { preHandler: app.authenticate }, async (request) => {
@@ -493,13 +282,13 @@ export async function taskRoutes(app: FastifyInstance) {
     const expandableTasks: Array<ExpandableTask & { source: ApiTask }> = [];
     for (const row of rows) {
       const [recurrence, exceptions, source] = await Promise.all([
-        getRecurrence(row.id),
+        getTaskRecurrence(row.id),
         queryRows<ExceptionRow>(
           `SELECT * FROM \`TaskException\` WHERE \`taskId\` = ?
            AND ((\`occurrenceDate\` BETWEEN ? AND ?) OR (\`rescheduledDate\` BETWEEN ? AND ?))`,
           [row.id, toMysqlDate(from), toMysqlDate(to), toMysqlDate(from), toMysqlDate(to)]
         ),
-        serializeTask(row)
+        serializeTaskRow(row)
       ]);
 
       expandableTasks.push({
@@ -508,7 +297,7 @@ export async function taskRoutes(app: FastifyInstance) {
         dueAt: asDate(row.dueAt),
         priority: normalizeTaskPriority(row.priority),
         status: row.status,
-        recurrenceRule: serializeRecurrence(recurrence),
+        recurrenceRule: serializeTaskRecurrence(recurrence),
         exceptions: exceptions.map((item) => ({
           occurrenceDate: asDate(item.occurrenceDate) ?? new Date(),
           status: item.status,
@@ -539,7 +328,7 @@ export async function taskRoutes(app: FastifyInstance) {
       return reply.code(404).send({ error: "Task not found" });
     }
 
-    const recurrence = await getRecurrence(taskId);
+    const recurrence = await getTaskRecurrence(taskId);
     if (!recurrence) {
       await execute("UPDATE `Task` SET `status` = 'COMPLETED', `completedAt` = NOW(3), `updatedAt` = NOW(3) WHERE `id` = ?", [taskId]);
       return { ok: true };

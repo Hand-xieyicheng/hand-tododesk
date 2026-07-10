@@ -1,5 +1,9 @@
 import type {
   AppBootstrapResponse,
+  AiChangedDomain,
+  ApiAiMessage,
+  ApiAiProposal,
+  ApiAiSession,
   ApiAnniversaryEvent,
   ApiHabit,
   ApiHabitDetail,
@@ -14,8 +18,10 @@ import type {
   AuthTokens,
   CalendarResponse,
   CalendarView,
+  CancelAiProposalRequest,
   ChangeEmailRequest,
   ChangePasswordRequest,
+  ConfirmAiProposalRequest,
   CreateHabitRequest,
   CreateMemoRequest,
   CreatePrintShareRequest,
@@ -26,7 +32,10 @@ import type {
   PomodoroStats,
   RefreshRequest,
   RegisterRequest,
+  SendAiMessageRequest,
   TaskPriority,
+  UpdateAiProposalRequest,
+  UpdateAiSessionRequest,
   UpdateMemoRequest,
   UpdateAnniversaryOrderRequest,
   UpdateAnniversaryRequest,
@@ -40,9 +49,12 @@ import type {
 } from "@todo/shared";
 import {
   appBootstrapResponseSchema,
+  cancelAiProposalRequestSchema,
   changeEmailRequestSchema,
   changePasswordRequestSchema,
+  confirmAiProposalRequestSchema,
   createAnniversaryRequestSchema,
+  createAiSessionRequestSchema,
   createHabitRequestSchema,
   createMemoRequestSchema,
   createPrintShareRequestSchema,
@@ -52,6 +64,9 @@ import {
   loginRequestSchema,
   registerRequestSchema,
   resetPasswordRequestSchema,
+  sendAiMessageRequestSchema,
+  updateAiProposalRequestSchema,
+  updateAiSessionRequestSchema,
   updateMemoRequestSchema,
   updateAnniversaryOrderRequestSchema,
   updateAnniversaryRequestSchema,
@@ -240,6 +255,84 @@ async function refreshAccessTokenOnce() {
 export const api = {
   async appBootstrap() {
     return appBootstrapResponseSchema.parse(await request<AppBootstrapResponse>("/app/bootstrap", {}, { retry: false, includeAuth: false, expireSessionOnUnauthorized: false }));
+  },
+  async aiSessions() {
+    return request<{ sessions: ApiAiSession[] }>("/ai/sessions");
+  },
+  async createAiSession() {
+    return request<{ session: ApiAiSession }>("/ai/sessions", {
+      method: "POST",
+      body: JSON.stringify(createAiSessionRequestSchema.parse({}))
+    });
+  },
+  async renameAiSession(sessionId: string, input: UpdateAiSessionRequest) {
+    return request<{ session: ApiAiSession }>(
+      `/ai/sessions/${encodeURIComponent(sessionId)}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(updateAiSessionRequestSchema.parse(input))
+      }
+    );
+  },
+  async deleteAiSession(sessionId: string) {
+    return request<void>(`/ai/sessions/${encodeURIComponent(sessionId)}`, {
+      method: "DELETE"
+    });
+  },
+  async aiMessages(sessionId: string, cursor?: string) {
+    const params = new URLSearchParams({ limit: "50" });
+    if (cursor) {
+      params.set("cursor", cursor);
+    }
+    return request<{
+      messages: ApiAiMessage[];
+      nextCursor: string | null;
+    }>(`/ai/sessions/${encodeURIComponent(sessionId)}/messages?${params}`);
+  },
+  async sendAiMessage(sessionId: string, input: SendAiMessageRequest) {
+    return request<{
+      userMessage: ApiAiMessage;
+      assistantMessage: ApiAiMessage;
+    }>(`/ai/sessions/${encodeURIComponent(sessionId)}/messages`, {
+      method: "POST",
+      body: JSON.stringify(sendAiMessageRequestSchema.parse(input))
+    });
+  },
+  async updateAiProposal(proposalId: string, input: UpdateAiProposalRequest) {
+    return request<{ proposal: ApiAiProposal }>(
+      `/ai/proposals/${encodeURIComponent(proposalId)}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(updateAiProposalRequestSchema.parse(input))
+      }
+    );
+  },
+  async confirmAiProposal(proposalId: string, input: ConfirmAiProposalRequest) {
+    return request<{
+      proposal: ApiAiProposal;
+      changedDomains: AiChangedDomain[];
+    }>(`/ai/proposals/${encodeURIComponent(proposalId)}/confirm`, {
+      method: "POST",
+      body: JSON.stringify(confirmAiProposalRequestSchema.parse(input))
+    });
+  },
+  async retryAiProposal(proposalId: string, input: ConfirmAiProposalRequest) {
+    return request<{
+      proposal: ApiAiProposal;
+      changedDomains: AiChangedDomain[];
+    }>(`/ai/proposals/${encodeURIComponent(proposalId)}/retry`, {
+      method: "POST",
+      body: JSON.stringify(confirmAiProposalRequestSchema.parse(input))
+    });
+  },
+  async cancelAiProposal(proposalId: string, input: CancelAiProposalRequest) {
+    return request<{ proposal: ApiAiProposal }>(
+      `/ai/proposals/${encodeURIComponent(proposalId)}/cancel`,
+      {
+        method: "POST",
+        body: JSON.stringify(cancelAiProposalRequestSchema.parse(input))
+      }
+    );
   },
   async register(input: RegisterRequest) {
     return request<{ user: ApiUser; verificationEmailSent: boolean }>("/auth/register", {

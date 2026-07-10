@@ -135,6 +135,20 @@ describe("AnniversaryPanel", () => {
     expect(placeholder).toHaveStyle({ opacity: "0.5" });
   });
 
+  it("reloads anniversaries when the refresh signal changes", async () => {
+    const { rerender } = render(<AnniversaryPanel createOpen={false} refreshSignal={0} onCreateOpenChange={vi.fn()} />);
+
+    await waitFor(() => expect(apiMock.anniversaries).toHaveBeenCalledTimes(1));
+    apiMock.anniversaries.mockResolvedValueOnce({
+      anniversaries: [anniversaryWith({ id: "a-refreshed", title: "AI 新建纪念日" })]
+    });
+
+    rerender(<AnniversaryPanel createOpen={false} refreshSignal={1} onCreateOpenChange={vi.fn()} />);
+
+    expect(await screen.findByRole("heading", { name: "AI 新建纪念日" })).toBeInTheDocument();
+    expect(apiMock.anniversaries).toHaveBeenCalledTimes(2);
+  });
+
   it("filters cards by category tabs", async () => {
     apiMock.anniversaries.mockResolvedValue({
       anniversaries: [

@@ -135,6 +135,26 @@ export const titleColorValues = [
   "warm-peach-pink"
 ] as const;
 export const userGenderValues = ["PRIVATE", "MALE", "FEMALE", "OTHER"] as const;
+export const aiObjectTypeValues = ["TASK", "ANNIVERSARY", "HABIT", "HABIT_CHECKIN"] as const;
+export const aiProposalStatusValues = [
+  "PENDING_CONFIRMATION",
+  "EXECUTING",
+  "SUCCEEDED",
+  "PARTIAL_FAILED",
+  "FAILED",
+  "CANCELLED",
+  "EXPIRED"
+] as const;
+export const aiActionItemStatusValues = ["PENDING", "SUCCEEDED", "FAILED"] as const;
+export const aiMessageRoleValues = ["USER", "ASSISTANT"] as const;
+export const aiMessageKindValues = [
+  "TEXT",
+  "QUERY_RESULT",
+  "CLARIFICATION",
+  "PROPOSAL",
+  "EXECUTION_RESULT",
+  "ERROR"
+] as const;
 
 export const habitIconSchema = z.string().trim().min(1).max(80).regex(/^[A-Za-z][A-Za-z0-9-]*$/, "Icon must be a valid icon key");
 
@@ -383,6 +403,156 @@ export const updateTaskOrderRequestSchema = z.object({
   path: ["orderedIds"]
 });
 
+const noActionInputSchema = z.object({}).strict();
+
+const aiTaskCreateActionSchema = z.object({
+  clientId: z.string().min(1),
+  objectType: z.literal("TASK"),
+  actionType: z.literal("CREATE"),
+  targetId: z.null(),
+  input: createTaskRequestSchema
+});
+
+const aiTaskUpdateActionSchema = z.object({
+  clientId: z.string().min(1),
+  objectType: z.literal("TASK"),
+  actionType: z.literal("UPDATE"),
+  targetId: z.string().min(1),
+  input: updateTaskRequestSchema
+});
+
+const aiTaskDeleteActionSchema = z.object({
+  clientId: z.string().min(1),
+  objectType: z.literal("TASK"),
+  actionType: z.literal("DELETE"),
+  targetId: z.string().min(1),
+  input: noActionInputSchema
+});
+
+const aiAnniversaryCreateActionSchema = z.object({
+  clientId: z.string().min(1),
+  objectType: z.literal("ANNIVERSARY"),
+  actionType: z.literal("CREATE"),
+  targetId: z.null(),
+  input: createAnniversaryRequestSchema
+});
+
+const aiAnniversaryUpdateActionSchema = z.object({
+  clientId: z.string().min(1),
+  objectType: z.literal("ANNIVERSARY"),
+  actionType: z.literal("UPDATE"),
+  targetId: z.string().min(1),
+  input: updateAnniversaryRequestSchema
+});
+
+const aiAnniversaryDeleteActionSchema = z.object({
+  clientId: z.string().min(1),
+  objectType: z.literal("ANNIVERSARY"),
+  actionType: z.literal("DELETE"),
+  targetId: z.string().min(1),
+  input: noActionInputSchema
+});
+
+const aiHabitCreateActionSchema = z.object({
+  clientId: z.string().min(1),
+  objectType: z.literal("HABIT"),
+  actionType: z.literal("CREATE"),
+  targetId: z.null(),
+  input: createHabitRequestSchema
+});
+
+const aiHabitUpdateActionSchema = z.object({
+  clientId: z.string().min(1),
+  objectType: z.literal("HABIT"),
+  actionType: z.literal("UPDATE"),
+  targetId: z.string().min(1),
+  input: updateHabitRequestSchema
+});
+
+const aiHabitTargetActionSchema = z.object({
+  clientId: z.string().min(1),
+  objectType: z.literal("HABIT"),
+  actionType: z.enum(["DELETE", "ARCHIVE", "RESTORE"]),
+  targetId: z.string().min(1),
+  input: noActionInputSchema
+});
+
+const aiHabitCheckInActionSchema = z.object({
+  clientId: z.string().min(1),
+  objectType: z.literal("HABIT_CHECKIN"),
+  actionType: z.literal("CHECK_IN"),
+  targetId: z.string().min(1),
+  input: habitCheckInRequestSchema
+});
+
+const aiHabitCancelCheckInActionSchema = z.object({
+  clientId: z.string().min(1),
+  objectType: z.literal("HABIT_CHECKIN"),
+  actionType: z.literal("CANCEL_CHECK_IN"),
+  targetId: z.string().min(1),
+  input: z.object({
+    date: z.string().refine(isValidDateKey, "Date must be a valid YYYY-MM-DD value")
+  })
+});
+
+export const aiActionSchema = z.union([
+  aiTaskCreateActionSchema,
+  aiTaskUpdateActionSchema,
+  aiTaskDeleteActionSchema,
+  aiAnniversaryCreateActionSchema,
+  aiAnniversaryUpdateActionSchema,
+  aiAnniversaryDeleteActionSchema,
+  aiHabitCreateActionSchema,
+  aiHabitUpdateActionSchema,
+  aiHabitTargetActionSchema,
+  aiHabitCheckInActionSchema,
+  aiHabitCancelCheckInActionSchema
+]);
+
+export const aiModelResultSchema = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal("answer"),
+    text: z.string().trim().min(1).max(4000),
+    records: z.array(z.object({
+      objectType: z.enum(aiObjectTypeValues),
+      id: z.string().min(1)
+    })).max(50)
+  }),
+  z.object({
+    type: z.literal("clarification"),
+    prompt: z.string().trim().min(1).max(1000),
+    candidates: z.array(z.object({
+      objectType: z.enum(aiObjectTypeValues),
+      id: z.string().min(1),
+      label: z.string().trim().min(1).max(240)
+    })).max(20)
+  }),
+  z.object({
+    type: z.literal("proposal"),
+    summary: z.string().trim().min(1).max(1000),
+    actions: z.array(aiActionSchema).min(1).max(50)
+  })
+]);
+
+export const createAiSessionRequestSchema = z.object({}).strict();
+export const updateAiSessionRequestSchema = z.object({
+  title: z.string().trim().min(1).max(160)
+});
+export const sendAiMessageRequestSchema = z.object({
+  content: z.string().trim().min(1).max(4000)
+});
+export const updateAiProposalRequestSchema = z.object({
+  version: z.number().int().min(1),
+  actions: z.array(aiActionSchema).min(1).max(50)
+});
+export const confirmAiProposalRequestSchema = z.object({
+  version: z.number().int().min(1),
+  idempotencyKey: z.string().uuid()
+});
+export const cancelAiProposalRequestSchema = z.object({
+  version: z.number().int().min(1)
+});
+
 export const printShareConfigSchema = z.object({
   templateId: z.enum(printTemplateIdValues),
   maxHeightMm: z.number().int().min(40).max(1000).optional().nullable(),
@@ -511,7 +681,8 @@ export const appFeatureFlagsSchema = z.object({
   taskQuadrant: z.boolean(),
   floatingCard: z.boolean(),
   anniversaries: z.boolean(),
-  habits: z.boolean()
+  habits: z.boolean(),
+  aiAssistant: z.boolean()
 });
 
 export const appBootstrapResponseSchema = z.object({
@@ -531,7 +702,8 @@ export const defaultAppFeatureFlags = {
   taskQuadrant: true,
   floatingCard: true,
   anniversaries: true,
-  habits: true
+  habits: true,
+  aiAssistant: true
 } satisfies AppFeatureFlags;
 
 export type RegisterRequest = z.infer<typeof registerRequestSchema>;
@@ -556,6 +728,14 @@ export type HabitDetailQuery = z.infer<typeof habitDetailQuerySchema>;
 export type CreateTaskRequest = z.infer<typeof createTaskRequestSchema>;
 export type UpdateTaskRequest = z.infer<typeof updateTaskRequestSchema>;
 export type UpdateTaskOrderRequest = z.infer<typeof updateTaskOrderRequestSchema>;
+export type AiAction = z.infer<typeof aiActionSchema>;
+export type AiModelResult = z.infer<typeof aiModelResultSchema>;
+export type CreateAiSessionRequest = z.infer<typeof createAiSessionRequestSchema>;
+export type UpdateAiSessionRequest = z.infer<typeof updateAiSessionRequestSchema>;
+export type SendAiMessageRequest = z.infer<typeof sendAiMessageRequestSchema>;
+export type UpdateAiProposalRequest = z.infer<typeof updateAiProposalRequestSchema>;
+export type ConfirmAiProposalRequest = z.infer<typeof confirmAiProposalRequestSchema>;
+export type CancelAiProposalRequest = z.infer<typeof cancelAiProposalRequestSchema>;
 export type CreatePrintShareRequest = z.infer<typeof createPrintShareRequestSchema>;
 export type PrintShareConfig = z.infer<typeof printShareConfigSchema>;
 export type PrintTasksSource = z.infer<typeof printTasksSourceSchema>;
@@ -593,6 +773,12 @@ export type FooterType = (typeof footerTypeValues)[number];
 export type TitleColor = (typeof titleColorValues)[number];
 export type PomodoroStatus = (typeof pomodoroStatusValues)[number];
 export type UserGender = (typeof userGenderValues)[number];
+export type AiObjectType = (typeof aiObjectTypeValues)[number];
+export type AiProposalStatus = (typeof aiProposalStatusValues)[number];
+export type AiActionItemStatus = (typeof aiActionItemStatusValues)[number];
+export type AiMessageRole = (typeof aiMessageRoleValues)[number];
+export type AiMessageKind = (typeof aiMessageKindValues)[number];
+export type AiChangedDomain = "tasks" | "anniversaries" | "habits";
 export type AppFeatureFlags = z.infer<typeof appFeatureFlagsSchema>;
 export type AppBootstrapResponse = z.infer<typeof appBootstrapResponseSchema>;
 
@@ -631,6 +817,63 @@ export interface ApiPrintShare {
 
 export interface ApiPrintShareResponse {
   printShare: ApiPrintShare;
+}
+
+export interface ApiAiSession {
+  id: string;
+  title: string;
+  summary: string | null;
+  lastMessageAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ApiAiActionItem {
+  id: string;
+  position: number;
+  objectType: AiObjectType;
+  actionType: AiAction["actionType"];
+  targetId: string | null;
+  input: AiAction["input"];
+  targetSnapshot: Record<string, unknown> | null;
+  status: AiActionItemStatus;
+  result: Record<string, unknown> | null;
+  errorCode: string | null;
+  errorMessage: string | null;
+}
+
+export interface ApiAiProposal {
+  id: string;
+  sessionId: string;
+  messageId: string;
+  status: AiProposalStatus;
+  version: number;
+  expiresAt: string;
+  createdAt: string;
+  updatedAt: string;
+  items: ApiAiActionItem[];
+}
+
+export interface ApiAiMessage {
+  id: string;
+  sessionId: string;
+  role: AiMessageRole;
+  kind: AiMessageKind;
+  content: string;
+  metadata: {
+    records?: Array<{
+      objectType: AiObjectType;
+      id: string;
+      data: Record<string, unknown>;
+    }>;
+    candidates?: Array<{
+      objectType: AiObjectType;
+      id: string;
+      label: string;
+    }>;
+    proposal?: ApiAiProposal;
+  } | null;
+  createdAt: string;
 }
 
 export interface AuthTokens {

@@ -75,3 +75,88 @@ describe("api client auth refresh", () => {
     window.removeEventListener(authSessionExpiredEvent, sessionExpired);
   });
 });
+
+describe("AI assistant api client", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    localStorage.setItem("tododesk.accessToken", "access-token");
+    vi.unstubAllGlobals();
+  });
+
+  it("sends messages to the selected session", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(200, {
+      userMessage: { id: "message-1" },
+      assistantMessage: { id: "message-2" }
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await api.sendAiMessage("session/1", { content: " 明天买咖啡豆 " });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/ai/sessions/session%2F1/messages"),
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ content: "明天买咖啡豆" })
+      })
+    );
+  });
+
+  it("sends versioned proposal edits", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(200, {
+      proposal: { id: "proposal-1" }
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await api.updateAiProposal("proposal-1", {
+      version: 2,
+      actions: [{
+        clientId: "action-1",
+        objectType: "TASK",
+        actionType: "UPDATE",
+        targetId: "task-1",
+        input: { title: "提交周报" }
+      }]
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/ai/proposals/proposal-1"),
+      expect.objectContaining({
+        method: "PATCH",
+        body: JSON.stringify({
+          version: 2,
+          actions: [{
+            clientId: "action-1",
+            objectType: "TASK",
+            actionType: "UPDATE",
+            targetId: "task-1",
+            input: { title: "提交周报" }
+          }]
+        })
+      })
+    );
+  });
+
+  it("confirms proposals with a version and idempotency key", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(200, {
+      proposal: { id: "proposal-1", status: "SUCCEEDED" },
+      changedDomains: ["tasks"]
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await api.confirmAiProposal("proposal-1", {
+      version: 2,
+      idempotencyKey: "86b5957a-3d25-4d74-8b4f-cd49566baf2f"
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/ai/proposals/proposal-1/confirm"),
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          version: 2,
+          idempotencyKey: "86b5957a-3d25-4d74-8b4f-cd49566baf2f"
+        })
+      })
+    );
+  });
+});

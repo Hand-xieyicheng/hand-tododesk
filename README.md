@@ -110,6 +110,27 @@ FEATURE_FLAGS_JSON={"calendar":true,"pomodoro":true,"taskQuadrant":true,"floatin
 
 `UPLOAD_STORAGE_DIR` 用于保存用户上传的头像和备忘录图片。生产环境必须指向发布目录之外的持久化目录或挂载卷，例如 `/var/lib/tododesk/uploads`；发版时不要删除该目录。服务启动时会尝试把旧版 `apps/api/public/avatar` 和 `apps/api/public/memo-assets` 中已有的文件复制到新的持久化目录。
 
+## AI 助手
+
+AI 助手由 API 服务调用 DeepSeek，桌面端不会读取或保存 API Key。所有新增、编辑、删除和打卡操作都会先生成可编辑提案，只有用户明确确认后才会写入。
+
+在 `apps/api/.env` 配置以下服务端变量：
+
+- `DEEPSEEK_API_KEY`
+- `DEEPSEEK_API_URL=https://api.deepseek.com/v1/chat/completions`
+- `DEEPSEEK_MODEL=deepseek-v4-pro`
+- `DEEPSEEK_TIMEOUT_MS=45000`
+
+只有 `DEEPSEEK_API_KEY` 非空，且 `FEATURE_FLAGS_JSON` 未将 `aiAssistant` 设为 `false` 时，`/app/bootstrap` 才会向桌面端开放 AI 入口。修改环境变量后需要重启 API 服务。
+
+真实 API 冒烟测试必须显式执行：
+
+```bash
+RUN_DEEPSEEK_SMOKE=true npm test -w @todo/api -- src/services/deepseek-smoke.test.ts
+```
+
+运行前请在当前 shell 或 `apps/api/.env` 中配置一个已轮换的测试 Key。默认 `npm test` 会跳过该测试，不会访问外部 AI 服务，也不会发送生产用户数据。
+
 ## macOS 使用教程
 
 1. 启动后端服务。桌面 App 默认连接本机 `http://127.0.0.1:4020`，因此需要先配置 `apps/api/.env`、初始化数据库，并运行：

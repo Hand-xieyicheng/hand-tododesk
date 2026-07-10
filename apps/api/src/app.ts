@@ -6,6 +6,7 @@ import { ZodError } from "zod";
 import { appOrigins, config } from "./config.js";
 import { authPlugin } from "./plugins/auth.js";
 import { anniversaryRoutes } from "./routes/anniversaries.js";
+import { createAiRoutes, createProductionAiDependencies } from "./routes/ai.js";
 import { appBootstrapRoutes } from "./routes/app-bootstrap.js";
 import { authRoutes } from "./routes/auth.js";
 import { habitRoutes } from "./routes/habits.js";
@@ -93,6 +94,7 @@ export async function buildApp() {
   await authPlugin(app);
   await app.register(appBootstrapRoutes);
   await app.register(authRoutes);
+  await app.register(createAiRoutes(createProductionAiDependencies(config)));
   await app.register(anniversaryRoutes);
   await app.register(habitRoutes);
   await app.register(memoRoutes);

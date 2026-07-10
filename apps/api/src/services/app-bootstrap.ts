@@ -6,6 +6,7 @@ export interface AppBootstrapConfig {
   DESKTOP_LATEST_VERSION: string;
   DESKTOP_UPDATE_ENDPOINT: string;
   FEATURE_FLAGS_JSON: string;
+  DEEPSEEK_API_KEY: string;
 }
 
 const partialFeatureFlagsSchema = appFeatureFlagsSchema.partial();
@@ -27,6 +28,7 @@ export function parseFeatureFlags(raw: string): AppFeatureFlags {
 }
 
 export function buildAppBootstrap(config: AppBootstrapConfig): AppBootstrapResponse {
+  const parsedFlags = parseFeatureFlags(config.FEATURE_FLAGS_JSON);
   return appBootstrapResponseSchema.parse({
     apiVersion: config.API_VERSION,
     releaseChannel: "stable",
@@ -35,6 +37,9 @@ export function buildAppBootstrap(config: AppBootstrapConfig): AppBootstrapRespo
       latestVersion: config.DESKTOP_LATEST_VERSION,
       updateEndpoint: config.DESKTOP_UPDATE_ENDPOINT
     },
-    featureFlags: parseFeatureFlags(config.FEATURE_FLAGS_JSON)
+    featureFlags: {
+      ...parsedFlags,
+      aiAssistant: parsedFlags.aiAssistant && Boolean(config.DEEPSEEK_API_KEY.trim())
+    }
   });
 }

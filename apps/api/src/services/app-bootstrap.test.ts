@@ -8,7 +8,8 @@ const baseConfig = {
   DESKTOP_MIN_VERSION: "0.1.0",
   DESKTOP_LATEST_VERSION: "0.2.29",
   DESKTOP_UPDATE_ENDPOINT: "https://github.com/Hand-xieyicheng/hand-tododesk/releases/latest/download/latest.json",
-  FEATURE_FLAGS_JSON: ""
+  FEATURE_FLAGS_JSON: "",
+  DEEPSEEK_API_KEY: "configured-test-key"
 };
 
 describe("app bootstrap", () => {
@@ -26,7 +27,10 @@ describe("app bootstrap", () => {
       desktop: {
         updateEndpoint: "https://github.com/Hand-xieyicheng/hand-tododesk/releases/latest/download/latest.json"
       },
-      featureFlags: defaultAppFeatureFlags
+      featureFlags: {
+        ...defaultAppFeatureFlags,
+        aiAssistant: false
+      }
     });
   });
 
@@ -59,5 +63,17 @@ describe("app bootstrap", () => {
   it("falls back to defaults for invalid feature flag JSON", () => {
     expect(parseFeatureFlags("{not-json")).toEqual(defaultAppFeatureFlags);
     expect(parseFeatureFlags(JSON.stringify({ calendar: "yes" }))).toEqual(defaultAppFeatureFlags);
+  });
+
+  it("exposes AI only when both the feature flag and server key are configured", () => {
+    expect(buildAppBootstrap(baseConfig).featureFlags.aiAssistant).toBe(true);
+    expect(buildAppBootstrap({
+      ...baseConfig,
+      DEEPSEEK_API_KEY: ""
+    }).featureFlags.aiAssistant).toBe(false);
+    expect(buildAppBootstrap({
+      ...baseConfig,
+      FEATURE_FLAGS_JSON: JSON.stringify({ aiAssistant: false })
+    }).featureFlags.aiAssistant).toBe(false);
   });
 });

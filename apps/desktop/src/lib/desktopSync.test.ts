@@ -140,4 +140,33 @@ describe("desktopSync", () => {
 
     unsubscribe();
   });
+
+  it("handles validated external domain reload events", () => {
+    const listener = vi.fn();
+    const unsubscribe = listenDesktopSyncEvents(listener);
+
+    window.dispatchEvent(new CustomEvent(desktopSyncBrowserEventName, {
+      detail: {
+        domains: ["tasks", "anniversaries", "habits"],
+        sourceId: "ai-assistant",
+        type: "domain-data:reload-requested"
+      }
+    }));
+    window.dispatchEvent(new CustomEvent(desktopSyncBrowserEventName, {
+      detail: {
+        domains: ["unknown"],
+        sourceId: "invalid-window",
+        type: "domain-data:reload-requested"
+      }
+    }));
+
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(listener).toHaveBeenCalledWith({
+      domains: ["tasks", "anniversaries", "habits"],
+      sourceId: "ai-assistant",
+      type: "domain-data:reload-requested"
+    });
+
+    unsubscribe();
+  });
 });

@@ -472,6 +472,16 @@ export function FloatingCard() {
       }
       if (event.type === "habit-board:reload-requested") {
         void loadHabitShortcuts();
+        return;
+      }
+      if (event.type === "domain-data:reload-requested") {
+        if (event.domains.includes("tasks")) {
+          void loadData({ silent: true });
+          return;
+        }
+        if (event.domains.includes("habits")) {
+          void loadHabitShortcuts();
+        }
       }
     });
   }, []);
