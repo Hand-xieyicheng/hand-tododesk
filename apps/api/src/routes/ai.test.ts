@@ -16,7 +16,7 @@ import { authPlugin } from "../plugins/auth.js";
 import { AiStoreConflictError, type AiStore } from "../services/ai-store.js";
 import { AiActionExecutor } from "../services/ai-executor.js";
 import { AiOrchestrator } from "../services/ai-orchestrator.js";
-import { createAiToolContext, type ObservedRecord } from "../services/ai-tools.js";
+import { AiToolError, createAiToolContext, type ObservedRecord } from "../services/ai-tools.js";
 import type { DeepSeekAssistantMessage } from "../services/deepseek-client.js";
 import { signAccessToken } from "../services/tokens.js";
 import {
@@ -515,6 +515,23 @@ describe("AI routes", () => {
     );
     expect(response.statusCode).toBe(503);
     expect(response.json()).toEqual({ error: "AI assistant is not configured" });
+  });
+
+  it("returns 422 when the model supplies invalid tool arguments", async () => {
+    const deps = createDependencies();
+    vi.mocked(deps.orchestrator.processUserMessage).mockRejectedValueOnce(
+      new AiToolError("INVALID_ARGUMENTS", "AI tool arguments are invalid")
+    );
+
+    const response = await injectAi(
+      deps,
+      "POST",
+      "/ai/sessions/session-1/messages",
+      { content: "我今天有哪些待办？" }
+    );
+
+    expect(response.statusCode).toBe(422);
+    expect(response.json()).toEqual({ error: "AI tool arguments are invalid" });
   });
 
   it("scopes session and message operations to the authenticated user", async () => {

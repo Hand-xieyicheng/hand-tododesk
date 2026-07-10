@@ -41,7 +41,6 @@ export function AiAssistant({ enabled, onDomainsChanged }: AiAssistantProps) {
                 <strong>AI 助手</strong>
                 <span>待办 · 纪念日 · 习惯</span>
               </div>
-              {state.sending ? <small>正在思考…</small> : null}
             </header>
             {state.error ? (
               <div className="ai-assistant-error" role="alert">{state.error}</div>
@@ -52,6 +51,7 @@ export function AiAssistant({ enabled, onDomainsChanged }: AiAssistantProps) {
               ) : (
                 <AiMessageList
                   messages={state.messages}
+                  thinking={state.sending}
                   onDomainsChanged={onDomainsChanged}
                   onProposalChanged={state.replaceProposal}
                 />

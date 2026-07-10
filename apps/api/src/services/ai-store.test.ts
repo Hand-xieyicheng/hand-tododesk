@@ -171,6 +171,50 @@ describe("AI store", () => {
     );
   });
 
+  it("hydrates proposal messages with the current persisted status and item results", async () => {
+    const store = createAiStore();
+    db.queryOne
+      .mockResolvedValueOnce(sessionRow())
+      .mockResolvedValueOnce(proposalRow({ status: "SUCCEEDED" }));
+    db.queryRows
+      .mockResolvedValueOnce([
+        messageRow({
+          id: "message-2",
+          role: "ASSISTANT",
+          kind: "PROPOSAL",
+          metadataJson: {
+            proposal: {
+              id: "proposal-1",
+              sessionId: "session-1",
+              messageId: "message-2",
+              status: "PENDING_CONFIRMATION",
+              version: 1,
+              expiresAt: "2026-07-10T12:30:00.000Z",
+              createdAt: now.toISOString(),
+              updatedAt: now.toISOString(),
+              items: []
+            }
+          }
+        })
+      ])
+      .mockResolvedValueOnce([
+        itemRow({ status: "SUCCEEDED", resultJson: { id: "task-1" } })
+      ]);
+
+    const result = await store.listMessages("user-1", "session-1");
+
+    expect(result.messages[0]?.metadata?.proposal).toMatchObject({
+      id: "proposal-1",
+      status: "SUCCEEDED",
+      items: [
+        expect.objectContaining({
+          status: "SUCCEEDED",
+          result: { id: "task-1" }
+        })
+      ]
+    });
+  });
+
   it("creates proposals from observed snapshots and enforces edit versions", async () => {
     const store = createAiStore();
     const observed = new ObservedRecordRegistry();

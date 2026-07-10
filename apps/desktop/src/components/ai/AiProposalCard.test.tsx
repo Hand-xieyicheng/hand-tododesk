@@ -146,4 +146,27 @@ describe("AiProposalCard", () => {
     fireEvent.click(screen.getByRole("button", { name: "重试失败项" }));
     await waitFor(() => expect(apiMock.retryAiProposal).toHaveBeenCalledOnce());
   });
+
+  it("keeps a succeeded proposal read-only after conversation reload", () => {
+    render(
+      <AiProposalCard
+        proposal={proposal({
+          status: "SUCCEEDED",
+          items: [{
+            ...proposal().items[0]!,
+            status: "SUCCEEDED",
+            result: { id: "task-1" }
+          }]
+        })}
+        onChanged={vi.fn()}
+        onDomainsChanged={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText("执行成功")).toBeInTheDocument();
+    expect(screen.getByText("已完成", { selector: ".ai-action-result" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "取消提案" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "保存修改" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "确认执行" })).not.toBeInTheDocument();
+  });
 });

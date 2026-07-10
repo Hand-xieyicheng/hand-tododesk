@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ApiAiMessage, ApiAiProposal, ApiAiSession } from "@todo/shared";
 import { AiAssistant } from "./AiAssistant";
@@ -156,6 +156,47 @@ describe("AiAssistant", () => {
 
     fireEvent.keyDown(composer, { key: "Enter" });
     await waitFor(() => expect(apiMock.sendAiMessage).toHaveBeenCalledTimes(1));
+  });
+
+  it("shows the sent message immediately with thinking status directly below it", async () => {
+    let resolveSend: ((value: {
+      userMessage: ApiAiMessage;
+      assistantMessage: ApiAiMessage;
+    }) => void) | undefined;
+    apiMock.sendAiMessage.mockReturnValue(new Promise((resolve) => {
+      resolveSend = resolve;
+    }));
+
+    const { container } = render(<AiAssistant enabled onDomainsChanged={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "打开 AI 助手" }));
+    const composer = await screen.findByRole("textbox", { name: "给 AI 助手发送消息" });
+    fireEvent.change(composer, { target: { value: "我今天喝咖啡了" } });
+    fireEvent.click(screen.getByRole("button", { name: "发送消息" }));
+
+    await waitFor(() => expect(container.querySelector<HTMLElement>(".ai-message.is-user")).not.toBeNull());
+    const messageArticle = container.querySelector<HTMLElement>(".ai-message.is-user")!;
+    expect(within(messageArticle).getByText("我今天喝咖啡了")).toBeInTheDocument();
+    expect(within(messageArticle).getByText("思考中…")).toBeInTheDocument();
+    expect(screen.queryByText("正在思考…")).not.toBeInTheDocument();
+    expect(composer).toHaveValue("");
+
+    await act(async () => {
+      resolveSend?.({
+        userMessage: textMessage({
+          id: "message-user",
+          role: "USER",
+          content: "我今天喝咖啡了"
+        }),
+        assistantMessage: textMessage({
+          id: "message-answer",
+          content: "已记录"
+        })
+      });
+    });
+
+    expect(await screen.findByText("已记录")).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText("思考中…")).not.toBeInTheDocument());
+    expect(screen.getAllByText("我今天喝咖啡了")).toHaveLength(1);
   });
 
   it("renders query result records", async () => {

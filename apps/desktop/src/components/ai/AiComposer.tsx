@@ -20,13 +20,13 @@ export function AiComposer({
 }: AiComposerProps) {
   const [draft, setDraft] = useState("");
 
-  async function submit() {
+  function submit() {
     const content = draft.trim();
     if (!content || disabled) {
       return;
     }
-    await onSend(content);
     setDraft("");
+    void onSend(content);
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
@@ -34,7 +34,7 @@ export function AiComposer({
       return;
     }
     event.preventDefault();
-    void submit();
+    submit();
   }
 
   return (
@@ -67,7 +67,7 @@ export function AiComposer({
           aria-label="发送消息"
           disabled={disabled || !draft.trim()}
           type="button"
-          onClick={() => void submit()}
+          onClick={submit}
         >
           <Send aria-hidden="true" size={17} />
         </button>
